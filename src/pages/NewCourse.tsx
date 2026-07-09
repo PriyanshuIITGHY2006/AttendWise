@@ -17,13 +17,14 @@ type ScheduleDraft = {
   componentType: "lecture" | "lab" | "tutorial"
 }
 
-function emptySlot(): ScheduleDraft {
-  return { dayOfWeek: 0, startTime: "09:00", endTime: "10:00", room: "", componentType: "lecture" }
+function emptySlot(componentType: ScheduleDraft["componentType"] = "lecture"): ScheduleDraft {
+  return { dayOfWeek: 0, startTime: "09:00", endTime: "10:00", room: "", componentType }
 }
 
 export function NewCourse() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const [courseType, setCourseType] = useState<"course" | "lab">("course")
   const [name, setName] = useState("")
   const [code, setCode] = useState("")
   const [instructor, setInstructor] = useState("")
@@ -69,6 +70,7 @@ export function NewCourse() {
         instructor: instructor || null,
         semester,
         color,
+        course_type: courseType,
         attendance_threshold: threshold,
         semester_start: semesterStart,
         semester_end: semesterEnd,
@@ -99,6 +101,26 @@ export function NewCourse() {
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-6">
         <Card className="space-y-4">
+          <div>
+            <Label>Type</Label>
+            <div className="inline-flex rounded-md border border-neutral-300 p-0.5 dark:border-neutral-700">
+              {(["course", "lab"] as const).map((t) => (
+                <button
+                  type="button"
+                  key={t}
+                  onClick={() => setCourseType(t)}
+                  className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                    courseType === t
+                      ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                      : "text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="name">Course name</Label>
@@ -157,7 +179,11 @@ export function NewCourse() {
         <Card className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-medium">Weekly schedule</h2>
-            <Button type="button" variant="secondary" onClick={() => setSlots((prev) => [...prev, emptySlot()])}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setSlots((prev) => [...prev, emptySlot(courseType === "lab" ? "lab" : "lecture")])}
+            >
               Add slot
             </Button>
           </div>

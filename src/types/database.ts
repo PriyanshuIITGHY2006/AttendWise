@@ -51,6 +51,54 @@ export type Database = {
           },
         ]
       }
+      course_events: {
+        Row: {
+          course_id: string
+          created_at: string
+          event_date: string
+          event_type: string
+          id: string
+          notes: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          course_id: string
+          created_at?: string
+          event_date: string
+          event_type?: string
+          id?: string
+          notes?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          course_id?: string
+          created_at?: string
+          event_date?: string
+          event_type?: string
+          id?: string
+          notes?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_events_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "course_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_schedule: {
         Row: {
           component_type: string
@@ -98,6 +146,7 @@ export type Database = {
           attendance_threshold: number
           code: string | null
           color: string
+          course_type: string
           created_at: string
           id: string
           instructor: string | null
@@ -112,6 +161,7 @@ export type Database = {
           attendance_threshold?: number
           code?: string | null
           color?: string
+          course_type?: string
           created_at?: string
           id?: string
           instructor?: string | null
@@ -126,6 +176,7 @@ export type Database = {
           attendance_threshold?: number
           code?: string | null
           color?: string
+          course_type?: string
           created_at?: string
           id?: string
           instructor?: string | null

@@ -3,20 +3,28 @@ import { Link, Navigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
+import { MicrosoftButton } from "../components/ui/MicrosoftButton"
+
+const IITG_EMAIL = /@iitg\.ac\.in$/i
 
 export function SignUp() {
-  const { session, signUp } = useAuth()
+  const { session, signUp, signInWithMicrosoft } = useAuth()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [msSubmitting, setMsSubmitting] = useState(false)
 
   if (session) return <Navigate to="/" replace />
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (!IITG_EMAIL.test(email)) {
+      setError("Only @iitg.ac.in email addresses can sign up.")
+      return
+    }
     setSubmitting(true)
     setError(null)
     const { error } = await signUp(email, password, fullName)
@@ -26,6 +34,16 @@ export function SignUp() {
       return
     }
     setSubmitted(true)
+  }
+
+  async function handleMicrosoft() {
+    setMsSubmitting(true)
+    setError(null)
+    const { error } = await signInWithMicrosoft()
+    if (error) {
+      setError(error)
+      setMsSubmitting(false)
+    }
   }
 
   if (submitted) {
@@ -48,6 +66,15 @@ export function SignUp() {
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center text-xl font-semibold tracking-tight">AttendWise</div>
+
+        <MicrosoftButton onClick={handleMicrosoft} disabled={msSubmitting} />
+
+        <div className="my-5 flex items-center gap-3 text-xs text-neutral-400">
+          <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+          or
+          <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <Label htmlFor="fullName">Full name</Label>

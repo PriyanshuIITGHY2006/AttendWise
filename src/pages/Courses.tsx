@@ -70,6 +70,7 @@ export function Courses() {
                     <div className="flex items-center gap-2">
                       <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
                       <span className="truncate font-medium">{c.name}</span>
+                      {c.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
                     </div>
                     {c.code && <p className="mt-0.5 text-sm text-neutral-500">{c.code}</p>}
                   </div>

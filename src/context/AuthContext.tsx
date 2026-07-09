@@ -13,6 +13,7 @@ type AuthContextValue = {
   loading: boolean
   signInWithPassword: (email: string, password: string) => Promise<{ error: string | null }>
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: string | null }>
+  signInWithMicrosoft: () => Promise<{ error: string | null }>
   signOut: () => Promise<void>
 }
 
@@ -66,6 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error?.message ?? null }
   }
 
+  async function signInWithMicrosoft() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "azure",
+      options: {
+        redirectTo: window.location.origin + import.meta.env.BASE_URL,
+        scopes: "email openid profile",
+        // Nudges the Microsoft login screen toward the IITG tenant; the
+        // database trigger is what actually enforces the @iitg.ac.in
+        // restriction, this is just a UX shortcut.
+        queryParams: { domain_hint: "iitg.ac.in" },
+      },
+    })
+    return { error: error?.message ?? null }
+  }
+
   async function signOut() {
     await supabase.auth.signOut()
   }
@@ -80,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading,
         signInWithPassword,
         signUp,
+        signInWithMicrosoft,
         signOut,
       }}
     >

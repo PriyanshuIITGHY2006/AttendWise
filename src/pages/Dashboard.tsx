@@ -2,11 +2,20 @@ import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { listTodaySessions, markAttendance, listCourses } from "../features/courses/api"
+import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 
 type TodaySession = Awaited<ReturnType<typeof listTodaySessions>>[number]
+type UpcomingEvent = CourseEvent & { courses: { name: string; color: string } | null }
+
+const EVENT_TYPE_LABELS: Record<CourseEvent["event_type"], string> = {
+  quiz: "Quiz",
+  assignment: "Assignment",
+  exam: "Exam",
+  other: "Other",
+}
 
 function todayISO() {
   const d = new Date()
@@ -16,18 +25,21 @@ function todayISO() {
 export function Dashboard() {
   const { user } = useAuth()
   const [sessions, setSessions] = useState<TodaySession[]>([])
+  const [upcoming, setUpcoming] = useState<UpcomingEvent[]>([])
   const [courseCount, setCourseCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [today, courses] = await Promise.all([
+    const [today, courses, events] = await Promise.all([
       listTodaySessions(user.id, todayISO()),
       listCourses(user.id),
+      listUpcomingEvents(user.id),
     ])
     setSessions(today)
     setCourseCount(courses.length)
+    setUpcoming((events as UpcomingEvent[]).slice(0, 5))
     setLoading(false)
   }, [user])
 
@@ -102,6 +114,29 @@ export function Dashboard() {
               </Card>
             )
           })}
+        </div>
+      )}
+
+      {upcoming.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-sm font-medium text-neutral-500">Upcoming</h2>
+          <div className="mt-3 space-y-2">
+            {upcoming.map((ev) => (
+              <Card key={ev.id} className="flex items-center justify-between gap-3 py-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  {ev.courses && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ev.courses.color }} />}
+                  <span className="truncate text-sm font-medium">{ev.title}</span>
+                  <span className="shrink-0 text-sm text-neutral-500">{ev.courses?.name}</span>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Badge tone="yellow">{EVENT_TYPE_LABELS[ev.event_type]}</Badge>
+                  <span className="text-sm text-neutral-500">
+                    {new Date(ev.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </span>
+                </div>
+              </Card>
+            ))}
+          </div>
         </div>
       )}
     </div>

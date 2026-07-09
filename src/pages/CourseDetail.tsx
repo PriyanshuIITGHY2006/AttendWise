@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, type FormEvent } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import {
@@ -15,10 +15,12 @@ import {
   type AttendanceRecord,
   type CourseSchedule,
 } from "../features/courses/api"
+import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
 import { computeBunkSafety } from "../features/attendance/bunkSafety"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
+import { Input, Label } from "../components/ui/Input"
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -84,6 +86,7 @@ export function CourseDetail() {
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: course.color }} />
             <h1 className="text-xl font-semibold tracking-tight">{course.name}</h1>
+            {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
           </div>
           <p className="mt-1 text-sm text-neutral-500">
             {[course.code, course.instructor, course.semester].filter(Boolean).join(" · ")}
@@ -134,6 +137,11 @@ export function CourseDetail() {
       </Card>
 
       <Card className="mt-6">
+        <h2 className="font-medium">Quizzes & assignments</h2>
+        <EventsList courseId={course.id} />
+      </Card>
+
+      <Card className="mt-6">
         <h2 className="font-medium">History</h2>
         {pastSessions.length === 0 ? (
           <p className="mt-3 text-sm text-neutral-500">No past sessions yet.</p>
@@ -167,6 +175,97 @@ export function CourseDetail() {
           </div>
         )}
       </Card>
+    </div>
+  )
+}
+
+const EVENT_TYPE_LABELS: Record<CourseEvent["event_type"], string> = {
+  quiz: "Quiz",
+  assignment: "Assignment",
+  exam: "Exam",
+  other: "Other",
+}
+
+function EventsList({ courseId }: { courseId: string }) {
+  const { user } = useAuth()
+  const [events, setEvents] = useState<CourseEvent[] | null>(null)
+  const [title, setTitle] = useState("")
+  const [eventType, setEventType] = useState<CourseEvent["event_type"]>("quiz")
+  const [eventDate, setEventDate] = useState("")
+  const [submitting, setSubmitting] = useState(false)
+
+  const load = useCallback(() => {
+    listEventsForCourse(courseId).then(setEvents)
+  }, [courseId])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault()
+    if (!user || !eventDate) return
+    setSubmitting(true)
+    await createEvent({ course_id: courseId, user_id: user.id, title, event_type: eventType, event_date: eventDate })
+    setTitle("")
+    setEventDate("")
+    setSubmitting(false)
+    load()
+  }
+
+  async function handleDelete(id: string) {
+    await deleteEvent(id)
+    load()
+  }
+
+  const todayISO = new Date().toISOString().slice(0, 10)
+
+  return (
+    <div className="mt-3">
+      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-2">
+        <div className="min-w-[10rem] flex-1">
+          <Label htmlFor="eventTitle">Title</Label>
+          <Input id="eventTitle" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz 2" />
+        </div>
+        <select
+          value={eventType}
+          onChange={(e) => setEventType(e.target.value as CourseEvent["event_type"])}
+          className="rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+        >
+          {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <Input type="date" required value={eventDate} onChange={(e) => setEventDate(e.target.value)} className="w-auto" />
+        <Button type="submit" disabled={submitting} variant="secondary">
+          Add
+        </Button>
+      </form>
+
+      {events === null ? (
+        <p className="mt-3 text-sm text-neutral-400">Loading…</p>
+      ) : events.length === 0 ? (
+        <p className="mt-3 text-sm text-neutral-500">Nothing added yet.</p>
+      ) : (
+        <div className="mt-4 divide-y divide-neutral-100 dark:divide-neutral-800">
+          {events.map((ev) => (
+            <div key={ev.id} className="flex items-center justify-between py-2 text-sm">
+              <div className="flex items-center gap-2">
+                <Badge tone={ev.event_date < todayISO ? "neutral" : "yellow"}>{EVENT_TYPE_LABELS[ev.event_type]}</Badge>
+                <span className="font-medium">{ev.title}</span>
+                <span className="text-neutral-500">
+                  {new Date(ev.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                </span>
+              </div>
+              <button onClick={() => handleDelete(ev.id)} className="text-neutral-400 hover:text-red-600">
+                Delete
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
