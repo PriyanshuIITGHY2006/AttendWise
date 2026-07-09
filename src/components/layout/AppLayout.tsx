@@ -1,66 +1,33 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { NavLink, Outlet } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { WelcomeSplash } from "./WelcomeSplash"
-import { SidebarStatus } from "./SidebarStatus"
+import { CommandPalette } from "./CommandPalette"
 import { Logomark } from "../ui/Logomark"
 import { RevealProvider } from "../../context/RevealContext"
+import { useOverallStatus } from "../../features/courses/useOverallStatus"
 
 const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
 
-const ICONS = {
-  today: <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
-  courses: (
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M4 6.5A2.5 2.5 0 0 1 6.5 4H12v16H6.5A2.5 2.5 0 0 0 4 22.5v-16ZM20 6.5A2.5 2.5 0 0 0 17.5 4H12v16h5.5a2.5 2.5 0 0 1 2.5 2.5v-16Z"
-    />
-  ),
-  calendar: (
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M7 3v3m10-3v3M4.5 8.5h15M6 6h12a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"
-    />
-  ),
-  materials: (
-    <path
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      d="M3.75 7.5a2 2 0 0 1 2-2h3.379a1 1 0 0 1 .707.293L11.5 7.5H18.25a2 2 0 0 1 2 2v8.25a2 2 0 0 1-2 2H5.75a2 2 0 0 1-2-2v-10Z"
-    />
-  ),
-  settings: (
-    <>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.75h4.5l.5 2.25a6.9 6.9 0 0 1 1.9 1.1l2.2-.7 2.25 3.9-1.75 1.5a7 7 0 0 1 0 2.2l1.75 1.5-2.25 3.9-2.2-.7a6.9 6.9 0 0 1-1.9 1.1l-.5 2.25h-4.5l-.5-2.25a6.9 6.9 0 0 1-1.9-1.1l-2.2.7-2.25-3.9 1.75-1.5a7 7 0 0 1 0-2.2l-1.75-1.5 2.25-3.9 2.2.7a6.9 6.9 0 0 1 1.9-1.1l.5-2.25Z" />
-      <circle cx="12" cy="12" r="2.75" />
-    </>
-  ),
+const STATUS_DOT: Record<string, string> = {
+  green: "bg-emerald-500",
+  yellow: "bg-amber-500",
+  red: "bg-red-500",
 }
 
-function NavIcon({ name }: { name: keyof typeof ICONS }) {
-  return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="shrink-0">
-      {ICONS[name]}
-    </svg>
-  )
-}
-
-function NavItem({ to, label, icon, end }: { to: string; label: string; icon: keyof typeof ICONS; end?: boolean }) {
+function NavItem({ to, label, end }: { to: string; label: string; end?: boolean }) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) =>
-        `flex items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+        `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
           isActive
             ? "bg-indigo-600 text-white"
-            : "text-neutral-600 hover:bg-neutral-200/60 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
         }`
       }
     >
-      <NavIcon name={icon} />
       {label}
     </NavLink>
   )
@@ -73,10 +40,55 @@ function initialsOf(name: string | null | undefined, email: string | undefined) 
   return source.slice(0, 2).toUpperCase()
 }
 
+function AccountMenu() {
+  const { profile, signOut } = useAuth()
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [open])
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
+      >
+        {initialsOf(profile?.full_name, profile?.email)}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+          <div className="truncate px-2.5 py-1.5 text-xs text-neutral-500">{profile?.email}</div>
+          <NavLink
+            to="/settings"
+            onClick={() => setOpen(false)}
+            className="block rounded-md px-2.5 py-1.5 text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+          >
+            Settings
+          </NavLink>
+          <button
+            onClick={signOut}
+            className="block w-full rounded-md px-2.5 py-1.5 text-left text-sm text-neutral-700 hover:bg-neutral-100 dark:text-neutral-200 dark:hover:bg-neutral-800"
+          >
+            Sign out
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export function AppLayout() {
-  const { profile, hasMaterialAccess, signOut } = useAuth()
+  const { hasMaterialAccess } = useAuth()
   const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) === "1")
   const [ready, setReady] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) !== "1")
+  const { courseCount, worstStatus } = useOverallStatus()
 
   useEffect(() => {
     if (showSplash) sessionStorage.removeItem(SPLASH_FLAG_KEY)
@@ -88,52 +100,44 @@ export function AppLayout() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col md:flex-row">
+    <div className="min-h-screen">
       {showSplash && <WelcomeSplash onDone={handleSplashDone} />}
+      <CommandPalette hasMaterialAccess={hasMaterialAccess} />
 
-      <aside className="flex shrink-0 flex-col border-b border-neutral-200 bg-neutral-50/60 px-4 py-4 md:w-60 md:border-b-0 md:border-r md:px-5 md:py-9 dark:border-neutral-800 dark:bg-neutral-900/40">
-        <div className="mb-5 flex items-center gap-2">
-          <Logomark />
-          <span className="text-[15px] font-semibold tracking-tight">AttendWise</span>
-        </div>
-
-        <div className="mb-6 hidden md:block">
-          <SidebarStatus />
-        </div>
-
-        <nav className="flex flex-1 gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-          <p className="hidden px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400 md:block">Overview</p>
-          <NavItem to="/" label="Today" icon="today" end />
-          <NavItem to="/courses" label="Courses" icon="courses" />
-          <NavItem to="/calendar" label="Calendar" icon="calendar" />
-
-          {hasMaterialAccess && (
-            <>
-              <p className="hidden px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-neutral-400 md:block">
-                Shared
-              </p>
-              <NavItem to="/materials" label="Materials" icon="materials" />
-            </>
-          )}
-        </nav>
-
-        <div className="mt-4 border-t border-neutral-200 pt-3 dark:border-neutral-800 md:mt-auto">
-          <NavItem to="/settings" label="Settings" icon="settings" />
-          <div className="mt-3 hidden items-center gap-2.5 px-1 md:flex">
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
-              {initialsOf(profile?.full_name, profile?.email)}
-            </span>
-            <div className="min-w-0">
-              <div className="truncate text-xs text-neutral-500">{profile?.email}</div>
-              <button onClick={signOut} className="text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100">
-                Sign out
-              </button>
-            </div>
+      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
+        <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:px-6">
+          <div className="mr-3 flex items-center gap-2">
+            <Logomark size={24} />
+            <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">AttendWise</span>
           </div>
-        </div>
-      </aside>
 
-      <main className="flex-1 px-4 py-6 md:px-10 md:py-9">
+          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
+            <NavItem to="/" label="Today" end />
+            <NavItem to="/courses" label="Courses" />
+            <NavItem to="/calendar" label="Calendar" />
+            {hasMaterialAccess && <NavItem to="/materials" label="Materials" />}
+          </nav>
+
+          {courseCount !== null && courseCount > 0 && (
+            <span className="mr-1 hidden items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 md:flex dark:bg-neutral-800 dark:text-neutral-300">
+              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[worstStatus]}`} />
+              {courseCount} course{courseCount === 1 ? "" : "s"}
+            </span>
+          )}
+
+          <button
+            onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+            className="mr-2 hidden items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-400 sm:flex dark:border-neutral-700"
+          >
+            <span>Search</span>
+            <kbd className="rounded bg-neutral-100 px-1 font-sans dark:bg-neutral-800">⌘K</kbd>
+          </button>
+
+          <AccountMenu />
+        </div>
+      </header>
+
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <RevealProvider value={ready}>
           <Outlet />
         </RevealProvider>

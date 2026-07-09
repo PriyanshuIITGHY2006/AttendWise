@@ -1,21 +1,11 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../../context/AuthContext"
-import { listCourses, getCourseStats } from "../../features/courses/api"
-import { computeBunkSafety, type BunkSafetyStatus } from "../../features/attendance/bunkSafety"
+import { listCourses, getCourseStats } from "./api"
+import { computeBunkSafety, type BunkSafetyStatus } from "../attendance/bunkSafety"
 
 const STATUS_RANK: Record<BunkSafetyStatus, number> = { red: 2, yellow: 1, green: 0 }
-const STATUS_COPY: Record<BunkSafetyStatus, string> = {
-  green: "All courses on track",
-  yellow: "One or more courses tight on margin",
-  red: "At least one course needs attention",
-}
-const STATUS_DOT: Record<BunkSafetyStatus, string> = {
-  green: "bg-emerald-500",
-  yellow: "bg-amber-500",
-  red: "bg-red-500",
-}
 
-export function SidebarStatus() {
+export function useOverallStatus() {
   const { user } = useAuth()
   const [courseCount, setCourseCount] = useState<number | null>(null)
   const [worstStatus, setWorstStatus] = useState<BunkSafetyStatus>("green")
@@ -45,21 +35,5 @@ export function SidebarStatus() {
     }
   }, [user])
 
-  if (courseCount === null) return null
-
-  if (courseCount === 0) {
-    return <p className="text-xs text-neutral-500">Add a course to start tracking.</p>
-  }
-
-  return (
-    <div className="rounded-lg border border-neutral-200 bg-white/60 px-3 py-2.5 dark:border-neutral-800 dark:bg-neutral-900/50">
-      <div className="flex items-center gap-1.5 text-xs font-medium">
-        <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[worstStatus]}`} />
-        {STATUS_COPY[worstStatus]}
-      </div>
-      <p className="mt-0.5 text-xs text-neutral-500">
-        {courseCount} course{courseCount === 1 ? "" : "s"} tracked
-      </p>
-    </div>
-  )
+  return { courseCount, worstStatus }
 }
