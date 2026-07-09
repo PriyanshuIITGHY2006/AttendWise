@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>AttendWise</title>
+    <script type="text/javascript">
+      // GitHub Pages has no server-side routing, so it serves this file for
+      // any unknown path. Re-encode the path into a query string and redirect
+      // to index.html, which decodes it back via the script in index.html —
+      // this is what lets React Router handle deep links / refreshes.
+      var pathSegmentsToKeep = 1 // keep the /AttendWise/ project-page segment
+      var l = window.location
+      l.replace(
+        l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+        l.pathname.split('/').slice(0, 1 + pathSegmentsToKeep).join('/') + '/?/' +
+        l.pathname.slice(1).split('/').slice(pathSegmentsToKeep).join('/').replace(/&/g, '~and~') +
+        (l.search ? '&' + l.search.slice(1).replace(/&/g, '~and~') : '') +
+        l.hash
+      )
+    </script>
+  </head>
+  <body></body>
+</html>
