@@ -149,11 +149,17 @@ export async function getCourseStats(courseId: string, userId: string): Promise<
     .in("status", ["scheduled", "makeup"])
   if (totalError) throw totalError
 
+  // Only sessions that have actually happened count toward the percentage --
+  // marking a future class "present" ahead of time (the "plan to attend"
+  // option in the bunk planner) is just a placeholder note of intent, not a
+  // fact yet, so it must not inflate attended/absent until that date arrives.
+  const todayISO = new Date().toISOString().slice(0, 10)
   const { data: records, error: recordsError } = await supabase
     .from("attendance_records")
-    .select("status, sessions!inner(course_id)")
+    .select("status, sessions!inner(course_id, session_date)")
     .eq("user_id", userId)
     .eq("sessions.course_id", courseId)
+    .lte("sessions.session_date", todayISO)
   if (recordsError) throw recordsError
 
   const attended = records.filter((r) => r.status === "present").length
