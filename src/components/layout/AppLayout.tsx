@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { WelcomeSplash } from "./WelcomeSplash"
 import { CommandPalette } from "./CommandPalette"
+import { ProductTour } from "./ProductTour"
 import { Logomark } from "../ui/Logomark"
 import { RevealProvider } from "../../context/RevealContext"
 import { useOverallStatus } from "../../features/courses/useOverallStatus"
@@ -15,11 +16,12 @@ const STATUS_DOT: Record<string, string> = {
   red: "bg-red-500",
 }
 
-function NavItem({ to, label, end }: { to: string; label: string; end?: boolean }) {
+function NavItem({ to, label, end, tourId }: { to: string; label: string; end?: boolean; tourId?: string }) {
   return (
     <NavLink
       to={to}
       end={end}
+      data-tour={tourId}
       className={({ isActive }) =>
         `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
           isActive
@@ -55,7 +57,7 @@ function AccountMenu() {
   }, [open])
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} data-tour="account-menu">
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
@@ -85,7 +87,7 @@ function AccountMenu() {
 }
 
 export function AppLayout() {
-  const { hasMaterialAccess } = useAuth()
+  const { profile, hasMaterialAccess } = useAuth()
   const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) === "1")
   const [ready, setReady] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) !== "1")
   const { courseCount, worstStatus } = useOverallStatus()
@@ -99,9 +101,12 @@ export function AppLayout() {
     setReady(true)
   }
 
+  const showTour = !showSplash && !!profile && !profile.has_completed_tour
+
   return (
     <div className="min-h-screen">
       {showSplash && <WelcomeSplash onDone={handleSplashDone} />}
+      {showTour && <ProductTour />}
       <CommandPalette hasMaterialAccess={hasMaterialAccess} />
 
       <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
@@ -112,10 +117,10 @@ export function AppLayout() {
           </div>
 
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
-            <NavItem to="/" label="Today" end />
-            <NavItem to="/courses" label="Courses" />
-            <NavItem to="/plan" label="Plan a day off" />
-            <NavItem to="/calendar" label="Calendar" />
+            <NavItem to="/" label="Today" end tourId="nav-today" />
+            <NavItem to="/courses" label="Courses" tourId="nav-courses" />
+            <NavItem to="/plan" label="Plan a day off" tourId="nav-plan" />
+            <NavItem to="/calendar" label="Calendar" tourId="nav-calendar" />
             {hasMaterialAccess && <NavItem to="/materials" label="Materials" />}
           </nav>
 
@@ -127,6 +132,7 @@ export function AppLayout() {
           )}
 
           <button
+            data-tour="command-palette"
             onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
             className="mr-2 hidden items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-400 sm:flex dark:border-neutral-700"
           >

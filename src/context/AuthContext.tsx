@@ -16,6 +16,7 @@ type AuthContextValue = {
   signInWithMicrosoft: () => Promise<{ error: string | null }>
   signInWithGoogle: () => Promise<{ error: string | null }>
   signOut: () => Promise<void>
+  completeTour: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
@@ -97,6 +98,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut()
   }
 
+  async function completeTour() {
+    if (!session?.user) return
+    await supabase.from("profiles").update({ has_completed_tour: true }).eq("id", session.user.id)
+    setProfile((prev) => (prev ? { ...prev, has_completed_tour: true } : prev))
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -110,6 +117,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signInWithMicrosoft,
         signInWithGoogle,
         signOut,
+        completeTour,
       }}
     >
       {children}

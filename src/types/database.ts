@@ -344,6 +344,7 @@ export type Database = {
           created_at: string
           email: string
           full_name: string | null
+          has_completed_tour: boolean
           id: string
           role: string
         }
@@ -352,6 +353,7 @@ export type Database = {
           created_at?: string
           email: string
           full_name?: string | null
+          has_completed_tour?: boolean
           id: string
           role?: string
         }
@@ -360,6 +362,7 @@ export type Database = {
           created_at?: string
           email?: string
           full_name?: string | null
+          has_completed_tour?: boolean
           id?: string
           role?: string
         }
