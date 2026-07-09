@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
 import { OAuthButtons } from "../components/auth/OAuthButtons"
+import { Logomark } from "../components/ui/Logomark"
 
 export function Login() {
   const { session, signInWithPassword } = useAuth()
@@ -31,7 +32,10 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-8 text-center text-xl font-semibold tracking-tight">AttendWise</div>
+        <div className="mb-8 flex flex-col items-center gap-2">
+          <Logomark size={36} />
+          <span className="text-xl font-semibold tracking-tight">AttendWise</span>
+        </div>
 
         <OAuthButtons onError={setError} />
 
@@ -72,7 +76,7 @@ export function Login() {
         </form>
         <p className="mt-5 text-center text-sm text-neutral-500">
           No account?{" "}
-          <Link to="/signup" className="font-medium text-neutral-900 hover:underline dark:text-neutral-100">
+          <Link to="/signup" className="font-medium text-indigo-600 hover:underline dark:text-indigo-400">
             Sign up
           </Link>
         </p>

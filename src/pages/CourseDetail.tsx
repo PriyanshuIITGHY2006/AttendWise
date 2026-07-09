@@ -300,7 +300,7 @@ function BunkPlanner({
           {plannedSkipCount > 0 && <span className="text-neutral-500">{plannedSkipCount} planned</span>}
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-          <div className="h-full rounded-full bg-neutral-900 transition-all dark:bg-neutral-100" style={{ width: `${budgetUsedPercent}%` }} />
+          <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${budgetUsedPercent}%` }} />
         </div>
 
         {/* strategy picker */}
@@ -312,7 +312,7 @@ function BunkPlanner({
               onClick={() => setStrategy(value)}
               className={`rounded-md px-2 py-2 text-left text-xs font-medium transition-colors ${
                 strategy === value
-                  ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                  ? "bg-indigo-600 text-white"
                   : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
               }`}
             >
@@ -339,7 +339,7 @@ function BunkPlanner({
                 onClick={() => setDayOfWeek(idx)}
                 className={`h-8 w-8 rounded-full text-xs font-medium transition-colors ${
                   dayOfWeek === idx
-                    ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                    ? "bg-indigo-600 text-white"
                     : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
                 }`}
               >

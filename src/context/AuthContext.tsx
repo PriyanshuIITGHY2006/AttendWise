@@ -32,8 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession)
+      // only a genuine sign-in (password or OAuth redirect) should trigger the
+      // welcome splash -- INITIAL_SESSION fires on every refresh of an
+      // already-logged-in tab and shouldn't retrigger it
+      if (event === "SIGNED_IN") sessionStorage.setItem("attendwise_just_signed_in", "1")
     })
 
     return () => listener.subscription.unsubscribe()

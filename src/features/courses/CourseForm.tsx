@@ -99,7 +99,7 @@ export function CourseForm({
                 onClick={() => setCourseType(t)}
                 className={`rounded px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
                   courseType === t
-                    ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                    ? "bg-indigo-600 text-white"
                     : "text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
                 }`}
               >
