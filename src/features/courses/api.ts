@@ -1,5 +1,5 @@
 import { supabase } from "../../lib/supabase"
-import type { Tables, TablesInsert } from "../../types/database"
+import type { Tables, TablesInsert, TablesUpdate } from "../../types/database"
 
 export type Course = Tables<"courses">
 export type CourseSchedule = Tables<"course_schedule">
@@ -29,6 +29,12 @@ export async function createCourse(course: TablesInsert<"courses">) {
   return data
 }
 
+export async function updateCourse(courseId: string, patch: TablesUpdate<"courses">) {
+  const { data, error } = await supabase.from("courses").update(patch).eq("id", courseId).select().single()
+  if (error) throw error
+  return data
+}
+
 export async function deleteCourse(courseId: string) {
   const { error } = await supabase.from("courses").delete().eq("id", courseId)
   if (error) throw error
@@ -42,6 +48,16 @@ export async function listSchedule(courseId: string) {
     .order("day_of_week", { ascending: true })
   if (error) throw error
   return data
+}
+
+export async function replaceSchedule(courseId: string, slots: Omit<TablesInsert<"course_schedule">, "course_id">[]) {
+  const { error: deleteError } = await supabase.from("course_schedule").delete().eq("course_id", courseId)
+  if (deleteError) throw deleteError
+  if (slots.length === 0) return
+  const { error: insertError } = await supabase
+    .from("course_schedule")
+    .insert(slots.map((s) => ({ ...s, course_id: courseId })))
+  if (insertError) throw insertError
 }
 
 export async function addScheduleSlot(slot: TablesInsert<"course_schedule">) {

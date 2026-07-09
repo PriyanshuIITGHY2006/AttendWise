@@ -7,8 +7,10 @@ import { SignUp } from "./pages/SignUp"
 import { Dashboard } from "./pages/Dashboard"
 import { Courses } from "./pages/Courses"
 import { NewCourse } from "./pages/NewCourse"
+import { EditCourse } from "./pages/EditCourse"
 import { CourseDetail } from "./pages/CourseDetail"
 import { Materials } from "./pages/Materials"
+import { Calendar } from "./pages/Calendar"
 import { Settings } from "./pages/Settings"
 
 export default function App() {
@@ -24,7 +26,9 @@ export default function App() {
               <Route path="/courses" element={<Courses />} />
               <Route path="/courses/new" element={<NewCourse />} />
               <Route path="/courses/:courseId" element={<CourseDetail />} />
+              <Route path="/courses/:courseId/edit" element={<EditCourse />} />
               <Route path="/materials" element={<Materials />} />
+              <Route path="/calendar" element={<Calendar />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>

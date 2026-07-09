@@ -3,19 +3,18 @@ import { Link, Navigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
-import { MicrosoftButton } from "../components/ui/MicrosoftButton"
+import { OAuthButtons } from "../components/auth/OAuthButtons"
 
 const IITG_EMAIL = /@iitg\.ac\.in$/i
 
 export function SignUp() {
-  const { session, signUp, signInWithMicrosoft } = useAuth()
+  const { session, signUp } = useAuth()
   const [fullName, setFullName] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitted, setSubmitted] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [msSubmitting, setMsSubmitting] = useState(false)
 
   if (session) return <Navigate to="/" replace />
 
@@ -34,16 +33,6 @@ export function SignUp() {
       return
     }
     setSubmitted(true)
-  }
-
-  async function handleMicrosoft() {
-    setMsSubmitting(true)
-    setError(null)
-    const { error } = await signInWithMicrosoft()
-    if (error) {
-      setError(error)
-      setMsSubmitting(false)
-    }
   }
 
   if (submitted) {
@@ -67,7 +56,7 @@ export function SignUp() {
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center text-xl font-semibold tracking-tight">AttendWise</div>
 
-        <MicrosoftButton onClick={handleMicrosoft} disabled={msSubmitting} />
+        <OAuthButtons onError={setError} />
 
         <div className="my-5 flex items-center gap-3 text-xs text-neutral-400">
           <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />

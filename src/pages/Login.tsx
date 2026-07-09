@@ -3,16 +3,15 @@ import { Link, Navigate, useNavigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
-import { MicrosoftButton } from "../components/ui/MicrosoftButton"
+import { OAuthButtons } from "../components/auth/OAuthButtons"
 
 export function Login() {
-  const { session, signInWithPassword, signInWithMicrosoft } = useAuth()
+  const { session, signInWithPassword } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [msSubmitting, setMsSubmitting] = useState(false)
 
   if (session) return <Navigate to="/" replace />
 
@@ -29,23 +28,12 @@ export function Login() {
     navigate("/")
   }
 
-  async function handleMicrosoft() {
-    setMsSubmitting(true)
-    setError(null)
-    const { error } = await signInWithMicrosoft()
-    if (error) {
-      setError(error)
-      setMsSubmitting(false)
-    }
-    // on success the browser redirects away, so no need to reset submitting
-  }
-
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center text-xl font-semibold tracking-tight">AttendWise</div>
 
-        <MicrosoftButton onClick={handleMicrosoft} disabled={msSubmitting} />
+        <OAuthButtons onError={setError} />
 
         <div className="my-5 flex items-center gap-3 text-xs text-neutral-400">
           <div className="h-px flex-1 bg-neutral-200 dark:bg-neutral-800" />

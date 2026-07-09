@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, type FormEvent } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { Link, useNavigate, useParams } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import {
   getCourse,
@@ -92,9 +92,14 @@ export function CourseDetail() {
             {[course.code, course.instructor, course.semester].filter(Boolean).join(" · ")}
           </p>
         </div>
-        <Button variant="ghost" onClick={handleDelete}>
-          Delete
-        </Button>
+        <div className="flex shrink-0 gap-2">
+          <Link to={`/courses/${course.id}/edit`}>
+            <Button variant="secondary">Edit</Button>
+          </Link>
+          <Button variant="ghost" onClick={handleDelete}>
+            Delete
+          </Button>
+        </div>
       </div>
 
       <Card className="mt-6">

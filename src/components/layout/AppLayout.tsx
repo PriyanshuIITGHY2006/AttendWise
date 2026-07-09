@@ -1,17 +1,15 @@
 import { NavLink, Outlet } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 
-const baseNavItems = [
-  { to: "/", label: "Today", end: true },
-  { to: "/courses", label: "Courses" },
-  { to: "/settings", label: "Settings" },
-]
-
 export function AppLayout() {
   const { profile, hasMaterialAccess, signOut } = useAuth()
-  const navItems = hasMaterialAccess
-    ? [...baseNavItems.slice(0, 2), { to: "/materials", label: "Materials" }, baseNavItems[2]]
-    : baseNavItems
+  const navItems = [
+    { to: "/", label: "Today", end: true },
+    { to: "/courses", label: "Courses" },
+    { to: "/calendar", label: "Calendar" },
+    ...(hasMaterialAccess ? [{ to: "/materials", label: "Materials" }] : []),
+    { to: "/settings", label: "Settings" },
+  ]
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
