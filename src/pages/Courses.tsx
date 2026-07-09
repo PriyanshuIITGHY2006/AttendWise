@@ -17,8 +17,9 @@ function CourseCard({ course, stats }: { course: Course; stats?: CourseStats }) 
     remainingSessions: stats.remainingSessions,
     thresholdPercent: course.attendance_threshold,
   })
-  const label =
-    safety.status === "green"
+  const label = course.strict_no_skip
+    ? "Zero-tolerance"
+    : safety.status === "green"
       ? `${safety.maxSafeSkips} skip${safety.maxSafeSkips === 1 ? "" : "s"} left`
       : safety.status === "yellow"
         ? "No margin"
@@ -32,6 +33,7 @@ function CourseCard({ course, stats }: { course: Course; stats?: CourseStats }) 
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
             <span className="truncate font-medium">{course.name}</span>
             {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
+            {course.strict_no_skip && <Badge tone="red">Zero-tolerance</Badge>}
           </div>
           <p className="mt-0.5 truncate text-sm text-neutral-500">{[course.code, course.semester].filter(Boolean).join(" · ")}</p>
         </div>

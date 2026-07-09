@@ -27,6 +27,7 @@ export type CourseFormValues = {
   semester: string
   color: string
   threshold: number
+  strictNoSkip: boolean
   semesterStart: string
   semesterEnd: string
   slots: ScheduleDraft[]
@@ -48,6 +49,7 @@ export function CourseForm({
   const [semester, setSemester] = useState(initialValues.semester)
   const [color, setColor] = useState(initialValues.color)
   const [threshold, setThreshold] = useState(initialValues.threshold)
+  const [strictNoSkip, setStrictNoSkip] = useState(initialValues.strictNoSkip)
   const [semesterStart, setSemesterStart] = useState(initialValues.semesterStart)
   const [semesterEnd, setSemesterEnd] = useState(initialValues.semesterEnd)
   const [slots, setSlots] = useState<ScheduleDraft[]>(initialValues.slots)
@@ -79,7 +81,7 @@ export function CourseForm({
 
     setSubmitting(true)
     try {
-      await onSubmit({ courseType, name, code, instructor, semester, color, threshold, semesterStart, semesterEnd, slots })
+      await onSubmit({ courseType, name, code, instructor, semester, color, threshold, strictNoSkip, semesterStart, semesterEnd, slots })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
       setSubmitting(false)
@@ -145,6 +147,17 @@ export function CourseForm({
               value={threshold}
               onChange={(e) => setThreshold(Number(e.target.value))}
             />
+          </div>
+          <div className="flex items-end pb-1.5">
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={strictNoSkip}
+                onChange={(e) => setStrictNoSkip(e.target.checked)}
+                className="h-4 w-4 rounded border-neutral-300 text-indigo-600 focus:ring-indigo-500 dark:border-neutral-700"
+              />
+              Zero-tolerance (never plan a skip for this one)
+            </label>
           </div>
           <div>
             <Label>Color</Label>

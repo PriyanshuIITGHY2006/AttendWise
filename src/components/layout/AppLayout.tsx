@@ -114,6 +114,7 @@ export function AppLayout() {
           <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
             <NavItem to="/" label="Today" end />
             <NavItem to="/courses" label="Courses" />
+            <NavItem to="/plan" label="Plan a day off" />
             <NavItem to="/calendar" label="Calendar" />
             {hasMaterialAccess && <NavItem to="/materials" label="Materials" />}
           </nav>

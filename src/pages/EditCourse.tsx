@@ -47,6 +47,7 @@ export function EditCourse() {
       color: values.color,
       course_type: values.courseType,
       attendance_threshold: values.threshold,
+      strict_no_skip: values.strictNoSkip,
       semester_start: values.semesterStart,
       semester_end: values.semesterEnd,
     })
@@ -86,6 +87,7 @@ export function EditCourse() {
             semester: course.semester,
             color: course.color,
             threshold: course.attendance_threshold,
+            strictNoSkip: course.strict_no_skip,
             semesterStart: course.semester_start,
             semesterEnd: course.semester_end,
             slots,

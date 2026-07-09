@@ -154,6 +154,7 @@ export type Database = {
           semester: string
           semester_end: string
           semester_start: string
+          strict_no_skip: boolean
           user_id: string
         }
         Insert: {
@@ -169,6 +170,7 @@ export type Database = {
           semester: string
           semester_end: string
           semester_start: string
+          strict_no_skip?: boolean
           user_id: string
         }
         Update: {
@@ -184,6 +186,7 @@ export type Database = {
           semester?: string
           semester_end?: string
           semester_start?: string
+          strict_no_skip?: boolean
           user_id?: string
         }
         Relationships: [
@@ -425,6 +428,18 @@ export type Database = {
       am_i_material_allowed: {
         Args: Record<string, never>
         Returns: boolean
+      }
+      list_unmarked_past_sessions: {
+        Args: Record<string, never>
+        Returns: {
+          session_id: string
+          course_id: string
+          course_name: string
+          course_color: string
+          session_date: string
+          start_time: string
+          end_time: string
+        }[]
       }
     }
     Enums: {

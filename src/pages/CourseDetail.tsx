@@ -9,6 +9,7 @@ import {
   listSchedule,
   markAttendance,
   markAttendanceBulk,
+  unmarkAttendance,
   deleteCourse,
   type Course,
   type CourseStats,
@@ -67,6 +68,12 @@ export function CourseDetail() {
     load()
   }
 
+  async function undoPlannedSkips(sessionIds: string[]) {
+    if (!user) return
+    await unmarkAttendance(sessionIds, user.id)
+    load()
+  }
+
   async function handleDelete() {
     if (!courseId) return
     if (!confirm("Delete this course and all its attendance history? This cannot be undone.")) return
@@ -86,6 +93,11 @@ export function CourseDetail() {
   const todayISO = new Date().toISOString().slice(0, 10)
   const pastSessions = sessions.filter((s) => s.session_date <= todayISO).reverse()
   const futureSessions = sessions.filter((s) => s.session_date > todayISO)
+  const effectiveMaxSafeSkips = course.strict_no_skip ? 0 : safety.maxSafeSkips
+  const recoverySessions =
+    safety.status === "red" && safety.recoveryClassesNeeded != null
+      ? futureSessions.slice(0, safety.recoveryClassesNeeded)
+      : []
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -95,6 +107,7 @@ export function CourseDetail() {
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: course.color }} />
             <h1 className="text-xl font-semibold tracking-tight">{course.name}</h1>
             {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
+            {course.strict_no_skip && <Badge tone="red">Zero-tolerance</Badge>}
           </div>
           <p className="mt-1 text-sm text-neutral-500">
             {[course.code, course.instructor, course.semester].filter(Boolean).join(" · ")}
@@ -130,18 +143,36 @@ export function CourseDetail() {
           </div>
           <div>
             <dt className="text-xs text-neutral-500">Safe skips left</dt>
-            <dd className="text-lg font-semibold">{safety.canReachThreshold ? safety.maxSafeSkips : "—"}</dd>
+            <dd className="text-lg font-semibold">{safety.canReachThreshold ? effectiveMaxSafeSkips : "—"}</dd>
           </div>
         </dl>
         <p className="mt-4 text-sm text-neutral-500">
-          {!safety.canReachThreshold
-            ? `Even attending every remaining class, you can't reach ${course.attendance_threshold}% this semester.`
-            : safety.status === "red" && safety.recoveryClassesNeeded != null
-              ? `You're below the threshold. Attend the next ${safety.recoveryClassesNeeded} classes in a row to recover.`
-              : safety.maxSafeSkips === 0
-                ? "You're exactly on the edge — no more skips possible without dropping below threshold."
-                : `You can skip up to ${safety.maxSafeSkips} more class${safety.maxSafeSkips === 1 ? "" : "es"} and stay at or above ${course.attendance_threshold}%.`}
+          {course.strict_no_skip
+            ? "Zero-tolerance course — this one is never included in skip suggestions, regardless of margin."
+            : !safety.canReachThreshold
+              ? `Even attending every remaining class, you can't reach ${course.attendance_threshold}% this semester.`
+              : safety.status === "red" && safety.recoveryClassesNeeded != null
+                ? `You're below the threshold. Attend the next ${safety.recoveryClassesNeeded} classes in a row to recover -- see exactly which ones below.`
+                : safety.maxSafeSkips === 0
+                  ? "You're exactly on the edge — no more skips possible without dropping below threshold."
+                  : `You can skip up to ${safety.maxSafeSkips} more class${safety.maxSafeSkips === 1 ? "" : "es"} and stay at or above ${course.attendance_threshold}%.`}
         </p>
+
+        {recoverySessions.length > 0 && (
+          <div className="mt-4 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+            <p className="text-xs font-medium text-neutral-500">Recovery checklist</p>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {recoverySessions.map((s) => (
+                <span
+                  key={s.id}
+                  className="rounded-md bg-red-50 px-2 py-1 text-xs text-red-700 dark:bg-red-500/10 dark:text-red-400"
+                >
+                  {new Date(s.session_date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="mt-6" index={1}>
@@ -152,9 +183,10 @@ export function CourseDetail() {
         <BunkPlanner
           futureSessions={futureSessions}
           attendance={attendance}
-          maxSafeSkips={safety.canReachThreshold ? safety.maxSafeSkips : 0}
+          maxSafeSkips={safety.canReachThreshold ? effectiveMaxSafeSkips : 0}
           onMark={updateStatus}
           onApplyBulk={applyPlannedSkips}
+          onUndoBulk={undoPlannedSkips}
         />
       </Card>
 
@@ -231,12 +263,14 @@ function BunkPlanner({
   maxSafeSkips,
   onMark,
   onApplyBulk,
+  onUndoBulk,
 }: {
   futureSessions: Session[]
   attendance: Record<string, AttendanceRecord["status"]>
   maxSafeSkips: number
   onMark: (sessionId: string, status: AttendanceRecord["status"]) => void
   onApplyBulk: (sessionIds: string[]) => Promise<void>
+  onUndoBulk: (sessionIds: string[]) => Promise<void>
 }) {
   const [strategy, setStrategy] = useState<SkipStrategy>("spread")
   const [weekStart, setWeekStart] = useState("")
@@ -244,6 +278,8 @@ function BunkPlanner({
   const [dayOfWeek, setDayOfWeek] = useState(0)
   const [applying, setApplying] = useState(false)
   const [openId, setOpenId] = useState<string | null>(null)
+  const [lastApplied, setLastApplied] = useState<string[] | null>(null)
+  const [undoing, setUndoing] = useState(false)
   const popoverRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -268,7 +304,16 @@ function BunkPlanner({
   async function apply() {
     setApplying(true)
     await onApplyBulk(suggested)
+    setLastApplied(suggested)
     setApplying(false)
+  }
+
+  async function undo() {
+    if (!lastApplied) return
+    setUndoing(true)
+    await onUndoBulk(lastApplied)
+    setLastApplied(null)
+    setUndoing(false)
   }
 
   // one row per week, one column per weekday (Mon..Sun) -- a course that meets
@@ -357,6 +402,22 @@ function BunkPlanner({
             <Button type="button" onClick={apply} disabled={applying}>
               {applying ? "Applying…" : "Apply"}
             </Button>
+          </div>
+        )}
+
+        {lastApplied && lastApplied.length > 0 && (
+          <div className="mt-3 flex items-center justify-between rounded-md bg-neutral-100 px-3 py-2 text-sm dark:bg-neutral-800">
+            <span>
+              Applied {lastApplied.length} planned skip{lastApplied.length === 1 ? "" : "s"}.
+            </span>
+            <button
+              type="button"
+              onClick={undo}
+              disabled={undoing}
+              className="font-medium text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
+            >
+              {undoing ? "Undoing…" : "Undo"}
+            </button>
           </div>
         )}
       </div>

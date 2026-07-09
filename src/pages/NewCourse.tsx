@@ -20,6 +20,7 @@ export function NewCourse() {
       color: values.color,
       course_type: values.courseType,
       attendance_threshold: values.threshold,
+      strict_no_skip: values.strictNoSkip,
       semester_start: values.semesterStart,
       semester_end: values.semesterEnd,
     })
@@ -54,6 +55,7 @@ export function NewCourse() {
             semester: CURRENT_SEMESTER.label,
             color: "#2563eb",
             threshold: 75,
+            strictNoSkip: false,
             semesterStart: CURRENT_SEMESTER.start,
             semesterEnd: CURRENT_SEMESTER.end,
             slots: [emptySlot()],

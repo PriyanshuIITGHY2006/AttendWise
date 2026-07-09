@@ -117,6 +117,23 @@ export async function markAttendanceBulk(sessionIds: string[], userId: string, s
   if (error) throw error
 }
 
+/** Deletes attendance records outright, returning those sessions to "unmarked" -- used to undo a bulk-apply. */
+export async function unmarkAttendance(sessionIds: string[], userId: string) {
+  if (sessionIds.length === 0) return
+  const { error } = await supabase
+    .from("attendance_records")
+    .delete()
+    .eq("user_id", userId)
+    .in("session_id", sessionIds)
+  if (error) throw error
+}
+
+export async function listUnmarkedPastSessions() {
+  const { data, error } = await supabase.rpc("list_unmarked_past_sessions")
+  if (error) throw error
+  return data
+}
+
 export type CourseStats = {
   attended: number
   absent: number

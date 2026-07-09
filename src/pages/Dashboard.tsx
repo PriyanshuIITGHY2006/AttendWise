@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listTodaySessions, markAttendance, listCourses } from "../features/courses/api"
+import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
@@ -9,6 +9,7 @@ import { Badge } from "../components/ui/Badge"
 
 type TodaySession = Awaited<ReturnType<typeof listTodaySessions>>[number]
 type UpcomingEvent = CourseEvent & { courses: { name: string; color: string } | null }
+type UnmarkedSession = Awaited<ReturnType<typeof listUnmarkedPastSessions>>[number]
 
 const EVENT_TYPE_LABELS: Record<CourseEvent["event_type"], string> = {
   quiz: "Quiz",
@@ -26,20 +27,24 @@ export function Dashboard() {
   const { user } = useAuth()
   const [sessions, setSessions] = useState<TodaySession[]>([])
   const [upcoming, setUpcoming] = useState<UpcomingEvent[]>([])
+  const [unmarked, setUnmarked] = useState<UnmarkedSession[]>([])
+  const [showUnmarked, setShowUnmarked] = useState(false)
   const [courseCount, setCourseCount] = useState<number | null>(null)
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [today, courses, events] = await Promise.all([
+    const [today, courses, events, unmarkedPast] = await Promise.all([
       listTodaySessions(user.id, todayISO()),
       listCourses(user.id),
       listUpcomingEvents(user.id),
+      listUnmarkedPastSessions(),
     ])
     setSessions(today)
     setCourseCount(courses.length)
     setUpcoming((events as UpcomingEvent[]).slice(0, 6))
+    setUnmarked(unmarkedPast)
     setLoading(false)
   }, [user])
 
@@ -78,6 +83,45 @@ export function Dashboard() {
       <p className="mt-1 text-sm text-neutral-500">
         {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
       </p>
+
+      {unmarked.length > 0 && (
+        <Card className="mt-6 bg-amber-50 dark:bg-amber-500/10">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm text-amber-800 dark:text-amber-300">
+              {unmarked.length} class{unmarked.length === 1 ? "" : "es"} from earlier {unmarked.length === 1 ? "wasn't" : "weren't"}{" "}
+              marked present or absent — this quietly skews your safe-skip numbers.
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowUnmarked((v) => !v)}
+              className="shrink-0 text-sm font-medium text-amber-800 hover:underline dark:text-amber-300"
+            >
+              {showUnmarked ? "Hide" : "Mark now"}
+            </button>
+          </div>
+          {showUnmarked && (
+            <div className="mt-3 space-y-2 border-t border-amber-200 pt-3 dark:border-amber-500/20">
+              {unmarked.map((s) => (
+                <div key={s.session_id} className="flex items-center justify-between gap-3 text-sm">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.course_color }} />
+                    <span className="truncate font-medium">{s.course_name}</span>
+                    <span className="shrink-0 text-neutral-500">
+                      {new Date(s.session_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 gap-2">
+                    <Button variant="secondary" onClick={() => mark(s.session_id, "absent")}>
+                      Absent
+                    </Button>
+                    <Button onClick={() => mark(s.session_id, "present")}>Present</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
