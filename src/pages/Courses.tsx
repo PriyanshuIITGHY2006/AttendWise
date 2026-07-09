@@ -7,20 +7,51 @@ import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 
-function StatusBadge({ stats, threshold }: { stats: CourseStats; threshold: number }) {
-  const result = computeBunkSafety({
+const BAR_COLOR = { green: "bg-emerald-500", yellow: "bg-amber-500", red: "bg-red-500" } as const
+
+function CourseCard({ course, stats }: { course: Course; stats?: CourseStats }) {
+  if (!stats) return null
+  const safety = computeBunkSafety({
     attended: stats.attended,
     absent: stats.absent,
     remainingSessions: stats.remainingSessions,
-    thresholdPercent: threshold,
+    thresholdPercent: course.attendance_threshold,
   })
   const label =
-    result.status === "green"
-      ? `${result.currentPercent.toFixed(0)}% · ${result.maxSafeSkips} skip${result.maxSafeSkips === 1 ? "" : "s"} left`
-      : result.status === "yellow"
-        ? `${result.currentPercent.toFixed(0)}% · no margin`
-        : `${result.currentPercent.toFixed(0)}% · at risk`
-  return <Badge tone={result.status}>{label}</Badge>
+    safety.status === "green"
+      ? `${safety.maxSafeSkips} skip${safety.maxSafeSkips === 1 ? "" : "s"} left`
+      : safety.status === "yellow"
+        ? "No margin"
+        : "At risk"
+
+  return (
+    <>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
+            <span className="truncate font-medium">{course.name}</span>
+            {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
+          </div>
+          <p className="mt-0.5 truncate text-sm text-neutral-500">{[course.code, course.semester].filter(Boolean).join(" · ")}</p>
+        </div>
+        <Badge tone={safety.status}>{safety.currentPercent.toFixed(0)}%</Badge>
+      </div>
+
+      <div className="mt-4">
+        <div className="h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div
+            className={`h-full rounded-full ${BAR_COLOR[safety.status]}`}
+            style={{ width: `${Math.min(100, safety.currentPercent)}%` }}
+          />
+        </div>
+        <div className="mt-1.5 flex items-center justify-between text-xs text-neutral-500">
+          <span>{course.attendance_threshold}% required</span>
+          <span>{label}</span>
+        </div>
+      </div>
+    </>
+  )
 }
 
 export function Courses() {
@@ -57,25 +88,15 @@ export function Courses() {
       {loading ? (
         <p className="mt-6 text-sm text-neutral-400">Loading…</p>
       ) : courses.length === 0 ? (
-        <Card className="mt-6">
+        <Card className="mx-auto mt-6 max-w-md text-center">
           <p className="text-sm text-neutral-500">No courses yet. Add one to start tracking attendance.</p>
         </Card>
       ) : (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
-          {courses.map((c) => (
-            <Link key={c.id} to={`/courses/${c.id}`}>
-              <Card className="h-full transition-colors hover:border-neutral-400 dark:hover:border-neutral-600">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color }} />
-                      <span className="truncate font-medium">{c.name}</span>
-                      {c.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
-                    </div>
-                    {c.code && <p className="mt-0.5 text-sm text-neutral-500">{c.code}</p>}
-                  </div>
-                  {stats[c.id] && <StatusBadge stats={stats[c.id]} threshold={c.attendance_threshold} />}
-                </div>
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {courses.map((c, i) => (
+            <Link key={c.id} to={`/courses/${c.id}`} className="block">
+              <Card index={i} className="h-full transition-colors hover:border-neutral-400 dark:hover:border-neutral-600">
+                <CourseCard course={c} stats={stats[c.id]} />
               </Card>
             </Link>
           ))}

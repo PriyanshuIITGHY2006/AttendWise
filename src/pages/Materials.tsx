@@ -93,7 +93,7 @@ export function Materials() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-2xl">
       <h1 className="text-xl font-semibold tracking-tight">Materials</h1>
 
       <Card className="mt-6">

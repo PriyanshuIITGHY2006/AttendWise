@@ -40,7 +40,7 @@ export function NewCourse() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto max-w-2xl">
       <h1 className="text-xl font-semibold tracking-tight">Add course</h1>
       <div className="mt-6">
         <CourseForm

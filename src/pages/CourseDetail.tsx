@@ -88,7 +88,7 @@ export function CourseDetail() {
   const futureSessions = sessions.filter((s) => s.session_date > todayISO)
 
   return (
-    <div className="max-w-3xl">
+    <div className="mx-auto max-w-3xl">
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
