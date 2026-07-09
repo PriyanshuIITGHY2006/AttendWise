@@ -20,6 +20,7 @@ import {
 import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
 import { findNearbyEvent } from "../features/events/proximity"
 import { computeBunkSafety, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
+import { thresholdRoast } from "../features/notifications/copy"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -150,7 +151,13 @@ export function CourseDetail() {
             <dd className="text-lg font-semibold">{safety.canReachThreshold ? effectiveMaxSafeSkips : "—"}</dd>
           </div>
         </dl>
-        <p className="mt-4 text-sm text-neutral-500">
+        {!course.strict_no_skip && (safety.status === "red" || safety.status === "yellow") && (
+          <p className={`mt-4 text-sm font-medium ${safety.status === "red" ? "text-red-600 dark:text-red-400" : "text-amber-700 dark:text-amber-400"}`}>
+            {thresholdRoast(course.name, safety.currentPercent, safety.status, `${course.id}-${todayISO}`)}
+          </p>
+        )}
+
+        <p className="mt-2 text-sm text-neutral-500">
           {course.strict_no_skip
             ? "Zero-tolerance course — this one is never included in skip suggestions, regardless of margin."
             : !safety.canReachThreshold

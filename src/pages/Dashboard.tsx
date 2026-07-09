@@ -4,6 +4,7 @@ import { useAuth } from "../context/AuthContext"
 import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getCourseStats } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
+import { unmarkedNudge } from "../features/notifications/copy"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -117,8 +118,7 @@ export function Dashboard() {
         <Card className="mt-6 bg-amber-50 dark:bg-amber-500/10">
           <div className="flex items-center justify-between gap-3">
             <p className="text-sm text-amber-800 dark:text-amber-300">
-              {unmarked.length} class{unmarked.length === 1 ? "" : "es"} from earlier {unmarked.length === 1 ? "wasn't" : "weren't"}{" "}
-              marked present or absent — this quietly skews your safe-skip numbers.
+              {unmarkedNudge(unmarked.length, `unmarked-${user?.id ?? ""}-${todayISO()}`)}
             </p>
             <button
               type="button"
