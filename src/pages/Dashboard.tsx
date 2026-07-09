@@ -37,9 +37,12 @@ export function Dashboard() {
   const [verdicts, setVerdicts] = useState<Record<string, SkipVerdict>>({})
   const [loading, setLoading] = useState(true)
 
-  const load = useCallback(async () => {
-    if (!user) return
-    setLoading(true)
+  // Fetches fresh data and updates state -- used both for the initial load
+  // and for silent refreshes after marking attendance. Never toggles the
+  // page-level `loading` flag itself, so a refresh updates in place instead
+  // of blanking the whole page back to a loading state.
+  const fetchData = useCallback(async () => {
+    if (!user) return null
     const [today, courses, events, unmarkedPast] = await Promise.all([
       listTodaySessions(user.id, todayISO()),
       listCourses(user.id),
@@ -77,15 +80,23 @@ export function Dashboard() {
       }),
     )
     setVerdicts(Object.fromEntries(verdictEntries))
-    setLoading(false)
+    return { today, courses, events: events as UpcomingEvent[], unmarkedPast }
+  }, [user])
 
-    const notifSettings = await getGlobalNotificationSettings(user.id)
-    if (!notifSettings.muted) {
+  // Notification scheduling only needs to run once per app open, not after
+  // every attendance tap -- it's a handful of extra DB queries plus native
+  // bridge calls, which made every button press feel sluggish when it ran
+  // on every refresh.
+  const syncNotifications = useCallback(
+    async (data: NonNullable<Awaited<ReturnType<typeof fetchData>>>) => {
+      if (!user) return
+      const notifSettings = await getGlobalNotificationSettings(user.id)
+      if (notifSettings.muted) return
       await syncScheduledNotifications(
-        today
+        data.today
           .filter((s) => !s.attendance_records?.[0])
           .map((s) => ({ id: s.id, courseId: s.course_id, courseName: s.courses.name, startTime: s.start_time, alreadyMarked: false })),
-        (events as UpcomingEvent[]).map((ev) => ({
+        data.events.map((ev) => ({
           id: ev.id,
           title: ev.title,
           courseName: ev.courses?.name ?? "",
@@ -93,9 +104,9 @@ export function Dashboard() {
         })),
         notifSettings.lead_time_minutes,
       )
-      await notifyUnmarkedIfNeeded(unmarkedPast.length)
+      await notifyUnmarkedIfNeeded(data.unmarkedPast.length)
       await Promise.all(
-        courses.map(async (course) => {
+        data.courses.map(async (course) => {
           const stats = await getCourseStats(course.id, user.id)
           const safety = computeBunkSafety({
             attended: stats.attended,
@@ -106,17 +117,27 @@ export function Dashboard() {
           await notifyThresholdIfChanged(course.id, course.name, safety.currentPercent, safety.status)
         }),
       )
-    }
-  }, [user])
+    },
+    [user],
+  )
 
   useEffect(() => {
-    load()
-  }, [load])
+    let cancelled = false
+    setLoading(true)
+    fetchData().then((data) => {
+      if (cancelled) return
+      setLoading(false)
+      if (data) syncNotifications(data)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [fetchData, syncNotifications])
 
   async function mark(sessionId: string, status: "present" | "absent") {
     if (!user) return
     await markAttendance(sessionId, user.id, status)
-    load()
+    fetchData()
   }
 
   if (loading) return <p className="text-sm text-neutral-400">Loading…</p>

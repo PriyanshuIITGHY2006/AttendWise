@@ -39,9 +39,11 @@ export function CourseDetail() {
   const [events, setEvents] = useState<CourseEvent[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Doesn't touch the `loading` flag itself -- called both on mount and after
+  // marking attendance, so post-mark refreshes update in place instead of
+  // blanking the whole page back to "Loading…" on every tap.
   const load = useCallback(async () => {
     if (!courseId || !user) return
-    setLoading(true)
     const [c, s, sess, att, evs] = await Promise.all([
       getCourse(courseId),
       getCourseStats(courseId, user.id),
@@ -54,11 +56,11 @@ export function CourseDetail() {
     setSessions(sess)
     setAttendance(Object.fromEntries(att.map((a) => [a.session_id, a.status])))
     setEvents(evs)
-    setLoading(false)
   }, [courseId, user])
 
   useEffect(() => {
-    load()
+    setLoading(true)
+    load().then(() => setLoading(false))
   }, [load])
 
   async function updateStatus(sessionId: string, status: AttendanceRecord["status"]) {

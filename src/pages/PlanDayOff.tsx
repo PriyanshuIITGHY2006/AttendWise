@@ -37,9 +37,11 @@ export function PlanDayOff() {
   const [loading, setLoading] = useState(false)
   const [applyingCourseId, setApplyingCourseId] = useState<string | null>(null)
 
+  // Doesn't touch `loading` itself -- see the mount effect and markSafeSkips,
+  // which use it differently so applying a skip doesn't blank the whole list
+  // back to "Checking every course…" on every tap.
   const load = useCallback(async () => {
     if (!user || !from || !to || to < from) return
-    setLoading(true)
     const range = await listSessionsInRange(user.id, from, to)
     setSessions(range)
 
@@ -82,11 +84,11 @@ export function PlanDayOff() {
       }),
     )
     setVerdicts(results)
-    setLoading(false)
   }, [user, from, to])
 
   useEffect(() => {
-    load()
+    setLoading(true)
+    load().then(() => setLoading(false))
   }, [load])
 
   async function markSafeSkips(v: CourseVerdict) {
