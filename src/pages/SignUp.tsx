@@ -5,8 +5,6 @@ import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
 import { OAuthButtons } from "../components/auth/OAuthButtons"
 
-const IITG_EMAIL = /@iitg\.ac\.in$/i
-
 export function SignUp() {
   const { session, signUp } = useAuth()
   const [fullName, setFullName] = useState("")
@@ -20,10 +18,6 @@ export function SignUp() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!IITG_EMAIL.test(email)) {
-      setError("Only @iitg.ac.in email addresses can sign up.")
-      return
-    }
     setSubmitting(true)
     setError(null)
     const { error } = await signUp(email, password, fullName)
@@ -78,7 +72,7 @@ export function SignUp() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@iitg.ac.in"
+              placeholder="you@example.com"
             />
           </div>
           <div>

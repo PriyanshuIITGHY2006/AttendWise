@@ -51,7 +51,7 @@ export function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@iitg.ac.in"
+              placeholder="you@example.com"
             />
           </div>
           <div>

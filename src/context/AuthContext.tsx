@@ -74,10 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: {
         redirectTo: window.location.origin + import.meta.env.BASE_URL,
         scopes: "email openid profile",
-        // Nudges the Microsoft login screen toward the IITG tenant; the
-        // database trigger is what actually enforces the @iitg.ac.in
-        // restriction, this is just a UX shortcut.
-        queryParams: { domain_hint: "iitg.ac.in" },
       },
     })
     return { error: error?.message ?? null }
@@ -88,9 +84,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: "google",
       options: {
         redirectTo: window.location.origin + import.meta.env.BASE_URL,
-        // Google Workspace accounts can be nudged toward a specific domain;
-        // the database trigger is what actually enforces @iitg.ac.in.
-        queryParams: { hd: "iitg.ac.in" },
       },
     })
     return { error: error?.message ?? null }
