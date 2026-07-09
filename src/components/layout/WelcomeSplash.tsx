@@ -1,23 +1,16 @@
 import { useEffect, useState } from "react"
 
-const FLAG_KEY = "attendwise_just_signed_in"
-
-export function WelcomeSplash() {
-  const [visible, setVisible] = useState(() => sessionStorage.getItem(FLAG_KEY) === "1")
+export function WelcomeSplash({ onDone }: { onDone: () => void }) {
   const [fading, setFading] = useState(false)
 
   useEffect(() => {
-    if (!visible) return
-    sessionStorage.removeItem(FLAG_KEY)
-    const fadeTimer = setTimeout(() => setFading(true), 1900)
-    const hideTimer = setTimeout(() => setVisible(false), 2500)
+    const fadeTimer = setTimeout(() => setFading(true), 1700)
+    const doneTimer = setTimeout(onDone, 2200)
     return () => {
       clearTimeout(fadeTimer)
-      clearTimeout(hideTimer)
+      clearTimeout(doneTimer)
     }
-  }, [visible])
-
-  if (!visible) return null
+  }, [onDone])
 
   return (
     <div

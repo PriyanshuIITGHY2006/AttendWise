@@ -1,12 +1,15 @@
+import { useEffect, useState } from "react"
 import { NavLink, Outlet } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { WelcomeSplash } from "./WelcomeSplash"
+import { SidebarStatus } from "./SidebarStatus"
 import { Logomark } from "../ui/Logomark"
+import { RevealProvider } from "../../context/RevealContext"
+
+const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
 
 const ICONS = {
-  today: (
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
-  ),
+  today: <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />,
   courses: (
     <path
       strokeLinecap="round"
@@ -44,55 +47,96 @@ function NavIcon({ name }: { name: keyof typeof ICONS }) {
   )
 }
 
+function NavItem({ to, label, icon, end }: { to: string; label: string; icon: keyof typeof ICONS; end?: boolean }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `flex items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-indigo-600 text-white"
+            : "text-neutral-600 hover:bg-neutral-200/60 dark:text-neutral-300 dark:hover:bg-neutral-800"
+        }`
+      }
+    >
+      <NavIcon name={icon} />
+      {label}
+    </NavLink>
+  )
+}
+
+function initialsOf(name: string | null | undefined, email: string | undefined) {
+  const source = name?.trim() || email || "?"
+  const parts = source.split(/\s+/).filter(Boolean)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return source.slice(0, 2).toUpperCase()
+}
+
 export function AppLayout() {
   const { profile, hasMaterialAccess, signOut } = useAuth()
-  const navItems: { to: string; label: string; icon: keyof typeof ICONS; end?: boolean }[] = [
-    { to: "/", label: "Today", icon: "today", end: true },
-    { to: "/courses", label: "Courses", icon: "courses" },
-    { to: "/calendar", label: "Calendar", icon: "calendar" },
-    ...(hasMaterialAccess ? [{ to: "/materials", label: "Materials", icon: "materials" as const }] : []),
-    { to: "/settings", label: "Settings", icon: "settings" },
-  ]
+  const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) === "1")
+  const [ready, setReady] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) !== "1")
+
+  useEffect(() => {
+    if (showSplash) sessionStorage.removeItem(SPLASH_FLAG_KEY)
+  }, [showSplash])
+
+  function handleSplashDone() {
+    setShowSplash(false)
+    setReady(true)
+  }
 
   return (
     <div className="flex min-h-screen flex-col md:flex-row">
-      <WelcomeSplash />
-      <aside className="flex shrink-0 flex-col border-b border-neutral-200 bg-neutral-50/60 px-4 py-4 md:w-56 md:border-b-0 md:border-r md:px-5 md:py-9 dark:border-neutral-800 dark:bg-neutral-900/40">
-        <div className="mb-7 flex items-center gap-2">
+      {showSplash && <WelcomeSplash onDone={handleSplashDone} />}
+
+      <aside className="flex shrink-0 flex-col border-b border-neutral-200 bg-neutral-50/60 px-4 py-4 md:w-60 md:border-b-0 md:border-r md:px-5 md:py-9 dark:border-neutral-800 dark:bg-neutral-900/40">
+        <div className="mb-5 flex items-center gap-2">
           <Logomark />
           <span className="text-[15px] font-semibold tracking-tight">AttendWise</span>
         </div>
-        <nav className="flex gap-1 overflow-x-auto md:flex-col md:overflow-visible">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-2.5 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-indigo-600 text-white"
-                    : "text-neutral-600 hover:bg-neutral-200/60 dark:text-neutral-300 dark:hover:bg-neutral-800"
-                }`
-              }
-            >
-              <NavIcon name={item.icon} />
-              {item.label}
-            </NavLink>
-          ))}
+
+        <div className="mb-6 hidden md:block">
+          <SidebarStatus />
+        </div>
+
+        <nav className="flex flex-1 gap-1 overflow-x-auto md:flex-col md:overflow-visible">
+          <p className="hidden px-3 pb-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400 md:block">Overview</p>
+          <NavItem to="/" label="Today" icon="today" end />
+          <NavItem to="/courses" label="Courses" icon="courses" />
+          <NavItem to="/calendar" label="Calendar" icon="calendar" />
+
+          {hasMaterialAccess && (
+            <>
+              <p className="hidden px-3 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-wide text-neutral-400 md:block">
+                Shared
+              </p>
+              <NavItem to="/materials" label="Materials" icon="materials" />
+            </>
+          )}
         </nav>
-        <div className="mt-auto hidden pt-6 md:block">
-          <div className="truncate text-xs text-neutral-500">{profile?.email}</div>
-          <button
-            onClick={signOut}
-            className="mt-2 text-sm font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
-          >
-            Sign out
-          </button>
+
+        <div className="mt-4 border-t border-neutral-200 pt-3 dark:border-neutral-800 md:mt-auto">
+          <NavItem to="/settings" label="Settings" icon="settings" />
+          <div className="mt-3 hidden items-center gap-2.5 px-1 md:flex">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300">
+              {initialsOf(profile?.full_name, profile?.email)}
+            </span>
+            <div className="min-w-0">
+              <div className="truncate text-xs text-neutral-500">{profile?.email}</div>
+              <button onClick={signOut} className="text-xs font-medium text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100">
+                Sign out
+              </button>
+            </div>
+          </div>
         </div>
       </aside>
+
       <main className="flex-1 px-4 py-6 md:px-10 md:py-9">
-        <Outlet />
+        <RevealProvider value={ready}>
+          <Outlet />
+        </RevealProvider>
       </main>
     </div>
   )

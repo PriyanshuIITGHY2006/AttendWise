@@ -110,7 +110,7 @@ export function CourseDetail() {
         </div>
       </div>
 
-      <Card className="mt-6">
+      <Card className="mt-6" index={0}>
         <div className="flex items-center justify-between">
           <h2 className="font-medium">Attendance</h2>
           <Badge tone={safety.status}>{safety.currentPercent.toFixed(1)}% of {course.attendance_threshold}% required</Badge>
@@ -144,7 +144,7 @@ export function CourseDetail() {
         </p>
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6" index={1}>
         <h2 className="font-medium">Plan ahead</h2>
         <p className="mt-1 text-sm text-neutral-500">
           Mark specific upcoming classes as a planned skip, or let the app suggest which ones to skip.
@@ -158,17 +158,17 @@ export function CourseDetail() {
         />
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6" index={2}>
         <h2 className="font-medium">Weekly schedule</h2>
         <ScheduleList courseId={course.id} />
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6" index={3}>
         <h2 className="font-medium">Quizzes & assignments</h2>
         <EventsList courseId={course.id} />
       </Card>
 
-      <Card className="mt-6">
+      <Card className="mt-6" index={4}>
         <h2 className="font-medium">History</h2>
         {pastSessions.length === 0 ? (
           <p className="mt-3 text-sm text-neutral-500">No past sessions yet.</p>

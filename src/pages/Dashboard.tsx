@@ -85,10 +85,10 @@ export function Dashboard() {
         </Card>
       ) : (
         <div className="mt-6 space-y-3">
-          {sessions.map((s) => {
+          {sessions.map((s, i) => {
             const myRecord = s.attendance_records?.[0]
             return (
-              <Card key={s.id} className="flex items-center justify-between gap-4">
+              <Card key={s.id} index={i} className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.courses.color }} />
@@ -121,8 +121,8 @@ export function Dashboard() {
         <div className="mt-8">
           <h2 className="text-sm font-medium text-neutral-500">Upcoming</h2>
           <div className="mt-3 space-y-2">
-            {upcoming.map((ev) => (
-              <Card key={ev.id} className="flex items-center justify-between gap-3 py-3">
+            {upcoming.map((ev, i) => (
+              <Card key={ev.id} index={sessions.length + i} className="flex items-center justify-between gap-3 py-3">
                 <div className="flex items-center gap-2 min-w-0">
                   {ev.courses && <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: ev.courses.color }} />}
                   <span className="truncate text-sm font-medium">{ev.title}</span>
