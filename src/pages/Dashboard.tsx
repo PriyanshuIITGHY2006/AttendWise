@@ -3,8 +3,10 @@ import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getCourseStats } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
-import { computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
+import { computeBunkSafety, computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
 import { unmarkedNudge } from "../features/notifications/copy"
+import { getGlobalNotificationSettings } from "../features/notifications/api"
+import { syncScheduledNotifications, notifyThresholdIfChanged, notifyUnmarkedIfNeeded } from "../features/notifications/schedule"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -76,6 +78,35 @@ export function Dashboard() {
     )
     setVerdicts(Object.fromEntries(verdictEntries))
     setLoading(false)
+
+    const notifSettings = await getGlobalNotificationSettings(user.id)
+    if (!notifSettings.muted) {
+      await syncScheduledNotifications(
+        today
+          .filter((s) => !s.attendance_records?.[0])
+          .map((s) => ({ id: s.id, courseId: s.course_id, courseName: s.courses.name, startTime: s.start_time, alreadyMarked: false })),
+        (events as UpcomingEvent[]).map((ev) => ({
+          id: ev.id,
+          title: ev.title,
+          courseName: ev.courses?.name ?? "",
+          eventDateISO: ev.event_date,
+        })),
+        notifSettings.lead_time_minutes,
+      )
+      await notifyUnmarkedIfNeeded(unmarkedPast.length)
+      await Promise.all(
+        courses.map(async (course) => {
+          const stats = await getCourseStats(course.id, user.id)
+          const safety = computeBunkSafety({
+            attended: stats.attended,
+            absent: stats.absent,
+            remainingSessions: stats.remainingSessions,
+            thresholdPercent: course.attendance_threshold,
+          })
+          await notifyThresholdIfChanged(course.id, course.name, safety.currentPercent, safety.status)
+        }),
+      )
+    }
   }, [user])
 
   useEffect(() => {

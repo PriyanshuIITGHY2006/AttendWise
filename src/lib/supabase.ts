@@ -10,4 +10,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
+// PKCE (not implicit) so the native app can exchange the deep-link callback's
+// "code" param for a session -- see AuthContext's appUrlOpen handler.
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  auth: { flowType: "pkce" },
+})

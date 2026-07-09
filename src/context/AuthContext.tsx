@@ -1,7 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react"
 import type { Session, User } from "@supabase/supabase-js"
+import { Capacitor } from "@capacitor/core"
+import { Browser } from "@capacitor/browser"
+import { App as CapacitorApp } from "@capacitor/app"
 import { supabase } from "../lib/supabase"
 import type { Tables } from "../types/database"
+
+// Google/Microsoft refuse to complete OAuth inside an embedded WebView, so the
+// native app hands off to the system browser and gets handed back via this
+// custom URL scheme instead of the https redirect the web build uses.
+const NATIVE_OAUTH_REDIRECT = "in.ac.iitg.attendwise://auth-callback"
 
 type Profile = Tables<"profiles">
 
@@ -45,6 +53,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return
+    const handle = CapacitorApp.addListener("appUrlOpen", async ({ url }) => {
+      if (!url.startsWith(NATIVE_OAUTH_REDIRECT)) return
+      await Browser.close()
+      const code = new URL(url).searchParams.get("code")
+      if (code) await supabase.auth.exchangeCodeForSession(code)
+    })
+    return () => {
+      handle.then((h) => h.remove())
+    }
+  }, [])
+
+  useEffect(() => {
     if (!session?.user) {
       setProfile(null)
       setHasMaterialAccess(false)
@@ -74,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithMicrosoft() {
+    if (Capacitor.isNativePlatform()) {
+      return signInWithOAuthNative("azure", "email openid profile")
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "azure",
       options: {
@@ -85,6 +109,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function signInWithGoogle() {
+    if (Capacitor.isNativePlatform()) {
+      return signInWithOAuthNative("google")
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -92,6 +119,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     })
     return { error: error?.message ?? null }
+  }
+
+  async function signInWithOAuthNative(provider: "azure" | "google", scopes?: string) {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: NATIVE_OAUTH_REDIRECT,
+        skipBrowserRedirect: true,
+        ...(scopes ? { scopes } : {}),
+      },
+    })
+    if (error) return { error: error.message }
+    if (data?.url) await Browser.open({ url: data.url })
+    return { error: null }
   }
 
   async function signOut() {
