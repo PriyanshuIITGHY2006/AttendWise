@@ -271,12 +271,16 @@ function BunkPlanner({
     setApplying(false)
   }
 
+  // one row per week, one column per weekday (Mon..Sun) -- a course that meets
+  // twice on the same day stacks both sessions in that single cell instead of
+  // spilling into loose, unevenly wrapped chips
   const weeks = useMemo(() => {
-    const groups = new Map<string, Session[]>()
+    const groups = new Map<string, Session[][]>()
     for (const s of futureSessions) {
       const key = mondayOf(s.session_date)
-      if (!groups.has(key)) groups.set(key, [])
-      groups.get(key)!.push(s)
+      if (!groups.has(key)) groups.set(key, Array.from({ length: 7 }, () => []))
+      const dow = (new Date(`${s.session_date}T00:00:00`).getDay() + 6) % 7
+      groups.get(key)![dow].push(s)
     }
     return [...groups.entries()]
   }, [futureSessions])
@@ -357,68 +361,90 @@ function BunkPlanner({
         )}
       </div>
 
-      {/* calendar-style day cards, grouped by week */}
-      <div className="mt-4 space-y-4">
-        {weeks.map(([weekKey, weekSessions]) => (
-          <div key={weekKey}>
-            <h3 className="text-xs font-medium text-neutral-400">
-              Week of {new Date(`${weekKey}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-            </h3>
-            <div className="mt-1.5 flex flex-wrap gap-2">
-              {weekSessions.map((s) => {
-                const status = attendance[s.id]
-                const isSuggested = !status && suggested.includes(s.id)
-                return (
-                  <div key={s.id} className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setOpenId(openId === s.id ? null : s.id)}
-                      className={`flex w-20 flex-col items-center rounded-lg border px-2 py-1.5 text-center transition-colors ${
-                        status ? STATUS_META[status].bg : "bg-white dark:bg-neutral-900"
-                      } ${
-                        isSuggested
-                          ? "border-dashed border-amber-400"
-                          : "border-neutral-200 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-500"
-                      }`}
-                    >
-                      <span className="text-[10px] uppercase text-neutral-400">
-                        {new Date(s.session_date).toLocaleDateString(undefined, { weekday: "short" })}
-                      </span>
-                      <span className="text-sm font-semibold">{new Date(s.session_date).getDate()}</span>
-                      <span className="text-[10px] text-neutral-500">{s.start_time.slice(0, 5)}</span>
-                      {status && <span className={`mt-1 h-1.5 w-1.5 rounded-full ${STATUS_META[status].dot}`} />}
-                      {isSuggested && <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-400" />}
-                    </button>
+      {/* full-width week grid: one column per weekday, so the row always
+          fills the available space instead of shrink-wrapping to however
+          many sessions happen to fall that week */}
+      <div className="mt-4">
+        <div className="grid grid-cols-7 gap-1.5 text-center text-[10px] font-medium uppercase text-neutral-400">
+          {DAY_NAMES.map((d) => (
+            <div key={d}>{d}</div>
+          ))}
+        </div>
 
-                    {openId === s.id && (
-                      <div
-                        ref={popoverRef}
-                        className="absolute left-1/2 top-full z-10 mt-1 w-44 -translate-x-1/2 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
-                      >
-                        {(Object.entries(STATUS_META) as [AttendanceRecord["status"], (typeof STATUS_META)[AttendanceRecord["status"]]][]).map(
-                          ([value, meta]) => (
+        <div className="mt-1.5 space-y-1.5">
+          {weeks.map(([weekKey, dayBuckets], weekIdx) => {
+            const monthLabel = new Date(`${weekKey}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+            const prevMonthLabel =
+              weekIdx > 0
+                ? new Date(`${weeks[weekIdx - 1][0]}T00:00:00`).toLocaleDateString(undefined, { month: "long", year: "numeric" })
+                : null
+
+            return (
+              <div key={weekKey}>
+                {monthLabel !== prevMonthLabel && (
+                  <h3 className="mb-1 mt-3 text-xs font-medium text-neutral-400 first:mt-0">{monthLabel}</h3>
+                )}
+                <div className="grid grid-cols-7 gap-1.5">
+                  {dayBuckets.map((daySessions, dayIdx) => (
+                    <div key={dayIdx} className="flex flex-col gap-1">
+                      {daySessions.map((s) => {
+                        const status = attendance[s.id]
+                        const isSuggested = !status && suggested.includes(s.id)
+                        return (
+                          <div key={s.id} className="relative">
                             <button
-                              key={value}
                               type="button"
-                              onClick={() => {
-                                onMark(s.id, value)
-                                setOpenId(null)
-                              }}
-                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                              onClick={() => setOpenId(openId === s.id ? null : s.id)}
+                              className={`flex w-full flex-col items-center rounded-lg border px-1 py-1.5 text-center transition-colors ${
+                                status ? STATUS_META[status].bg : "bg-white dark:bg-neutral-900"
+                              } ${
+                                isSuggested
+                                  ? "border-dashed border-amber-400"
+                                  : "border-neutral-200 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-500"
+                              }`}
                             >
-                              <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
-                              {meta.label}
+                              <span className="text-sm font-semibold">{new Date(s.session_date).getDate()}</span>
+                              <span className="text-[10px] text-neutral-500">{s.start_time.slice(0, 5)}</span>
+                              {status && <span className={`mt-1 h-1.5 w-1.5 rounded-full ${STATUS_META[status].dot}`} />}
+                              {isSuggested && <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-400" />}
                             </button>
-                          ),
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        ))}
+
+                            {openId === s.id && (
+                              <div
+                                ref={popoverRef}
+                                className="absolute left-1/2 top-full z-10 mt-1 w-44 -translate-x-1/2 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
+                              >
+                                {(
+                                  Object.entries(STATUS_META) as [
+                                    AttendanceRecord["status"],
+                                    (typeof STATUS_META)[AttendanceRecord["status"]],
+                                  ][]
+                                ).map(([value, meta]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    onClick={() => {
+                                      onMark(s.id, value)
+                                      setOpenId(null)
+                                    }}
+                                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                  >
+                                    <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                                    {meta.label}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
