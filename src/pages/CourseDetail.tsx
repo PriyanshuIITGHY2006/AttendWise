@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, type FormEvent } from "react"
+import { useEffect, useState, useCallback, useRef, useMemo, type FormEvent } from "react"
 import { Link, useNavigate, useParams } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import {
@@ -206,10 +206,23 @@ export function CourseDetail() {
   )
 }
 
-const STRATEGY_LABELS: Record<SkipStrategy, string> = {
-  spread: "Spread evenly across the semester",
-  concentrate: "Concentrate in one week",
-  weekday: "Prefer a specific weekday",
+const STRATEGY_META: Record<SkipStrategy, { label: string; hint: string }> = {
+  spread: { label: "Spread evenly", hint: "Distribute skips across the rest of the semester" },
+  concentrate: { label: "One week", hint: "Use most of the budget in a single week" },
+  weekday: { label: "By weekday", hint: "Prefer a specific day, e.g. always skip Fridays" },
+}
+
+const STATUS_META: Record<AttendanceRecord["status"], { label: string; dot: string; bg: string }> = {
+  present: { label: "Plan to attend", dot: "bg-emerald-500", bg: "bg-emerald-50 dark:bg-emerald-500/10" },
+  absent: { label: "Plan to skip", dot: "bg-red-500", bg: "bg-red-50 dark:bg-red-500/10" },
+  on_duty: { label: "Approved leave", dot: "bg-blue-500", bg: "bg-blue-50 dark:bg-blue-500/10" },
+  cancelled: { label: "Expect cancelled", dot: "bg-neutral-400", bg: "bg-neutral-100 dark:bg-neutral-800" },
+}
+
+function mondayOf(dateISO: string) {
+  const d = new Date(`${dateISO}T00:00:00`)
+  d.setDate(d.getDate() - ((d.getDay() + 6) % 7))
+  return d.toISOString().slice(0, 10)
 }
 
 function BunkPlanner({
@@ -229,23 +242,44 @@ function BunkPlanner({
   const [weekStart, setWeekStart] = useState("")
   const [weekEnd, setWeekEnd] = useState("")
   const [dayOfWeek, setDayOfWeek] = useState(0)
-  const [suggested, setSuggested] = useState<string[]>([])
   const [applying, setApplying] = useState(false)
+  const [openId, setOpenId] = useState<string | null>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!openId) return
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) setOpenId(null)
+    }
+    document.addEventListener("mousedown", handleClick)
+    return () => document.removeEventListener("mousedown", handleClick)
+  }, [openId])
 
   const plannedSkipCount = futureSessions.filter((s) => attendance[s.id] === "absent").length
   const budgetRemaining = Math.max(0, maxSafeSkips - plannedSkipCount)
+  const budgetUsedPercent = maxSafeSkips === 0 ? 100 : Math.min(100, (plannedSkipCount / maxSafeSkips) * 100)
 
-  function runSuggestion() {
+  const suggested = useMemo(() => {
+    if (strategy === "concentrate" && (!weekStart || !weekEnd)) return []
     const unmarked = futureSessions.filter((s) => !attendance[s.id]).map((s) => ({ id: s.id, date: s.session_date }))
-    setSuggested(suggestSkipSessions(unmarked, budgetRemaining, strategy, { weekStart, weekEnd, dayOfWeek }))
-  }
+    return suggestSkipSessions(unmarked, budgetRemaining, strategy, { weekStart, weekEnd, dayOfWeek })
+  }, [strategy, weekStart, weekEnd, dayOfWeek, budgetRemaining, futureSessions, attendance])
 
   async function apply() {
     setApplying(true)
     await onApplyBulk(suggested)
-    setSuggested([])
     setApplying(false)
   }
+
+  const weeks = useMemo(() => {
+    const groups = new Map<string, Session[]>()
+    for (const s of futureSessions) {
+      const key = mondayOf(s.session_date)
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key)!.push(s)
+    }
+    return [...groups.entries()]
+  }, [futureSessions])
 
   if (futureSessions.length === 0) {
     return <p className="mt-3 text-sm text-neutral-500">No upcoming sessions yet.</p>
@@ -253,61 +287,68 @@ function BunkPlanner({
 
   return (
     <div className="mt-4">
+      {/* budget */}
       <div className="rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
-        <p className="text-sm">
-          <span className="font-medium">{budgetRemaining}</span> safe skip{budgetRemaining === 1 ? "" : "s"} left to plan
-          {plannedSkipCount > 0 && ` (${plannedSkipCount} already planned)`}.
-        </p>
-
-        <div className="mt-3 flex flex-wrap items-end gap-2">
-          <select
-            value={strategy}
-            onChange={(e) => setStrategy(e.target.value as SkipStrategy)}
-            className="rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-          >
-            {(Object.entries(STRATEGY_LABELS) as [SkipStrategy, string][]).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-
-          {strategy === "concentrate" && (
-            <>
-              <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} className="w-auto" />
-              <span className="text-sm text-neutral-400">to</span>
-              <Input type="date" value={weekEnd} onChange={(e) => setWeekEnd(e.target.value)} className="w-auto" />
-            </>
-          )}
-
-          {strategy === "weekday" && (
-            <select
-              value={dayOfWeek}
-              onChange={(e) => setDayOfWeek(Number(e.target.value))}
-              className="rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-            >
-              {DAY_NAMES.map((d, idx) => (
-                <option key={d} value={idx}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          )}
-
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={runSuggestion}
-            disabled={budgetRemaining === 0 || (strategy === "concentrate" && (!weekStart || !weekEnd))}
-          >
-            Suggest
-          </Button>
+        <div className="flex items-baseline justify-between text-sm">
+          <span>
+            <span className="font-semibold">{budgetRemaining}</span> safe skip{budgetRemaining === 1 ? "" : "s"} left to plan
+          </span>
+          {plannedSkipCount > 0 && <span className="text-neutral-500">{plannedSkipCount} planned</span>}
         </div>
+        <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
+          <div className="h-full rounded-full bg-neutral-900 transition-all dark:bg-neutral-100" style={{ width: `${budgetUsedPercent}%` }} />
+        </div>
+
+        {/* strategy picker */}
+        <div className="mt-4 grid grid-cols-3 gap-1.5">
+          {(Object.entries(STRATEGY_META) as [SkipStrategy, (typeof STRATEGY_META)[SkipStrategy]][]).map(([value, meta]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setStrategy(value)}
+              className={`rounded-md px-2 py-2 text-left text-xs font-medium transition-colors ${
+                strategy === value
+                  ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                  : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+              }`}
+            >
+              {meta.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-1.5 text-xs text-neutral-400">{STRATEGY_META[strategy].hint}</p>
+
+        {strategy === "concentrate" && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} className="w-auto" />
+            <span className="text-sm text-neutral-400">to</span>
+            <Input type="date" value={weekEnd} onChange={(e) => setWeekEnd(e.target.value)} className="w-auto" />
+          </div>
+        )}
+
+        {strategy === "weekday" && (
+          <div className="mt-3 flex gap-1.5">
+            {DAY_NAMES.map((d, idx) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setDayOfWeek(idx)}
+                className={`h-8 w-8 rounded-full text-xs font-medium transition-colors ${
+                  dayOfWeek === idx
+                    ? "bg-neutral-900 text-white dark:bg-white dark:text-neutral-900"
+                    : "bg-neutral-100 text-neutral-600 hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                }`}
+              >
+                {d[0]}
+              </button>
+            ))}
+          </div>
+        )}
 
         {suggested.length > 0 && (
           <div className="mt-3 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm dark:bg-amber-500/10">
             <span>
-              {suggested.length} class{suggested.length === 1 ? "" : "es"} suggested to skip
+              {suggested.length} class{suggested.length === 1 ? "" : "es"} suggested — highlighted below
             </span>
             <Button type="button" onClick={apply} disabled={applying}>
               {applying ? "Applying…" : "Apply"}
@@ -316,29 +357,66 @@ function BunkPlanner({
         )}
       </div>
 
-      <div className="mt-3 divide-y divide-neutral-100 dark:divide-neutral-800">
-        {futureSessions.map((s) => (
-          <div key={s.id} className="flex items-center justify-between py-2.5 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="font-medium">
-                {new Date(s.session_date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
-              </span>
-              <span className="text-neutral-500">
-                {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)} · {s.component_type}
-              </span>
-              {suggested.includes(s.id) && <Badge tone="yellow">Suggested skip</Badge>}
+      {/* calendar-style day cards, grouped by week */}
+      <div className="mt-4 space-y-4">
+        {weeks.map(([weekKey, weekSessions]) => (
+          <div key={weekKey}>
+            <h3 className="text-xs font-medium text-neutral-400">
+              Week of {new Date(`${weekKey}T00:00:00`).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+            </h3>
+            <div className="mt-1.5 flex flex-wrap gap-2">
+              {weekSessions.map((s) => {
+                const status = attendance[s.id]
+                const isSuggested = !status && suggested.includes(s.id)
+                return (
+                  <div key={s.id} className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(openId === s.id ? null : s.id)}
+                      className={`flex w-20 flex-col items-center rounded-lg border px-2 py-1.5 text-center transition-colors ${
+                        status ? STATUS_META[status].bg : "bg-white dark:bg-neutral-900"
+                      } ${
+                        isSuggested
+                          ? "border-dashed border-amber-400"
+                          : "border-neutral-200 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-500"
+                      }`}
+                    >
+                      <span className="text-[10px] uppercase text-neutral-400">
+                        {new Date(s.session_date).toLocaleDateString(undefined, { weekday: "short" })}
+                      </span>
+                      <span className="text-sm font-semibold">{new Date(s.session_date).getDate()}</span>
+                      <span className="text-[10px] text-neutral-500">{s.start_time.slice(0, 5)}</span>
+                      {status && <span className={`mt-1 h-1.5 w-1.5 rounded-full ${STATUS_META[status].dot}`} />}
+                      {isSuggested && <span className="mt-1 h-1.5 w-1.5 rounded-full bg-amber-400" />}
+                    </button>
+
+                    {openId === s.id && (
+                      <div
+                        ref={popoverRef}
+                        className="absolute left-1/2 top-full z-10 mt-1 w-44 -translate-x-1/2 rounded-md border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900"
+                      >
+                        {(Object.entries(STATUS_META) as [AttendanceRecord["status"], (typeof STATUS_META)[AttendanceRecord["status"]]][]).map(
+                          ([value, meta]) => (
+                            <button
+                              key={value}
+                              type="button"
+                              onClick={() => {
+                                onMark(s.id, value)
+                                setOpenId(null)
+                              }}
+                              className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
+                              {meta.label}
+                            </button>
+                          ),
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
-            <select
-              value={attendance[s.id] ?? ""}
-              onChange={(e) => onMark(s.id, e.target.value as AttendanceRecord["status"])}
-              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-            >
-              <option value="">No plan yet</option>
-              <option value="present">Plan to attend</option>
-              <option value="absent">Plan to skip</option>
-              <option value="on_duty">Approved leave (won't count against me)</option>
-              <option value="cancelled">Expect class cancelled</option>
-            </select>
           </div>
         ))}
       </div>
