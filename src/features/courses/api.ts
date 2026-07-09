@@ -106,6 +106,17 @@ export async function markAttendance(sessionId: string, userId: string, status: 
   return data
 }
 
+export async function markAttendanceBulk(sessionIds: string[], userId: string, status: AttendanceRecord["status"]) {
+  if (sessionIds.length === 0) return
+  const { error } = await supabase
+    .from("attendance_records")
+    .upsert(
+      sessionIds.map((session_id) => ({ session_id, user_id: userId, status })),
+      { onConflict: "session_id,user_id" },
+    )
+  if (error) throw error
+}
+
 export type CourseStats = {
   attended: number
   absent: number
@@ -130,13 +141,19 @@ export async function getCourseStats(courseId: string, userId: string): Promise<
 
   const attended = records.filter((r) => r.status === "present").length
   const absent = records.filter((r) => r.status === "absent").length
+  // cancelled/on_duty sessions are resolved (they already happened) but count
+  // toward neither attended nor absent, so they must still be subtracted out
+  // of the denominator -- otherwise they get miscounted as "still upcoming"
+  // forever, which inflates remainingSessions and overstates how many more
+  // classes can safely be skipped.
+  const resolvedNeutral = records.filter((r) => r.status === "cancelled" || r.status === "on_duty").length
   const total = totalSessions ?? 0
 
   return {
     attended,
     absent,
     totalSessions: total,
-    remainingSessions: Math.max(0, total - attended - absent),
+    remainingSessions: Math.max(0, total - attended - absent - resolvedNeutral),
   }
 }
 

@@ -75,3 +75,63 @@ export function computeBunkSafety({
     status,
   }
 }
+
+export type SkipStrategy = "spread" | "concentrate" | "weekday"
+
+export type FutureSessionRef = {
+  id: string
+  /** ISO date, YYYY-MM-DD */
+  date: string
+}
+
+export type SkipStrategyOptions = {
+  /** "concentrate": inclusive ISO date range to draw picks from. */
+  weekStart?: string
+  weekEnd?: string
+  /** "weekday": 0 = Monday .. 6 = Sunday, matching course_schedule.day_of_week. */
+  dayOfWeek?: number
+}
+
+/**
+ * Suggests which future sessions to skip under a chosen strategy, capped at
+ * `budget` (normally the course's maxSafeSkips). Pure and side-effect free --
+ * the caller decides whether/when to actually mark these as absent.
+ */
+export function suggestSkipSessions(
+  futureSessions: FutureSessionRef[],
+  budget: number,
+  strategy: SkipStrategy,
+  options: SkipStrategyOptions = {},
+): string[] {
+  const sorted = [...futureSessions].sort((a, b) => a.date.localeCompare(b.date))
+  const cappedBudget = Math.max(0, Math.min(budget, sorted.length))
+  if (cappedBudget === 0) return []
+
+  if (strategy === "concentrate" && options.weekStart && options.weekEnd) {
+    return sorted
+      .filter((s) => s.date >= options.weekStart! && s.date <= options.weekEnd!)
+      .slice(0, cappedBudget)
+      .map((s) => s.id)
+  }
+
+  if (strategy === "weekday" && options.dayOfWeek !== undefined) {
+    return sorted
+      .filter((s) => {
+        const jsDay = new Date(`${s.date}T00:00:00`).getDay() // 0 = Sun .. 6 = Sat
+        const ourDay = (jsDay + 6) % 7 // 0 = Mon .. 6 = Sun
+        return ourDay === options.dayOfWeek
+      })
+      .slice(0, cappedBudget)
+      .map((s) => s.id)
+  }
+
+  // "spread": evenly distribute the picks across the remaining semester
+  // rather than clustering them all at the start.
+  const n = sorted.length
+  const picks = new Set<string>()
+  for (let i = 0; i < cappedBudget; i++) {
+    const idx = Math.min(n - 1, Math.floor(((i + 0.5) * n) / cappedBudget))
+    picks.add(sorted[idx].id)
+  }
+  return [...picks]
+}

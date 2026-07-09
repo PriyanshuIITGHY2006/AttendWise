@@ -8,6 +8,7 @@ import {
   listAttendanceForCourse,
   listSchedule,
   markAttendance,
+  markAttendanceBulk,
   deleteCourse,
   type Course,
   type CourseStats,
@@ -16,7 +17,7 @@ import {
   type CourseSchedule,
 } from "../features/courses/api"
 import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
-import { computeBunkSafety } from "../features/attendance/bunkSafety"
+import { computeBunkSafety, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -60,6 +61,12 @@ export function CourseDetail() {
     load()
   }
 
+  async function applyPlannedSkips(sessionIds: string[]) {
+    if (!user) return
+    await markAttendanceBulk(sessionIds, user.id, "absent")
+    load()
+  }
+
   async function handleDelete() {
     if (!courseId) return
     if (!confirm("Delete this course and all its attendance history? This cannot be undone.")) return
@@ -78,6 +85,7 @@ export function CourseDetail() {
 
   const todayISO = new Date().toISOString().slice(0, 10)
   const pastSessions = sessions.filter((s) => s.session_date <= todayISO).reverse()
+  const futureSessions = sessions.filter((s) => s.session_date > todayISO)
 
   return (
     <div className="max-w-3xl">
@@ -137,6 +145,20 @@ export function CourseDetail() {
       </Card>
 
       <Card className="mt-6">
+        <h2 className="font-medium">Plan ahead</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Mark specific upcoming classes as a planned skip, or let the app suggest which ones to skip.
+        </p>
+        <BunkPlanner
+          futureSessions={futureSessions}
+          attendance={attendance}
+          maxSafeSkips={safety.canReachThreshold ? safety.maxSafeSkips : 0}
+          onMark={updateStatus}
+          onApplyBulk={applyPlannedSkips}
+        />
+      </Card>
+
+      <Card className="mt-6">
         <h2 className="font-medium">Weekly schedule</h2>
         <ScheduleList courseId={course.id} />
       </Card>
@@ -180,6 +202,146 @@ export function CourseDetail() {
           </div>
         )}
       </Card>
+    </div>
+  )
+}
+
+const STRATEGY_LABELS: Record<SkipStrategy, string> = {
+  spread: "Spread evenly across the semester",
+  concentrate: "Concentrate in one week",
+  weekday: "Prefer a specific weekday",
+}
+
+function BunkPlanner({
+  futureSessions,
+  attendance,
+  maxSafeSkips,
+  onMark,
+  onApplyBulk,
+}: {
+  futureSessions: Session[]
+  attendance: Record<string, AttendanceRecord["status"]>
+  maxSafeSkips: number
+  onMark: (sessionId: string, status: AttendanceRecord["status"]) => void
+  onApplyBulk: (sessionIds: string[]) => Promise<void>
+}) {
+  const [strategy, setStrategy] = useState<SkipStrategy>("spread")
+  const [weekStart, setWeekStart] = useState("")
+  const [weekEnd, setWeekEnd] = useState("")
+  const [dayOfWeek, setDayOfWeek] = useState(0)
+  const [suggested, setSuggested] = useState<string[]>([])
+  const [applying, setApplying] = useState(false)
+
+  const plannedSkipCount = futureSessions.filter((s) => attendance[s.id] === "absent").length
+  const budgetRemaining = Math.max(0, maxSafeSkips - plannedSkipCount)
+
+  function runSuggestion() {
+    const unmarked = futureSessions.filter((s) => !attendance[s.id]).map((s) => ({ id: s.id, date: s.session_date }))
+    setSuggested(suggestSkipSessions(unmarked, budgetRemaining, strategy, { weekStart, weekEnd, dayOfWeek }))
+  }
+
+  async function apply() {
+    setApplying(true)
+    await onApplyBulk(suggested)
+    setSuggested([])
+    setApplying(false)
+  }
+
+  if (futureSessions.length === 0) {
+    return <p className="mt-3 text-sm text-neutral-500">No upcoming sessions yet.</p>
+  }
+
+  return (
+    <div className="mt-4">
+      <div className="rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+        <p className="text-sm">
+          <span className="font-medium">{budgetRemaining}</span> safe skip{budgetRemaining === 1 ? "" : "s"} left to plan
+          {plannedSkipCount > 0 && ` (${plannedSkipCount} already planned)`}.
+        </p>
+
+        <div className="mt-3 flex flex-wrap items-end gap-2">
+          <select
+            value={strategy}
+            onChange={(e) => setStrategy(e.target.value as SkipStrategy)}
+            className="rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+          >
+            {(Object.entries(STRATEGY_LABELS) as [SkipStrategy, string][]).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          {strategy === "concentrate" && (
+            <>
+              <Input type="date" value={weekStart} onChange={(e) => setWeekStart(e.target.value)} className="w-auto" />
+              <span className="text-sm text-neutral-400">to</span>
+              <Input type="date" value={weekEnd} onChange={(e) => setWeekEnd(e.target.value)} className="w-auto" />
+            </>
+          )}
+
+          {strategy === "weekday" && (
+            <select
+              value={dayOfWeek}
+              onChange={(e) => setDayOfWeek(Number(e.target.value))}
+              className="rounded-md border border-neutral-300 bg-white px-2 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            >
+              {DAY_NAMES.map((d, idx) => (
+                <option key={d} value={idx}>
+                  {d}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={runSuggestion}
+            disabled={budgetRemaining === 0 || (strategy === "concentrate" && (!weekStart || !weekEnd))}
+          >
+            Suggest
+          </Button>
+        </div>
+
+        {suggested.length > 0 && (
+          <div className="mt-3 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm dark:bg-amber-500/10">
+            <span>
+              {suggested.length} class{suggested.length === 1 ? "" : "es"} suggested to skip
+            </span>
+            <Button type="button" onClick={apply} disabled={applying}>
+              {applying ? "Applying…" : "Apply"}
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 divide-y divide-neutral-100 dark:divide-neutral-800">
+        {futureSessions.map((s) => (
+          <div key={s.id} className="flex items-center justify-between py-2.5 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">
+                {new Date(s.session_date).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}
+              </span>
+              <span className="text-neutral-500">
+                {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)} · {s.component_type}
+              </span>
+              {suggested.includes(s.id) && <Badge tone="yellow">Suggested skip</Badge>}
+            </div>
+            <select
+              value={attendance[s.id] ?? ""}
+              onChange={(e) => onMark(s.id, e.target.value as AttendanceRecord["status"])}
+              className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+            >
+              <option value="">No plan yet</option>
+              <option value="present">Plan to attend</option>
+              <option value="absent">Plan to skip</option>
+              <option value="on_duty">Approved leave (won't count against me)</option>
+              <option value="cancelled">Expect class cancelled</option>
+            </select>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
