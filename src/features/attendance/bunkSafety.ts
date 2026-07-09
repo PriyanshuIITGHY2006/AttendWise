@@ -135,3 +135,16 @@ export function suggestSkipSessions(
   }
   return [...picks]
 }
+
+export type SkipVerdict = {
+  safety: BunkSafetyResult
+  /** How many of `countInRange` sessions can safely be skipped, 0 for zero-tolerance courses. */
+  safeCount: number
+}
+
+/** Combines a course's overall safety with how many sessions in some specific range/day it can absorb. */
+export function computeSkipVerdict(input: BunkSafetyInput & { strictNoSkip?: boolean }, countInRange: number): SkipVerdict {
+  const safety = computeBunkSafety(input)
+  const safeCount = input.strictNoSkip ? 0 : Math.min(safety.canReachThreshold ? safety.maxSafeSkips : 0, countInRange)
+  return { safety, safeCount }
+}

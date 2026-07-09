@@ -1,8 +1,9 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions } from "../features/courses/api"
+import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getCourseStats } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
+import { computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -30,6 +31,7 @@ export function Dashboard() {
   const [unmarked, setUnmarked] = useState<UnmarkedSession[]>([])
   const [showUnmarked, setShowUnmarked] = useState(false)
   const [courseCount, setCourseCount] = useState<number | null>(null)
+  const [verdicts, setVerdicts] = useState<Record<string, SkipVerdict>>({})
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
@@ -45,6 +47,33 @@ export function Dashboard() {
     setCourseCount(courses.length)
     setUpcoming((events as UpcomingEvent[]).slice(0, 6))
     setUnmarked(unmarkedPast)
+
+    // one verdict per course among today's still-unmarked sessions, so each
+    // card can show "safe to skip" without navigating to the day-off planner
+    const unmarkedToday = today.filter((s) => !s.attendance_records?.[0])
+    const byCourse = new Map<string, TodaySession[]>()
+    for (const s of unmarkedToday) {
+      if (!byCourse.has(s.course_id)) byCourse.set(s.course_id, [])
+      byCourse.get(s.course_id)!.push(s)
+    }
+    const verdictEntries = await Promise.all(
+      [...byCourse.entries()].map(async ([courseId, courseSessions]) => {
+        const course = courseSessions[0].courses
+        const stats = await getCourseStats(courseId, user.id)
+        const verdict = computeSkipVerdict(
+          {
+            attended: stats.attended,
+            absent: stats.absent,
+            remainingSessions: stats.remainingSessions,
+            thresholdPercent: course.attendance_threshold,
+            strictNoSkip: course.strict_no_skip,
+          },
+          courseSessions.length,
+        )
+        return [courseId, verdict] as const
+      }),
+    )
+    setVerdicts(Object.fromEntries(verdictEntries))
     setLoading(false)
   }, [user])
 
@@ -133,6 +162,7 @@ export function Dashboard() {
             <div className="space-y-3">
               {sessions.map((s, i) => {
                 const myRecord = s.attendance_records?.[0]
+                const verdict = verdicts[s.course_id]
                 return (
                   <Card key={s.id} index={i} className="flex items-center justify-between gap-4">
                     <div className="min-w-0">
@@ -150,7 +180,12 @@ export function Dashboard() {
                         {myRecord.status === "present" ? "Marked present" : "Marked absent"}
                       </Badge>
                     ) : (
-                      <div className="flex shrink-0 gap-2">
+                      <div className="flex shrink-0 items-center gap-2">
+                        {verdict && (
+                          <Badge tone={s.courses.strict_no_skip ? "red" : verdict.safeCount > 0 ? "green" : "red"}>
+                            {s.courses.strict_no_skip ? "Zero-tolerance" : verdict.safeCount > 0 ? "Safe to skip" : "Risky to skip"}
+                          </Badge>
+                        )}
                         <Button variant="secondary" onClick={() => mark(s.id, "absent")}>
                           Absent
                         </Button>

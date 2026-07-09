@@ -18,6 +18,7 @@ import {
   type CourseSchedule,
 } from "../features/courses/api"
 import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
+import { findNearbyEvent } from "../features/events/proximity"
 import { computeBunkSafety, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
@@ -34,21 +35,24 @@ export function CourseDetail() {
   const [stats, setStats] = useState<CourseStats | null>(null)
   const [sessions, setSessions] = useState<Session[]>([])
   const [attendance, setAttendance] = useState<Record<string, AttendanceRecord["status"]>>({})
+  const [events, setEvents] = useState<CourseEvent[]>([])
   const [loading, setLoading] = useState(true)
 
   const load = useCallback(async () => {
     if (!courseId || !user) return
     setLoading(true)
-    const [c, s, sess, att] = await Promise.all([
+    const [c, s, sess, att, evs] = await Promise.all([
       getCourse(courseId),
       getCourseStats(courseId, user.id),
       listSessionsForCourse(courseId),
       listAttendanceForCourse(courseId, user.id),
+      listEventsForCourse(courseId),
     ])
     setCourse(c)
     setStats(s)
     setSessions(sess)
     setAttendance(Object.fromEntries(att.map((a) => [a.session_id, a.status])))
+    setEvents(evs)
     setLoading(false)
   }, [courseId, user])
 
@@ -183,6 +187,7 @@ export function CourseDetail() {
         <BunkPlanner
           futureSessions={futureSessions}
           attendance={attendance}
+          events={events}
           maxSafeSkips={safety.canReachThreshold ? effectiveMaxSafeSkips : 0}
           onMark={updateStatus}
           onApplyBulk={applyPlannedSkips}
@@ -260,6 +265,7 @@ function mondayOf(dateISO: string) {
 function BunkPlanner({
   futureSessions,
   attendance,
+  events,
   maxSafeSkips,
   onMark,
   onApplyBulk,
@@ -267,6 +273,7 @@ function BunkPlanner({
 }: {
   futureSessions: Session[]
   attendance: Record<string, AttendanceRecord["status"]>
+  events: CourseEvent[]
   maxSafeSkips: number
   onMark: (sessionId: string, status: AttendanceRecord["status"]) => void
   onApplyBulk: (sessionIds: string[]) => Promise<void>
@@ -300,6 +307,16 @@ function BunkPlanner({
     const unmarked = futureSessions.filter((s) => !attendance[s.id]).map((s) => ({ id: s.id, date: s.session_date }))
     return suggestSkipSessions(unmarked, budgetRemaining, strategy, { weekStart, weekEnd, dayOfWeek })
   }, [strategy, weekStart, weekEnd, dayOfWeek, budgetRemaining, futureSessions, attendance])
+
+  // flags suggested skips that land close to a quiz/exam/assignment, so the
+  // planner and the quiz tracker actually talk to each other
+  const suggestedNearEvent = useMemo(() => {
+    const sessionById = new Map(futureSessions.map((s) => [s.id, s]))
+    return suggested.filter((id) => {
+      const s = sessionById.get(id)
+      return s && findNearbyEvent(s.session_date, events)
+    }).length
+  }, [suggested, futureSessions, events])
 
   async function apply() {
     setApplying(true)
@@ -395,13 +412,20 @@ function BunkPlanner({
         )}
 
         {suggested.length > 0 && (
-          <div className="mt-3 flex items-center justify-between rounded-md bg-amber-50 px-3 py-2 text-sm dark:bg-amber-500/10">
-            <span>
-              {suggested.length} class{suggested.length === 1 ? "" : "es"} suggested — highlighted below
-            </span>
-            <Button type="button" onClick={apply} disabled={applying}>
-              {applying ? "Applying…" : "Apply"}
-            </Button>
+          <div className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-sm dark:bg-amber-500/10">
+            <div className="flex items-center justify-between">
+              <span>
+                {suggested.length} class{suggested.length === 1 ? "" : "es"} suggested — highlighted below
+              </span>
+              <Button type="button" onClick={apply} disabled={applying}>
+                {applying ? "Applying…" : "Apply"}
+              </Button>
+            </div>
+            {suggestedNearEvent > 0 && (
+              <p className="mt-1.5 text-xs text-amber-700 dark:text-amber-400">
+                {suggestedNearEvent} of these land within a few days of a quiz/assignment/exam — check the calendar below before applying.
+              </p>
+            )}
           </div>
         )}
 
@@ -451,11 +475,13 @@ function BunkPlanner({
                       {daySessions.map((s) => {
                         const status = attendance[s.id]
                         const isSuggested = !status && suggested.includes(s.id)
+                        const nearbyEvent = findNearbyEvent(s.session_date, events)
                         return (
                           <div key={s.id} className="relative">
                             <button
                               type="button"
                               onClick={() => setOpenId(openId === s.id ? null : s.id)}
+                              title={nearbyEvent ? `${nearbyEvent.title} on ${nearbyEvent.event_date}` : undefined}
                               className={`flex w-full flex-col items-center rounded-lg border px-1 py-1.5 text-center transition-colors ${
                                 status ? STATUS_META[status].bg : "bg-white dark:bg-neutral-900"
                               } ${
@@ -464,6 +490,7 @@ function BunkPlanner({
                                   : "border-neutral-200 hover:border-neutral-400 dark:border-neutral-700 dark:hover:border-neutral-500"
                               }`}
                             >
+                              {nearbyEvent && <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-amber-500" />}
                               <span className="text-sm font-semibold">{new Date(s.session_date).getDate()}</span>
                               <span className="text-[10px] text-neutral-500">{s.start_time.slice(0, 5)}</span>
                               {status && <span className={`mt-1 h-1.5 w-1.5 rounded-full ${STATUS_META[status].dot}`} />}

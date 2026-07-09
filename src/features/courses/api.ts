@@ -183,7 +183,9 @@ export async function getCourseStats(courseId: string, userId: string): Promise<
 export async function listTodaySessions(userId: string, date: string) {
   const { data, error } = await supabase
     .from("sessions")
-    .select("*, courses!inner(id, name, color, user_id), attendance_records(status, user_id)")
+    .select(
+      "*, courses!inner(id, name, color, user_id, attendance_threshold, strict_no_skip), attendance_records(status, user_id)",
+    )
     .eq("session_date", date)
     .eq("courses.user_id", userId)
     .eq("status", "scheduled")

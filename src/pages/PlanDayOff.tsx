@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, useCallback } from "react"
 import { useAuth } from "../context/AuthContext"
 import { listSessionsInRange } from "../features/planner/api"
 import { getCourseStats, markAttendanceBulk } from "../features/courses/api"
-import { computeBunkSafety } from "../features/attendance/bunkSafety"
+import { listEventsForCourse } from "../features/events/api"
+import { findNearbyEvent, type ProximityEvent } from "../features/events/proximity"
+import { computeSkipVerdict } from "../features/attendance/bunkSafety"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -23,6 +25,7 @@ type CourseVerdict = {
   unmarked: RangeSession[]
   safeCount: number
   canReachThreshold: boolean
+  nearbyEvent: ProximityEvent | null
 }
 
 export function PlanDayOff() {
@@ -49,15 +52,22 @@ export function PlanDayOff() {
     const results = await Promise.all(
       [...byCourse.entries()].map(async ([courseId, courseSessions]) => {
         const course = courseSessions[0].courses
-        const stats = await getCourseStats(courseId, user.id)
-        const safety = computeBunkSafety({
-          attended: stats.attended,
-          absent: stats.absent,
-          remainingSessions: stats.remainingSessions,
-          thresholdPercent: course.attendance_threshold,
-        })
+        const [stats, events] = await Promise.all([getCourseStats(courseId, user.id), listEventsForCourse(courseId)])
         const unmarked = courseSessions.filter((s) => !s.attendance_records?.[0])
-        const safeCount = course.strict_no_skip ? 0 : Math.min(safety.canReachThreshold ? safety.maxSafeSkips : 0, unmarked.length)
+        const { safety, safeCount } = computeSkipVerdict(
+          {
+            attended: stats.attended,
+            absent: stats.absent,
+            remainingSessions: stats.remainingSessions,
+            thresholdPercent: course.attendance_threshold,
+            strictNoSkip: course.strict_no_skip,
+          },
+          unmarked.length,
+        )
+        const nearbyEvent = unmarked.reduce<ProximityEvent | null>(
+          (found, s) => found ?? findNearbyEvent(s.session_date, events),
+          null,
+        )
         return {
           courseId,
           name: course.name,
@@ -67,6 +77,7 @@ export function PlanDayOff() {
           unmarked,
           safeCount,
           canReachThreshold: safety.canReachThreshold,
+          nearbyEvent,
         }
       }),
     )
@@ -143,6 +154,14 @@ export function PlanDayOff() {
                   <Badge tone="red">Not safe to skip any</Badge>
                 )}
               </div>
+
+              {v.nearbyEvent && (
+                <p className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+                  Heads up — {v.nearbyEvent.title} is on{" "}
+                  {new Date(v.nearbyEvent.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}, close to this
+                  range.
+                </p>
+              )}
 
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {v.sessions.map((s) => {

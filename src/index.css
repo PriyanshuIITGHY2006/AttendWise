@@ -1,13 +1,21 @@
 @import "tailwindcss";
 
+/* Light-only for now: switches the dark: variant to a class-based one
+   (instead of prefers-color-scheme) and that class is never applied, so
+   the app renders light regardless of the visitor's OS setting. The
+   `dark:` utility classes already scattered through components stay
+   harmlessly inert rather than needing to be stripped out -- easy to
+   re-enable a real theme toggle later by just adding the class back. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 body {
-  @apply bg-white text-neutral-900 antialiased dark:bg-neutral-950 dark:text-neutral-100;
+  @apply bg-neutral-50 text-neutral-900 antialiased;
 }
