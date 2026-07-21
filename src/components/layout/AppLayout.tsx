@@ -23,10 +23,10 @@ function NavItem({ to, label, end, tourId }: { to: string; label: string; end?: 
       end={end}
       data-tour={tourId}
       className={({ isActive }) =>
-        `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors ${
+        `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ${
           isActive
-            ? "bg-indigo-600 text-white"
-            : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-800"
+            ? "bg-indigo-600 text-white shadow-button"
+            : "text-neutral-600 hover:bg-neutral-100/80 hover:text-neutral-900 dark:text-neutral-300 dark:hover:bg-neutral-800"
         }`
       }
     >
@@ -60,12 +60,12 @@ function AccountMenu() {
     <div className="relative" ref={ref} data-tour="account-menu">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-[11px] font-semibold text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300"
+        className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 text-[11px] font-semibold text-white shadow-button ring-1 ring-inset ring-white/10 transition-transform active:scale-95"
       >
         {initialsOf(profile?.full_name, profile?.email)}
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-lg border border-neutral-200 bg-white p-1.5 shadow-lg dark:border-neutral-800 dark:bg-neutral-900">
+        <div className="absolute right-0 top-full z-20 mt-2 w-52 rounded-xl border border-neutral-200/70 bg-white p-1.5 shadow-elevated dark:border-neutral-800 dark:bg-neutral-900">
           <div className="truncate px-2.5 py-1.5 text-xs text-neutral-500">{profile?.email}</div>
           <NavLink
             to="/settings"
@@ -109,10 +109,10 @@ export function AppLayout() {
       {showTour && <ProductTour />}
       <CommandPalette hasMaterialAccess={hasMaterialAccess} />
 
-      <header className="sticky top-0 z-30 border-b border-neutral-200 bg-white/80 backdrop-blur dark:border-neutral-800 dark:bg-neutral-950/80">
+      <header className="sticky top-0 z-30 border-b border-neutral-200/60 bg-white/70 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
         <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:px-6">
           <div className="mr-3 flex items-center gap-2">
-            <Logomark size={24} />
+            <Logomark size={26} />
             <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">AttendWise</span>
           </div>
 
@@ -125,7 +125,7 @@ export function AppLayout() {
           </nav>
 
           {courseCount !== null && courseCount > 0 && (
-            <span className="mr-1 hidden items-center gap-1.5 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-600 md:flex dark:bg-neutral-800 dark:text-neutral-300">
+            <span className="mr-1 hidden items-center gap-1.5 rounded-full border border-neutral-200/70 bg-white/60 px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-xs md:flex dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300">
               <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[worstStatus]}`} />
               {courseCount} course{courseCount === 1 ? "" : "s"}
             </span>
@@ -134,10 +134,10 @@ export function AppLayout() {
           <button
             data-tour="command-palette"
             onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-            className="mr-2 hidden items-center gap-1 rounded-md border border-neutral-200 px-2 py-1 text-xs text-neutral-400 sm:flex dark:border-neutral-700"
+            className="mr-2 hidden items-center gap-1.5 rounded-lg border border-neutral-200/70 bg-white/60 px-2.5 py-1.5 text-xs text-neutral-500 shadow-xs transition-colors hover:border-neutral-300 hover:text-neutral-700 sm:flex dark:border-neutral-700 dark:bg-transparent"
           >
             <span>Search</span>
-            <kbd className="rounded bg-neutral-100 px-1 font-sans dark:bg-neutral-800">⌘K</kbd>
+            <kbd className="rounded border border-neutral-200 bg-neutral-50 px-1 font-sans text-[10px] dark:border-neutral-700 dark:bg-neutral-800">⌘K</kbd>
           </button>
 
           <AccountMenu />

@@ -42,7 +42,7 @@ export function NewCourse() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-xl font-semibold tracking-tight">Add course</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Add course</h1>
       <div className="mt-6">
         <CourseForm
           submitLabel="Create course"

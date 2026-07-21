@@ -145,7 +145,7 @@ export function Dashboard() {
   if (courseCount === 0) {
     return (
       <div className="mx-auto max-w-2xl">
-        <h1 className="text-xl font-semibold tracking-tight">Today</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
         <Card className="mt-6">
           <p className="text-sm text-neutral-500">
             No courses yet.{" "}
@@ -161,7 +161,7 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold tracking-tight">Today</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
       <p className="mt-1 text-sm text-neutral-500">
         {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
       </p>

@@ -105,7 +105,7 @@ export function PlanDayOff() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      <h1 className="text-xl font-semibold tracking-tight">Plan a day off</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Plan a day off</h1>
       <p className="mt-1 text-sm text-neutral-500">
         Pick a date, or a range for a trip, and see the verdict across every course at once instead of checking each one separately.
       </p>

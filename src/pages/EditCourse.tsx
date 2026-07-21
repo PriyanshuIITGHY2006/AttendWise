@@ -71,7 +71,7 @@ export function EditCourse() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-xl font-semibold tracking-tight">Edit course</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Edit course</h1>
       <p className="mt-1 text-sm text-neutral-500">
         Changing the schedule regenerates future sessions — anything you've already marked attendance for is left untouched.
       </p>

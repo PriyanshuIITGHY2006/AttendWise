@@ -112,7 +112,7 @@ export function CourseDetail() {
         <div>
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: course.color }} />
-            <h1 className="text-xl font-semibold tracking-tight">{course.name}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{course.name}</h1>
             {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
             {course.strict_no_skip && <Badge tone="red">Zero-tolerance</Badge>}
           </div>

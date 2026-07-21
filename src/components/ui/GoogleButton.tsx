@@ -4,7 +4,7 @@ export function GoogleButton({ onClick, disabled }: { onClick: () => void; disab
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center justify-center gap-2.5 rounded-md border border-neutral-300 bg-white px-3.5 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
+      className="flex w-full items-center justify-center gap-2.5 rounded-lg border border-neutral-200 bg-white px-3.5 py-2.5 text-sm font-medium text-neutral-700 shadow-xs transition-all duration-150 hover:border-neutral-300 hover:bg-neutral-50 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
     >
       <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
         <path fill="#4285F4" d="M15.68 8.18c0-.56-.05-1.1-.14-1.63H8v3.09h4.3a3.68 3.68 0 0 1-1.6 2.42v2h2.58c1.5-1.39 2.4-3.44 2.4-5.88z" />

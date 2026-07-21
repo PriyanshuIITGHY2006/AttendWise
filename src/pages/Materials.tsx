@@ -84,7 +84,7 @@ export function Materials() {
   if (!hasMaterialAccess) {
     return (
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">Materials</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Materials</h1>
         <Card className="mt-6">
           <p className="text-sm text-neutral-500">You don't have access to this feature.</p>
         </Card>
@@ -94,7 +94,7 @@ export function Materials() {
 
   return (
     <div className="mx-auto max-w-2xl">
-      <h1 className="text-xl font-semibold tracking-tight">Materials</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Materials</h1>
 
       <Card className="mt-6">
         <h2 className="font-medium">Add material</h2>

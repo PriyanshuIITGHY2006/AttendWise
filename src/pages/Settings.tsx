@@ -36,7 +36,7 @@ export function Settings() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">Settings</h1>
       <Card className="mt-6">
         <dl className="space-y-3 text-sm">
           <div>

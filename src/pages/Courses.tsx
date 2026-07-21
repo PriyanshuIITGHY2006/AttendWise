@@ -81,7 +81,7 @@ export function Courses() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-semibold tracking-tight">Courses</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Courses</h1>
         <Link to="/courses/new">
           <Button>Add course</Button>
         </Link>
@@ -96,8 +96,11 @@ export function Courses() {
       ) : (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {courses.map((c, i) => (
-            <Link key={c.id} to={`/courses/${c.id}`} className="block">
-              <Card index={i} className="h-full transition-colors hover:border-neutral-400 dark:hover:border-neutral-600">
+            <Link key={c.id} to={`/courses/${c.id}`} className="group block">
+              <Card
+                index={i}
+                className="h-full transition-all duration-200 hover:-translate-y-0.5 hover:border-neutral-300 hover:shadow-card-hover dark:hover:border-neutral-600"
+              >
                 <CourseCard course={c} stats={stats[c.id]} />
               </Card>
             </Link>
