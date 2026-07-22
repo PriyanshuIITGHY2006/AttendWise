@@ -64,7 +64,7 @@ function BottomNavItem({ entry }: { entry: NavEntry }) {
       end={entry.end}
       data-tour={entry.tourId}
       className={({ isActive }) =>
-        `flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-medium transition-colors ${
+        `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-medium transition-colors ${
           isActive ? "text-indigo-600" : "text-neutral-400 hover:text-neutral-600"
         }`
       }
@@ -78,7 +78,7 @@ function BottomNavItem({ entry }: { entry: NavEntry }) {
           >
             <Icon className="h-5 w-5" />
           </span>
-          {entry.shortLabel}
+          <span className="max-w-full truncate">{entry.shortLabel}</span>
         </>
       )}
     </NavLink>
@@ -215,8 +215,8 @@ export function AppLayout() {
 
       {/* the only scroll region -- header and bottom bar sit outside it, so they
           stay put no matter how the list scrolls */}
-      <main ref={mainRef} className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6">
+      <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none">
+        <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-8 sm:px-6">
           <RevealProvider value={ready}>
             <Suspense fallback={<p className="text-sm text-neutral-400">Loading…</p>}>
               <Outlet />
