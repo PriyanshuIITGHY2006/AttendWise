@@ -47,3 +47,14 @@ body {
     letter-spacing: -0.011em;
   }
 }
+
+/* App-shell height. `dvh` tracks the *dynamic* viewport, so the shell stays
+   exactly one screen tall even as the mobile browser/WebView chrome grows and
+   shrinks -- the `vh` line is the fallback for engines without dvh support.
+   Because the shell owns the height and <main> scrolls inside it, the header
+   and bottom tab bar live outside the scroll region and can never drift during
+   momentum scrolling the way `position: fixed` bars do in mobile WebViews. */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ComponentType } from "react"
-import { NavLink, Outlet } from "react-router-dom"
+import { NavLink, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { WelcomeSplash } from "./WelcomeSplash"
 import { CommandPalette } from "./CommandPalette"
@@ -138,10 +138,19 @@ export function AppLayout() {
   const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) === "1")
   const [ready, setReady] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) !== "1")
   const { courseCount, worstStatus } = useOverallStatus()
+  const mainRef = useRef<HTMLElement>(null)
+  const { pathname } = useLocation()
 
   useEffect(() => {
     if (showSplash) sessionStorage.removeItem(SPLASH_FLAG_KEY)
   }, [showSplash])
+
+  // <main> is now the scroll container (not the document), and it stays mounted
+  // across route changes -- so reset it to the top on navigation, the way a
+  // fresh page load used to.
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0)
+  }, [pathname])
 
   function handleSplashDone() {
     setShowSplash(false)
@@ -152,7 +161,7 @@ export function AppLayout() {
   const navEntries = hasMaterialAccess ? [...NAV, MATERIALS_ENTRY] : NAV
 
   return (
-    <div className="min-h-screen">
+    <div className="app-shell flex flex-col">
       {showSplash && <WelcomeSplash onDone={handleSplashDone} />}
       {showTour && <ProductTour />}
       <CommandPalette hasMaterialAccess={hasMaterialAccess} />
@@ -160,7 +169,7 @@ export function AppLayout() {
       {/* pt uses the device's safe-area inset so content clears the status bar /
           notch on phones (viewport-fit=cover draws under it) */}
       <header
-        className="sticky top-0 z-30 border-b border-neutral-200/60 bg-white/70 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80"
+        className="shrink-0 z-30 border-b border-neutral-200/60 bg-white/70 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80"
         style={{ paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:px-6">
@@ -198,16 +207,20 @@ export function AppLayout() {
         </div>
       </header>
 
-      {/* extra bottom padding on mobile so the fixed tab bar never covers content */}
-      <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 sm:pb-8">
-        <RevealProvider value={ready}>
-          <Outlet />
-        </RevealProvider>
+      {/* the only scroll region -- header and bottom bar sit outside it, so they
+          stay put no matter how the list scrolls */}
+      <main ref={mainRef} className="flex-1 overflow-y-auto">
+        <div className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6">
+          <RevealProvider value={ready}>
+            <Outlet />
+          </RevealProvider>
+        </div>
       </main>
 
-      {/* mobile bottom tab bar */}
+      {/* mobile bottom tab bar -- a flex sibling of <main>, not position:fixed,
+          so it is physically anchored to the bottom of the shell */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200/70 bg-white/85 backdrop-blur-xl sm:hidden dark:border-neutral-800 dark:bg-neutral-950/85"
+        className="shrink-0 border-t border-neutral-200/70 bg-white/85 backdrop-blur-xl sm:hidden dark:border-neutral-800 dark:bg-neutral-950/85"
         style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1.5">
