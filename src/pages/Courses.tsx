@@ -102,7 +102,7 @@ export function Courses() {
           <p className="text-sm text-neutral-500">No courses yet. Add one to start tracking attendance.</p>
         </Card>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {courses.map((c, i) => (
             <Link key={c.id} to={`/courses/${c.id}`} className="group block">
               <Card

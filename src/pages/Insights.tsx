@@ -201,7 +201,7 @@ export function Insights() {
         />
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <TrendChart data={data} />
         <WeekdayChart data={data} />
       </div>
