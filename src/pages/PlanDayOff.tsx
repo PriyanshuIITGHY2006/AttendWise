@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react"
 import { useAuth } from "../context/AuthContext"
 import { listSessionsInRange } from "../features/planner/api"
-import { getCourseStats, markAttendanceBulk } from "../features/courses/api"
+import { getCourseStats, markAttendanceBulk, unmarkAttendance } from "../features/courses/api"
 import { listEventsForCourse } from "../features/events/api"
 import { findNearbyEvent, type ProximityEvent } from "../features/events/proximity"
 import { computeSkipVerdict } from "../features/attendance/bunkSafety"
@@ -36,6 +36,8 @@ export function PlanDayOff() {
   const [verdicts, setVerdicts] = useState<CourseVerdict[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [applyingCourseId, setApplyingCourseId] = useState<string | null>(null)
+  // remembers what each course just applied, so it can be undone in one tap
+  const [appliedByCourse, setAppliedByCourse] = useState<Record<string, string[]>>({})
 
   // Doesn't touch `loading` itself -- see the mount effect and markSafeSkips,
   // which use it differently so applying a skip doesn't blank the whole list
@@ -96,6 +98,22 @@ export function PlanDayOff() {
     setApplyingCourseId(v.courseId)
     const toSkip = v.unmarked.slice(0, v.safeCount).map((s) => s.id)
     await markAttendanceBulk(toSkip, user.id, "absent")
+    setAppliedByCourse((prev) => ({ ...prev, [v.courseId]: toSkip }))
+    await load()
+    setApplyingCourseId(null)
+  }
+
+  async function undoSafeSkips(courseId: string) {
+    if (!user) return
+    const ids = appliedByCourse[courseId]
+    if (!ids?.length) return
+    setApplyingCourseId(courseId)
+    await unmarkAttendance(ids, user.id)
+    setAppliedByCourse((prev) => {
+      const next = { ...prev }
+      delete next[courseId]
+      return next
+    })
     await load()
     setApplyingCourseId(null)
   }
@@ -182,17 +200,33 @@ export function PlanDayOff() {
                 })}
               </div>
 
-              {!v.strict && v.safeCount > 0 && (
-                <Button
-                  variant="secondary"
-                  className="mt-3"
-                  disabled={applyingCourseId === v.courseId}
-                  onClick={() => markSafeSkips(v)}
-                >
-                  {applyingCourseId === v.courseId
-                    ? "Applying…"
-                    : `Mark ${v.safeCount} as planned skip`}
-                </Button>
+              {appliedByCourse[v.courseId]?.length ? (
+                <div className="mt-3 flex items-center justify-between rounded-md bg-neutral-100 px-3 py-2 text-sm dark:bg-neutral-800">
+                  <span>
+                    Marked {appliedByCourse[v.courseId].length} planned skip
+                    {appliedByCourse[v.courseId].length === 1 ? "" : "s"}.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => undoSafeSkips(v.courseId)}
+                    disabled={applyingCourseId === v.courseId}
+                    className="font-medium text-indigo-600 hover:underline disabled:opacity-50 dark:text-indigo-400"
+                  >
+                    {applyingCourseId === v.courseId ? "Undoing…" : "Undo"}
+                  </button>
+                </div>
+              ) : (
+                !v.strict &&
+                v.safeCount > 0 && (
+                  <Button
+                    variant="secondary"
+                    className="mt-3"
+                    disabled={applyingCourseId === v.courseId}
+                    onClick={() => markSafeSkips(v)}
+                  >
+                    {applyingCourseId === v.courseId ? "Applying…" : `Mark ${v.safeCount} as planned skip`}
+                  </Button>
+                )
               )}
             </Card>
           ))}

@@ -19,7 +19,7 @@ import {
 } from "../features/courses/api"
 import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
 import { findNearbyEvent } from "../features/events/proximity"
-import { computeBunkSafety, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
+import { computeBunkSafety, projectPlanOutcome, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
 import { termLabel } from "../features/courses/CourseForm"
 import { thresholdRoast } from "../features/notifications/copy"
 import { Card } from "../components/ui/Card"
@@ -64,20 +64,40 @@ export function CourseDetail() {
     load().then(() => setLoading(false))
   }, [load])
 
+  // Optimistic: update the local map immediately so the grid cell and the
+  // live projection react on tap, then persist and reconcile via load().
   async function updateStatus(sessionId: string, status: AttendanceRecord["status"]) {
     if (!user) return
+    setAttendance((prev) => ({ ...prev, [sessionId]: status }))
     await markAttendance(sessionId, user.id, status)
+    load()
+  }
+
+  async function clearStatus(sessionId: string) {
+    if (!user) return
+    setAttendance((prev) => {
+      const next = { ...prev }
+      delete next[sessionId]
+      return next
+    })
+    await unmarkAttendance([sessionId], user.id)
     load()
   }
 
   async function applyPlannedSkips(sessionIds: string[]) {
     if (!user) return
+    setAttendance((prev) => ({ ...prev, ...Object.fromEntries(sessionIds.map((id) => [id, "absent" as const])) }))
     await markAttendanceBulk(sessionIds, user.id, "absent")
     load()
   }
 
   async function undoPlannedSkips(sessionIds: string[]) {
     if (!user) return
+    setAttendance((prev) => {
+      const next = { ...prev }
+      for (const id of sessionIds) delete next[id]
+      return next
+    })
     await unmarkAttendance(sessionIds, user.id)
     load()
   }
@@ -200,7 +220,15 @@ export function CourseDetail() {
           attendance={attendance}
           events={events}
           maxSafeSkips={safety.canReachThreshold ? effectiveMaxSafeSkips : 0}
+          strictNoSkip={course.strict_no_skip}
+          stats={{
+            attended: stats.attended,
+            absent: stats.absent,
+            remainingSessions: stats.remainingSessions,
+            thresholdPercent: course.attendance_threshold,
+          }}
           onMark={updateStatus}
+          onClear={clearStatus}
           onApplyBulk={applyPlannedSkips}
           onUndoBulk={undoPlannedSkips}
         />
@@ -234,12 +262,14 @@ export function CourseDetail() {
                 </div>
                 <select
                   value={attendance[s.id] ?? ""}
-                  onChange={(e) => updateStatus(s.id, e.target.value as AttendanceRecord["status"])}
+                  onChange={(e) =>
+                    e.target.value === ""
+                      ? clearStatus(s.id)
+                      : updateStatus(s.id, e.target.value as AttendanceRecord["status"])
+                  }
                   className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-sm dark:border-neutral-700 dark:bg-neutral-900"
                 >
-                  <option value="" disabled>
-                    Not marked
-                  </option>
+                  <option value="">Not marked</option>
                   <option value="present">Present</option>
                   <option value="absent">Absent</option>
                   <option value="on_duty">On duty / medical</option>
@@ -278,7 +308,10 @@ function BunkPlanner({
   attendance,
   events,
   maxSafeSkips,
+  strictNoSkip,
+  stats,
   onMark,
+  onClear,
   onApplyBulk,
   onUndoBulk,
 }: {
@@ -286,7 +319,10 @@ function BunkPlanner({
   attendance: Record<string, AttendanceRecord["status"]>
   events: CourseEvent[]
   maxSafeSkips: number
+  strictNoSkip: boolean
+  stats: { attended: number; absent: number; remainingSessions: number; thresholdPercent: number }
   onMark: (sessionId: string, status: AttendanceRecord["status"]) => void
+  onClear: (sessionId: string) => void
   onApplyBulk: (sessionIds: string[]) => Promise<void>
   onUndoBulk: (sessionIds: string[]) => Promise<void>
 }) {
@@ -312,6 +348,12 @@ function BunkPlanner({
   const plannedSkipCount = futureSessions.filter((s) => attendance[s.id] === "absent").length
   const budgetRemaining = Math.max(0, maxSafeSkips - plannedSkipCount)
   const budgetUsedPercent = maxSafeSkips === 0 ? 100 : Math.min(100, (plannedSkipCount / maxSafeSkips) * 100)
+
+  // Where attendance actually lands if this plan is executed -- the number that
+  // makes every planned skip mean something, and that flips red once the plan
+  // asks for more skips than the course can absorb.
+  const projection = projectPlanOutcome(stats, plannedSkipCount)
+  const overBudget = projection.overBudget > 0
 
   const suggested = useMemo(() => {
     if (strategy === "concentrate" && (!weekStart || !weekEnd)) return []
@@ -365,16 +407,56 @@ function BunkPlanner({
   return (
     <div className="mt-4">
       {/* budget */}
-      <div className="rounded-md border border-neutral-200 p-3 dark:border-neutral-800">
+      <div
+        className={`rounded-md border p-3 transition-colors ${
+          overBudget ? "border-red-300 bg-red-50/50 dark:border-red-500/40 dark:bg-red-500/5" : "border-neutral-200 dark:border-neutral-800"
+        }`}
+      >
         <div className="flex items-baseline justify-between text-sm">
           <span>
-            <span className="font-semibold">{budgetRemaining}</span> safe skip{budgetRemaining === 1 ? "" : "s"} left to plan
+            {overBudget ? (
+              <span className="font-semibold text-red-600 dark:text-red-400">
+                {projection.overBudget} skip{projection.overBudget === 1 ? "" : "s"} over budget
+              </span>
+            ) : (
+              <>
+                <span className="font-semibold">{budgetRemaining}</span> safe skip{budgetRemaining === 1 ? "" : "s"} left to plan
+              </>
+            )}
           </span>
           {plannedSkipCount > 0 && <span className="text-neutral-500">{plannedSkipCount} planned</span>}
         </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-neutral-100 dark:bg-neutral-800">
-          <div className="h-full rounded-full bg-indigo-600 transition-all" style={{ width: `${budgetUsedPercent}%` }} />
+          <div
+            className={`h-full rounded-full transition-all ${overBudget ? "bg-red-500" : budgetRemaining === 0 ? "bg-amber-500" : "bg-indigo-600"}`}
+            style={{ width: `${budgetUsedPercent}%` }}
+          />
         </div>
+
+        {/* the consequence -- always shown once anything is planned so the plan
+            connects to a real end-of-semester number */}
+        {plannedSkipCount > 0 && (
+          <p className={`mt-2 text-xs ${overBudget ? "text-red-600 dark:text-red-400" : "text-neutral-500"}`}>
+            {overBudget ? (
+              <>
+                Follow this plan and you'll finish around{" "}
+                <span className="font-semibold">{projection.projectedPercent.toFixed(0)}%</span> — below your{" "}
+                {stats.thresholdPercent}% requirement. Clear {projection.overBudget} to get back on track.
+              </>
+            ) : (
+              <>
+                Follow this plan and you'll finish around{" "}
+                <span className="font-semibold">{projection.projectedPercent.toFixed(0)}%</span>, still above {stats.thresholdPercent}%.
+              </>
+            )}
+          </p>
+        )}
+
+        {strictNoSkip && (
+          <p className="mt-2 text-xs text-red-600 dark:text-red-400">
+            Zero-tolerance course — any planned skip here is already too many.
+          </p>
+        )}
 
         {/* strategy picker */}
         <div className="mt-4 grid grid-cols-3 gap-1.5">
@@ -526,12 +608,31 @@ function BunkPlanner({
                                       onMark(s.id, value)
                                       setOpenId(null)
                                     }}
-                                    className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    className={`flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 ${
+                                      status === value ? "bg-neutral-100 font-medium dark:bg-neutral-800" : ""
+                                    }`}
                                   >
                                     <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />
                                     {meta.label}
+                                    {status === value && <span className="ml-auto text-xs text-neutral-400">✓</span>}
                                   </button>
                                 ))}
+                                {status && (
+                                  <>
+                                    <div className="my-1 border-t border-neutral-100 dark:border-neutral-800" />
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        onClear(s.id)
+                                        setOpenId(null)
+                                      }}
+                                      className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                                    >
+                                      <span className="h-1.5 w-1.5 rounded-full border border-neutral-300 dark:border-neutral-600" />
+                                      Clear plan
+                                    </button>
+                                  </>
+                                )}
                               </div>
                             )}
                           </div>

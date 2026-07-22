@@ -76,6 +76,41 @@ export function computeBunkSafety({
   }
 }
 
+export type PlanProjection = {
+  /** Final % if you execute the plan: skip the planned ones, attend everything else remaining. */
+  projectedPercent: number
+  /** Does that projected outcome still clear the threshold? */
+  meetsThreshold: boolean
+  /** How many planned skips exceed what's actually safe (0 when within budget). */
+  overBudget: number
+  /** The safe-skip budget this projection is measured against. */
+  maxSafeSkips: number
+}
+
+/**
+ * Projects where attendance lands if the student follows through on a plan --
+ * skipping `plannedSkips` of the remaining sessions and attending the rest.
+ * This is what makes planning meaningful: every skip you pencil in moves this
+ * number, and once it dips below the threshold the plan is over budget.
+ */
+export function projectPlanOutcome(
+  { attended, absent, remainingSessions, thresholdPercent }: BunkSafetyInput,
+  plannedSkips: number,
+): PlanProjection {
+  const skips = Math.max(0, Math.min(remainingSessions, plannedSkips))
+  // attend every remaining session that isn't a planned skip
+  const finalAttended = attended + (remainingSessions - skips)
+  const finalTotal = attended + absent + remainingSessions
+  const projectedPercent = finalTotal > 0 ? (finalAttended / finalTotal) * 100 : 100
+  const { maxSafeSkips } = computeBunkSafety({ attended, absent, remainingSessions, thresholdPercent })
+  return {
+    projectedPercent,
+    meetsThreshold: projectedPercent >= thresholdPercent - EPSILON,
+    overBudget: Math.max(0, plannedSkips - maxSafeSkips),
+    maxSafeSkips,
+  }
+}
+
 export type SkipStrategy = "spread" | "concentrate" | "weekday"
 
 export type FutureSessionRef = {
