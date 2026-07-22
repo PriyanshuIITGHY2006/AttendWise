@@ -8,6 +8,7 @@ import { Logomark } from "../ui/Logomark"
 import { RevealProvider } from "../../context/RevealContext"
 import { useOverallStatus } from "../../features/courses/useOverallStatus"
 import { useNotificationActions } from "../../features/notifications/useNotificationActions"
+import { usePushRegistration } from "../../features/notifications/push"
 import { TodayIcon, CoursesIcon, PlanIcon, CalendarIcon, MaterialsIcon, TimetableIcon } from "./navIcons"
 
 const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
@@ -144,6 +145,7 @@ export function AppLayout() {
   const { pathname } = useLocation()
 
   useNotificationActions(profile?.id)
+  usePushRegistration(profile?.id)
 
   useEffect(() => {
     if (showSplash) sessionStorage.removeItem(SPLASH_FLAG_KEY)

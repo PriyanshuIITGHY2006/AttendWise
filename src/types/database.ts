@@ -53,6 +53,70 @@ export type Database = {
           },
         ]
       }
+      device_tokens: {
+        Row: {
+          created_at: string
+          id: string
+          platform: string
+          token: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      push_log: {
+        Row: {
+          kind: string
+          sent_at: string
+          sent_on: string
+          user_id: string
+        }
+        Insert: {
+          kind: string
+          sent_at?: string
+          sent_on?: string
+          user_id: string
+        }
+        Update: {
+          kind?: string
+          sent_at?: string
+          sent_on?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_log_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       course_events: {
         Row: {
           course_id: string
