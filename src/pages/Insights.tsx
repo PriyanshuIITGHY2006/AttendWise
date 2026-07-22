@@ -2,7 +2,10 @@ import { useEffect, useState, useCallback, useMemo } from "react"
 import { useAuth } from "../context/AuthContext"
 import { listAllAttendance, listCourses, type Course } from "../features/courses/api"
 import { computeInsights, type Insights as InsightsData } from "../features/attendance/insights"
+import { buildAttendanceReport, shareOrCopy, downloadCsv } from "../features/report/shareReport"
+import { CURRENT_SEMESTER } from "../features/courses/currentSemester"
 import { Card } from "../components/ui/Card"
+import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 
 const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -115,8 +118,30 @@ export function Insights() {
     load()
   }, [load])
 
+  const [exporting, setExporting] = useState(false)
+  const [exportMsg, setExportMsg] = useState<string | null>(null)
+
   const data = useMemo(() => computeInsights(records), [records])
   const courseName = useMemo(() => new Map(courses.map((c) => [c.id, c])), [courses])
+
+  async function shareReport() {
+    if (!user) return
+    setExporting(true)
+    try {
+      const report = await buildAttendanceReport(user.id, CURRENT_SEMESTER.label)
+      const result = await shareOrCopy("AttendWise attendance", report.text)
+      setExportMsg(result === "shared" ? "Shared" : result === "copied" ? "Copied to clipboard" : "Couldn't share")
+    } finally {
+      setExporting(false)
+      setTimeout(() => setExportMsg(null), 2500)
+    }
+  }
+
+  async function exportCsv() {
+    if (!user) return
+    const report = await buildAttendanceReport(user.id, CURRENT_SEMESTER.label)
+    downloadCsv(report.csv, report.filename)
+  }
 
   const mom =
     data.thisMonthPercent !== null && data.lastMonthPercent !== null
@@ -142,10 +167,23 @@ export function Insights() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Insights</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        {data.present} present · {data.absent} absent across all courses.
-      </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Insights</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {data.present} present · {data.absent} absent across all courses.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          {exportMsg && <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{exportMsg}</span>}
+          <Button variant="secondary" onClick={exportCsv}>
+            CSV
+          </Button>
+          <Button onClick={shareReport} disabled={exporting}>
+            {exporting ? "…" : "Share report"}
+          </Button>
+        </div>
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile
