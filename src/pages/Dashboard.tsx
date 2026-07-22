@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getAllCourseStats, EMPTY_COURSE_STATS, listUpcomingPlannedSkips } from "../features/courses/api"
+import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getAllCourseStats, EMPTY_COURSE_STATS, listUpcomingPlannedSkips, listUpcomingClassesForNotify } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { computeBunkSafety, computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
 import { unmarkedNudge } from "../features/notifications/copy"
@@ -93,13 +93,17 @@ export function Dashboard() {
     async (data: NonNullable<Awaited<ReturnType<typeof fetchData>>>) => {
       if (!user) return
       const prefs = await getGlobalNotificationSettings(user.id)
-      const plannedSkips = prefs.muted || !prefs.planned_skip_reminders ? [] : await listUpcomingPlannedSkips(user.id)
+      // Fetch a rolling week of unmarked classes so reminders are queued ahead
+      // and fire in the background even without reopening the app. Skipped when
+      // muted or class reminders are off, to avoid a needless query.
+      const [plannedSkips, upcomingClasses] = await Promise.all([
+        prefs.muted || !prefs.planned_skip_reminders ? Promise.resolve([]) : listUpcomingPlannedSkips(user.id),
+        prefs.muted || !prefs.class_reminders ? Promise.resolve([]) : listUpcomingClassesForNotify(user.id, 7),
+      ])
       // The engine itself no-ops when muted (after clearing pending), so we
       // still call it while muted to flush anything previously scheduled.
       await syncScheduledNotifications({
-        todaySessions: data.today
-          .filter((s) => !s.attendance_records?.[0])
-          .map((s) => ({ id: s.id, courseId: s.course_id, courseName: s.courses.name, startTime: s.start_time, alreadyMarked: false })),
+        upcomingClasses,
         upcomingEvents: data.events.map((ev) => ({
           id: ev.id,
           title: ev.title,

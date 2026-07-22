@@ -237,6 +237,35 @@ export async function getCourseStats(courseId: string, userId: string): Promise<
 }
 
 /**
+ * Unmarked scheduled classes from today through the next `days` days, for
+ * queuing class reminders ahead of time. Scheduling a rolling window (rather
+ * than just today) is what lets reminders keep firing in the background even if
+ * the app isn't reopened for a few days. Sessions the student has already marked
+ * -- including planned skips (marked absent) -- are excluded here; the planned
+ * skip gets its own reminder instead.
+ */
+export async function listUpcomingClassesForNotify(userId: string, days = 7) {
+  const today = new Date()
+  const todayISO = today.toISOString().slice(0, 10)
+  const horizon = new Date(today.getTime() + days * 86_400_000).toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, course_id, session_date, start_time, courses!inner(name, user_id), attendance_records(user_id)")
+    .eq("courses.user_id", userId)
+    .eq("status", "scheduled")
+    .gte("session_date", todayISO)
+    .lte("session_date", horizon)
+    .order("session_date", { ascending: true })
+  if (error) throw error
+  return (data ?? [])
+    .filter((s) => !(s.attendance_records as unknown[])?.length) // unmarked only
+    .map((s) => {
+      const course = s.courses as unknown as { name: string }
+      return { id: s.id, courseId: s.course_id, courseName: course.name, dateISO: s.session_date, startTime: s.start_time }
+    })
+}
+
+/**
  * Future sessions the student has already marked as a planned skip, within the
  * next few days -- used to schedule "skipping tomorrow?" reminders.
  */

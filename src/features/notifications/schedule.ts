@@ -86,12 +86,12 @@ export function addNotificationActionListener(
   }
 }
 
-type TodaySessionForNotify = {
+type UpcomingClassForNotify = {
   id: string
   courseId: string
   courseName: string
+  dateISO: string // "YYYY-MM-DD"
   startTime: string // "HH:MM:SS"
-  alreadyMarked: boolean
 }
 
 type UpcomingEventForNotify = {
@@ -125,7 +125,7 @@ function inQuietHours(at: Date, quietStart: string | null, quietEnd: string | nu
 }
 
 type SyncInput = {
-  todaySessions: TodaySessionForNotify[]
+  upcomingClasses: UpcomingClassForNotify[]
   upcomingEvents: UpcomingEventForNotify[]
   plannedSkips: PlannedSkipForNotify[]
   prefs: NotificationPrefs
@@ -138,7 +138,7 @@ type SyncInput = {
  * Cheap to call on every app load/refresh since there's no background server to
  * push updates otherwise.
  */
-export async function syncScheduledNotifications({ todaySessions, upcomingEvents, plannedSkips, prefs, userId }: SyncInput) {
+export async function syncScheduledNotifications({ upcomingClasses, upcomingEvents, plannedSkips, prefs, userId }: SyncInput) {
   if (!NATIVE()) return
   const granted = await ensureNotificationPermission()
   if (!granted) return
@@ -156,11 +156,11 @@ export async function syncScheduledNotifications({ todaySessions, upcomingEvents
   const notifications: Parameters<typeof LocalNotifications.schedule>[0]["notifications"] = []
 
   if (prefs.class_reminders) {
-    for (const s of todaySessions) {
-      if (s.alreadyMarked) continue
-      const [h, m] = s.startTime.split(":").map(Number)
-      const start = new Date()
-      start.setHours(h, m, 0, 0)
+    // upcomingClasses spans a rolling window (today .. +N days), so the whole
+    // week's reminders are queued with the OS and fire in the background even if
+    // the app isn't opened again before then.
+    for (const s of upcomingClasses) {
+      const start = new Date(`${s.dateISO}T${s.startTime}`)
       const fireAt = new Date(start.getTime() - prefs.lead_time_minutes * 60_000)
       if (fireAt.getTime() <= now) continue
       if (inQuietHours(fireAt, prefs.quiet_start, prefs.quiet_end)) continue
