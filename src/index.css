@@ -23,11 +23,17 @@
 
 html {
   color-scheme: light;
+  /* Never let the document pan horizontally, and kill the rubber-band bounce
+     that reads as the page "sliding sideways" in mobile WebViews. */
+  overflow-x: hidden;
+  overscroll-behavior: none;
 }
 
 body {
   @apply text-neutral-900 antialiased;
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: hidden;
   /* A near-white canvas lifted by one faint indigo bloom up top -- enough to
      read as "designed" without competing with content. Fixed so it doesn't
      scroll away on long pages. */
@@ -57,4 +63,8 @@ body {
 .app-shell {
   height: 100vh;
   height: 100dvh;
+  /* The shell is exactly one screen wide; nothing inside may push it wider. */
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
