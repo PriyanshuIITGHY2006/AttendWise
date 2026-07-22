@@ -88,6 +88,35 @@ export async function regenerateAllCourses(userId: string) {
   return courses.length
 }
 
+export type TimetableSession = {
+  id: string
+  course_id: string
+  session_date: string
+  start_time: string
+  end_time: string
+  component_type: string
+  status: string
+  courses: { name: string; color: string }
+}
+
+/**
+ * Class instances between two dates (inclusive) for the timetable grid. Reads
+ * generated sessions, so day-order swaps, holidays, half-semester windows and
+ * first-year rules are already baked in -- the grid needs no calendar logic.
+ */
+export async function listSessionsInRange(userId: string, startISO: string, endISO: string): Promise<TimetableSession[]> {
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, course_id, session_date, start_time, end_time, component_type, status, courses!inner(name, color, user_id)")
+    .eq("courses.user_id", userId)
+    .gte("session_date", startISO)
+    .lte("session_date", endISO)
+    .order("session_date", { ascending: true })
+    .order("start_time", { ascending: true })
+  if (error) throw error
+  return (data ?? []) as unknown as TimetableSession[]
+}
+
 export async function listSessionsForCourse(courseId: string) {
   const { data, error } = await supabase
     .from("sessions")

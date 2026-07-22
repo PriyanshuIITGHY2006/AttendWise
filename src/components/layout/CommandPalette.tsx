@@ -38,6 +38,7 @@ export function CommandPalette({ hasMaterialAccess }: { hasMaterialAccess: boole
   const items = useMemo<Item[]>(() => {
     const nav: Item[] = [
       { id: "nav-today", label: "Today", hint: "Go to", go: () => navigate("/") },
+      { id: "nav-timetable", label: "Timetable", hint: "Go to", go: () => navigate("/timetable") },
       { id: "nav-courses", label: "Courses", hint: "Go to", go: () => navigate("/courses") },
       { id: "nav-new-course", label: "Add course", hint: "Action", go: () => navigate("/courses/new") },
       { id: "nav-plan", label: "Plan a day off", hint: "Go to", go: () => navigate("/plan") },

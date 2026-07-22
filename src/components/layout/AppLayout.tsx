@@ -8,7 +8,7 @@ import { Logomark } from "../ui/Logomark"
 import { RevealProvider } from "../../context/RevealContext"
 import { useOverallStatus } from "../../features/courses/useOverallStatus"
 import { useNotificationActions } from "../../features/notifications/useNotificationActions"
-import { TodayIcon, CoursesIcon, PlanIcon, CalendarIcon, MaterialsIcon } from "./navIcons"
+import { TodayIcon, CoursesIcon, PlanIcon, CalendarIcon, MaterialsIcon, TimetableIcon } from "./navIcons"
 
 const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
 
@@ -29,6 +29,7 @@ type NavEntry = {
 
 const NAV: NavEntry[] = [
   { to: "/", label: "Today", shortLabel: "Today", end: true, tourId: "nav-today", icon: TodayIcon },
+  { to: "/timetable", label: "Timetable", shortLabel: "Schedule", tourId: "nav-timetable", icon: TimetableIcon },
   { to: "/courses", label: "Courses", shortLabel: "Courses", tourId: "nav-courses", icon: CoursesIcon },
   { to: "/plan", label: "Plan a day off", shortLabel: "Plan", tourId: "nav-plan", icon: PlanIcon },
   { to: "/calendar", label: "Calendar", shortLabel: "Calendar", tourId: "nav-calendar", icon: CalendarIcon },

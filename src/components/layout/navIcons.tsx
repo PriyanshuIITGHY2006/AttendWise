@@ -50,6 +50,24 @@ export function CalendarIcon({ className }: IconProps) {
   )
 }
 
+export function TimetableIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className} aria-hidden="true">
+      <rect x="3" y="4.5" width="18" height="16" rx="2.5" />
+      <path d="M3 9.5h18M9 9.5V20.5M15 9.5V20.5" />
+    </svg>
+  )
+}
+
+export function InsightsIcon({ className }: IconProps) {
+  return (
+    <svg {...base} className={className} aria-hidden="true">
+      <path d="M4 19V5M20 19H4" />
+      <path d="M7.5 16l3-4 3 2.5L18 8" />
+    </svg>
+  )
+}
+
 export function MaterialsIcon({ className }: IconProps) {
   return (
     <svg {...base} className={className} aria-hidden="true">

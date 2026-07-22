@@ -11,6 +11,7 @@ import { EditCourse } from "./pages/EditCourse"
 import { CourseDetail } from "./pages/CourseDetail"
 import { Materials } from "./pages/Materials"
 import { Calendar } from "./pages/Calendar"
+import { Timetable } from "./pages/Timetable"
 import { PlanDayOff } from "./pages/PlanDayOff"
 import { Settings } from "./pages/Settings"
 
@@ -30,6 +31,7 @@ export default function App() {
               <Route path="/courses/:courseId/edit" element={<EditCourse />} />
               <Route path="/materials" element={<Materials />} />
               <Route path="/calendar" element={<Calendar />} />
+              <Route path="/timetable" element={<Timetable />} />
               <Route path="/plan" element={<PlanDayOff />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
