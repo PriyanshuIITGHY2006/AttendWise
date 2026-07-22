@@ -230,7 +230,7 @@ export function Dashboard() {
         </Card>
       )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {sessions.length === 0 ? (
             <Card>
@@ -248,7 +248,7 @@ export function Dashboard() {
                     className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                   >
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex min-w-0 items-center gap-2">
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.courses.color }} />
                         <span className="truncate font-medium">{s.courses.name}</span>
                         <Badge tone="neutral">{s.component_type}</Badge>
