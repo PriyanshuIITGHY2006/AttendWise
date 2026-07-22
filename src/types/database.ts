@@ -155,6 +155,7 @@ export type Database = {
           semester_end: string
           semester_start: string
           strict_no_skip: boolean
+          term: string
           user_id: string
         }
         Insert: {
@@ -171,6 +172,7 @@ export type Database = {
           semester_end: string
           semester_start: string
           strict_no_skip?: boolean
+          term?: string
           user_id: string
         }
         Update: {
@@ -187,6 +189,7 @@ export type Database = {
           semester_end?: string
           semester_start?: string
           strict_no_skip?: boolean
+          term?: string
           user_id?: string
         }
         Relationships: [

@@ -20,6 +20,7 @@ import {
 import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
 import { findNearbyEvent } from "../features/events/proximity"
 import { computeBunkSafety, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
+import { termLabel } from "../features/courses/CourseForm"
 import { thresholdRoast } from "../features/notifications/copy"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
@@ -114,6 +115,7 @@ export function CourseDetail() {
             <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: course.color }} />
             <h1 className="text-2xl font-semibold tracking-tight">{course.name}</h1>
             {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
+            {termLabel(course.term) && <Badge tone="neutral">{termLabel(course.term)}</Badge>}
             {course.strict_no_skip && <Badge tone="red">Zero-tolerance</Badge>}
           </div>
           <p className="mt-1 text-sm text-neutral-500">

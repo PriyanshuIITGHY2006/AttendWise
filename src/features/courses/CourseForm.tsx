@@ -2,9 +2,41 @@ import { useState, type FormEvent } from "react"
 import { Card } from "../../components/ui/Card"
 import { Button } from "../../components/ui/Button"
 import { Input, Label } from "../../components/ui/Input"
+import { CURRENT_SEMESTER } from "./currentSemester"
 
 const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const COLORS = ["#2563eb", "#dc2626", "#16a34a", "#d97706", "#7c3aed", "#0891b2", "#db2777"]
+
+export type CourseTerm = "full" | "pre_mid" | "post_mid"
+
+const TERM_OPTIONS: { value: CourseTerm; label: string; hint: string }[] = [
+  { value: "full", label: "Full semester", hint: "Runs the whole semester" },
+  { value: "pre_mid", label: "First half", hint: "Start of semester → mid-sem" },
+  { value: "post_mid", label: "Second half", hint: "Mid-sem → end of semester" },
+]
+
+// Default date span for each term, so switching duration snaps the two date
+// fields to sensible bounds the user can still fine-tune.
+function defaultSpanFor(term: CourseTerm): { start: string; end: string } {
+  if (term === "pre_mid") return { start: CURRENT_SEMESTER.start, end: CURRENT_SEMESTER.mid }
+  if (term === "post_mid") return { start: CURRENT_SEMESTER.mid, end: CURRENT_SEMESTER.end }
+  return { start: CURRENT_SEMESTER.start, end: CURRENT_SEMESTER.end }
+}
+
+// The two date inputs hold the effective span (what session generation uses),
+// so their labels change with the term to stay meaningful.
+function dateLabels(term: CourseTerm): { start: string; end: string } {
+  if (term === "pre_mid") return { start: "Semester start", end: "Mid-sem date" }
+  if (term === "post_mid") return { start: "Mid-sem date", end: "Semester end" }
+  return { start: "Semester start", end: "Semester end" }
+}
+
+/** Short badge label for a half-semester course, or null for a full-semester one. */
+export function termLabel(term: string | null | undefined): string | null {
+  if (term === "pre_mid") return "First half"
+  if (term === "post_mid") return "Second half"
+  return null
+}
 
 export type ScheduleDraft = {
   id?: string
@@ -28,6 +60,7 @@ export type CourseFormValues = {
   color: string
   threshold: number
   strictNoSkip: boolean
+  term: CourseTerm
   semesterStart: string
   semesterEnd: string
   slots: ScheduleDraft[]
@@ -50,9 +83,22 @@ export function CourseForm({
   const [color, setColor] = useState(initialValues.color)
   const [threshold, setThreshold] = useState(initialValues.threshold)
   const [strictNoSkip, setStrictNoSkip] = useState(initialValues.strictNoSkip)
+  const [term, setTerm] = useState<CourseTerm>(initialValues.term)
   const [semesterStart, setSemesterStart] = useState(initialValues.semesterStart)
   const [semesterEnd, setSemesterEnd] = useState(initialValues.semesterEnd)
   const [slots, setSlots] = useState<ScheduleDraft[]>(initialValues.slots)
+
+  // Switching duration snaps both dates to that term's default span. The user
+  // can still tweak either date afterward (e.g. a first-half course that
+  // actually starts a week late).
+  function changeTerm(next: CourseTerm) {
+    setTerm(next)
+    const span = defaultSpanFor(next)
+    setSemesterStart(span.start)
+    setSemesterEnd(span.end)
+  }
+
+  const labels = dateLabels(term)
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
@@ -81,7 +127,7 @@ export function CourseForm({
 
     setSubmitting(true)
     try {
-      await onSubmit({ courseType, name, code, instructor, semester, color, threshold, strictNoSkip, semesterStart, semesterEnd, slots })
+      await onSubmit({ courseType, name, code, instructor, semester, color, threshold, strictNoSkip, term, semesterStart, semesterEnd, slots })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong")
       setSubmitting(false)
@@ -111,6 +157,29 @@ export function CourseForm({
           </div>
         </div>
 
+        <div>
+          <Label>Duration</Label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {TERM_OPTIONS.map((opt) => (
+              <button
+                type="button"
+                key={opt.value}
+                onClick={() => changeTerm(opt.value)}
+                className={`rounded-lg border px-3 py-2.5 text-left transition-all ${
+                  term === opt.value
+                    ? "border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500/30 dark:border-indigo-500 dark:bg-indigo-500/10"
+                    : "border-neutral-200 hover:border-neutral-300 dark:border-neutral-700"
+                }`}
+              >
+                <span className={`block text-sm font-medium ${term === opt.value ? "text-indigo-700 dark:text-indigo-300" : "text-neutral-800 dark:text-neutral-200"}`}>
+                  {opt.label}
+                </span>
+                <span className="mt-0.5 block text-xs text-neutral-500">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label htmlFor="name">Course name</Label>
@@ -129,11 +198,11 @@ export function CourseForm({
             <Input id="semester" required value={semester} onChange={(e) => setSemester(e.target.value)} placeholder="Monsoon 2026" />
           </div>
           <div>
-            <Label htmlFor="semesterStart">Semester start</Label>
+            <Label htmlFor="semesterStart">{labels.start}</Label>
             <Input id="semesterStart" type="date" required value={semesterStart} onChange={(e) => setSemesterStart(e.target.value)} />
           </div>
           <div>
-            <Label htmlFor="semesterEnd">Semester end</Label>
+            <Label htmlFor="semesterEnd">{labels.end}</Label>
             <Input id="semesterEnd" type="date" required value={semesterEnd} onChange={(e) => setSemesterEnd(e.target.value)} />
           </div>
           <div>

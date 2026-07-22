@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, type ComponentType } from "react"
 import { NavLink, Outlet } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { WelcomeSplash } from "./WelcomeSplash"
@@ -7,6 +7,7 @@ import { ProductTour } from "./ProductTour"
 import { Logomark } from "../ui/Logomark"
 import { RevealProvider } from "../../context/RevealContext"
 import { useOverallStatus } from "../../features/courses/useOverallStatus"
+import { TodayIcon, CoursesIcon, PlanIcon, CalendarIcon, MaterialsIcon } from "./navIcons"
 
 const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
 
@@ -16,12 +17,29 @@ const STATUS_DOT: Record<string, string> = {
   red: "bg-red-500",
 }
 
-function NavItem({ to, label, end, tourId }: { to: string; label: string; end?: boolean; tourId?: string }) {
+type NavEntry = {
+  to: string
+  label: string
+  shortLabel: string
+  end?: boolean
+  tourId?: string
+  icon: ComponentType<{ className?: string }>
+}
+
+const NAV: NavEntry[] = [
+  { to: "/", label: "Today", shortLabel: "Today", end: true, tourId: "nav-today", icon: TodayIcon },
+  { to: "/courses", label: "Courses", shortLabel: "Courses", tourId: "nav-courses", icon: CoursesIcon },
+  { to: "/plan", label: "Plan a day off", shortLabel: "Plan", tourId: "nav-plan", icon: PlanIcon },
+  { to: "/calendar", label: "Calendar", shortLabel: "Calendar", tourId: "nav-calendar", icon: CalendarIcon },
+]
+
+const MATERIALS_ENTRY: NavEntry = { to: "/materials", label: "Materials", shortLabel: "Files", icon: MaterialsIcon }
+
+function TopNavItem({ entry }: { entry: NavEntry }) {
   return (
     <NavLink
-      to={to}
-      end={end}
-      data-tour={tourId}
+      to={entry.to}
+      end={entry.end}
       className={({ isActive }) =>
         `whitespace-nowrap rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-150 ${
           isActive
@@ -30,7 +48,36 @@ function NavItem({ to, label, end, tourId }: { to: string; label: string; end?: 
         }`
       }
     >
-      {label}
+      {entry.label}
+    </NavLink>
+  )
+}
+
+function BottomNavItem({ entry }: { entry: NavEntry }) {
+  const Icon = entry.icon
+  return (
+    <NavLink
+      to={entry.to}
+      end={entry.end}
+      data-tour={entry.tourId}
+      className={({ isActive }) =>
+        `flex flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-medium transition-colors ${
+          isActive ? "text-indigo-600" : "text-neutral-400 hover:text-neutral-600"
+        }`
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            className={`flex h-8 w-full max-w-[3.5rem] items-center justify-center rounded-full transition-colors ${
+              isActive ? "bg-indigo-50" : ""
+            }`}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
+          {entry.shortLabel}
+        </>
+      )}
     </NavLink>
   )
 }
@@ -102,6 +149,7 @@ export function AppLayout() {
   }
 
   const showTour = !showSplash && !!profile && !profile.has_completed_tour
+  const navEntries = hasMaterialAccess ? [...NAV, MATERIALS_ENTRY] : NAV
 
   return (
     <div className="min-h-screen">
@@ -109,46 +157,65 @@ export function AppLayout() {
       {showTour && <ProductTour />}
       <CommandPalette hasMaterialAccess={hasMaterialAccess} />
 
-      <header className="sticky top-0 z-30 border-b border-neutral-200/60 bg-white/70 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80">
+      {/* pt uses the device's safe-area inset so content clears the status bar /
+          notch on phones (viewport-fit=cover draws under it) */}
+      <header
+        className="sticky top-0 z-30 border-b border-neutral-200/60 bg-white/70 backdrop-blur-xl dark:border-neutral-800 dark:bg-neutral-950/80"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-3 sm:px-6">
-          <div className="mr-3 flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:mr-3">
             <Logomark size={26} />
-            <span className="hidden text-[15px] font-semibold tracking-tight sm:inline">AttendWise</span>
+            <span className="text-[15px] font-semibold tracking-tight">AttendWise</span>
           </div>
 
-          <nav className="flex flex-1 items-center gap-1 overflow-x-auto">
-            <NavItem to="/" label="Today" end tourId="nav-today" />
-            <NavItem to="/courses" label="Courses" tourId="nav-courses" />
-            <NavItem to="/plan" label="Plan a day off" tourId="nav-plan" />
-            <NavItem to="/calendar" label="Calendar" tourId="nav-calendar" />
-            {hasMaterialAccess && <NavItem to="/materials" label="Materials" />}
+          {/* desktop nav -- on mobile this is replaced by the bottom tab bar */}
+          <nav className="ml-2 hidden flex-1 items-center gap-1 sm:flex">
+            {navEntries.map((entry) => (
+              <TopNavItem key={entry.to} entry={entry} />
+            ))}
           </nav>
 
-          {courseCount !== null && courseCount > 0 && (
-            <span className="mr-1 hidden items-center gap-1.5 rounded-full border border-neutral-200/70 bg-white/60 px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-xs md:flex dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300">
-              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[worstStatus]}`} />
-              {courseCount} course{courseCount === 1 ? "" : "s"}
-            </span>
-          )}
+          <div className="flex flex-1 items-center justify-end gap-2 sm:flex-none">
+            {courseCount !== null && courseCount > 0 && (
+              <span className="hidden items-center gap-1.5 rounded-full border border-neutral-200/70 bg-white/60 px-2.5 py-1 text-xs font-medium text-neutral-600 shadow-xs md:flex dark:border-neutral-800 dark:bg-neutral-800 dark:text-neutral-300">
+                <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[worstStatus]}`} />
+                {courseCount} course{courseCount === 1 ? "" : "s"}
+              </span>
+            )}
 
-          <button
-            data-tour="command-palette"
-            onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
-            className="mr-2 hidden items-center gap-1.5 rounded-lg border border-neutral-200/70 bg-white/60 px-2.5 py-1.5 text-xs text-neutral-500 shadow-xs transition-colors hover:border-neutral-300 hover:text-neutral-700 sm:flex dark:border-neutral-700 dark:bg-transparent"
-          >
-            <span>Search</span>
-            <kbd className="rounded border border-neutral-200 bg-neutral-50 px-1 font-sans text-[10px] dark:border-neutral-700 dark:bg-neutral-800">⌘K</kbd>
-          </button>
+            <button
+              data-tour="command-palette"
+              onClick={() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+              className="hidden items-center gap-1.5 rounded-lg border border-neutral-200/70 bg-white/60 px-2.5 py-1.5 text-xs text-neutral-500 shadow-xs transition-colors hover:border-neutral-300 hover:text-neutral-700 sm:flex dark:border-neutral-700 dark:bg-transparent"
+            >
+              <span>Search</span>
+              <kbd className="rounded border border-neutral-200 bg-neutral-50 px-1 font-sans text-[10px] dark:border-neutral-700 dark:bg-neutral-800">⌘K</kbd>
+            </button>
 
-          <AccountMenu />
+            <AccountMenu />
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+      {/* extra bottom padding on mobile so the fixed tab bar never covers content */}
+      <main className="mx-auto max-w-6xl px-4 pb-28 pt-8 sm:px-6 sm:pb-8">
         <RevealProvider value={ready}>
           <Outlet />
         </RevealProvider>
       </main>
+
+      {/* mobile bottom tab bar */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200/70 bg-white/85 backdrop-blur-xl sm:hidden dark:border-neutral-800 dark:bg-neutral-950/85"
+        style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
+        <div className="mx-auto flex max-w-md items-stretch gap-1 px-2 py-1.5">
+          {navEntries.map((entry) => (
+            <BottomNavItem key={entry.to} entry={entry} />
+          ))}
+        </div>
+      </nav>
     </div>
   )
 }

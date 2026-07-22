@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { listCourses, getCourseStats, type Course, type CourseStats } from "../features/courses/api"
 import { computeBunkSafety } from "../features/attendance/bunkSafety"
+import { termLabel } from "../features/courses/CourseForm"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -33,6 +34,7 @@ function CourseCard({ course, stats }: { course: Course; stats?: CourseStats }) 
             <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: course.color }} />
             <span className="truncate font-medium">{course.name}</span>
             {course.course_type === "lab" && <Badge tone="neutral">Lab</Badge>}
+            {termLabel(course.term) && <Badge tone="neutral">{termLabel(course.term)}</Badge>}
             {course.strict_no_skip && <Badge tone="red">Zero-tolerance</Badge>}
           </div>
           <p className="mt-0.5 truncate text-sm text-neutral-500">{[course.code, course.semester].filter(Boolean).join(" · ")}</p>
