@@ -2,22 +2,25 @@ import { useEffect, useMemo, useState } from "react"
 import { listInstituteCalendar, type InstituteCalendarDay } from "../features/calendar/api"
 import { Card } from "../components/ui/Card"
 
-const DAY_TYPE_DOT: Record<InstituteCalendarDay["day_type"], string> = {
+const DAY_TYPE_DOT: Record<string, string> = {
   holiday: "bg-emerald-500",
   mid_sem_break: "bg-amber-500",
   end_sem_break: "bg-red-500",
+  reschedule: "bg-indigo-500",
 }
 
-const DAY_TYPE_BG: Record<InstituteCalendarDay["day_type"], string> = {
+const DAY_TYPE_BG: Record<string, string> = {
   holiday: "bg-emerald-50 dark:bg-emerald-500/10",
   mid_sem_break: "bg-amber-50 dark:bg-amber-500/10",
   end_sem_break: "bg-red-50 dark:bg-red-500/10",
+  reschedule: "bg-indigo-50 dark:bg-indigo-500/10",
 }
 
-const DAY_TYPE_LABELS: Record<InstituteCalendarDay["day_type"], string> = {
+const DAY_TYPE_LABELS: Record<string, string> = {
   holiday: "Holiday",
   mid_sem_break: "Mid-sem exams",
   end_sem_break: "End-sem exams",
+  reschedule: "Day swap",
 }
 
 const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -61,7 +64,9 @@ export function Calendar() {
   return (
     <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-semibold tracking-tight">Institute calendar</h1>
-      <p className="mt-1 text-sm text-neutral-500">Holidays and exam weeks, shared across all courses.</p>
+      <p className="mt-1 text-sm text-neutral-500">
+        Holidays, exam weeks, and day-order swaps — all folded into your class schedule automatically.
+      </p>
 
       <Card className="mt-6">
         <div className="flex items-center justify-between">

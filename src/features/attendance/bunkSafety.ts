@@ -177,9 +177,20 @@ export type SkipVerdict = {
   safeCount: number
 }
 
-/** Combines a course's overall safety with how many sessions in some specific range/day it can absorb. */
-export function computeSkipVerdict(input: BunkSafetyInput & { strictNoSkip?: boolean }, countInRange: number): SkipVerdict {
+/**
+ * Combines a course's overall safety with how many sessions in some specific
+ * range/day it can absorb. `alreadyPlannedSkips` reserves budget for skips the
+ * student has penciled in elsewhere, so two planners never hand out the same
+ * skip twice.
+ */
+export function computeSkipVerdict(
+  input: BunkSafetyInput & { strictNoSkip?: boolean; alreadyPlannedSkips?: number },
+  countInRange: number,
+): SkipVerdict {
   const safety = computeBunkSafety(input)
-  const safeCount = input.strictNoSkip ? 0 : Math.min(safety.canReachThreshold ? safety.maxSafeSkips : 0, countInRange)
+  const budget = input.strictNoSkip
+    ? 0
+    : Math.max(0, (safety.canReachThreshold ? safety.maxSafeSkips : 0) - (input.alreadyPlannedSkips ?? 0))
+  const safeCount = Math.min(budget, countInRange)
   return { safety, safeCount }
 }

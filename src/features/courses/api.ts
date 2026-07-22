@@ -76,6 +76,18 @@ export async function generateSessions(courseId: string) {
   if (error) throw error
 }
 
+/**
+ * Regenerates future sessions for every course the user owns. Used to pull in
+ * academic-calendar changes (holidays, day-order swaps) or a first-year-status
+ * change into existing courses -- generation only rebuilds unmarked future
+ * sessions, so recorded attendance is never touched.
+ */
+export async function regenerateAllCourses(userId: string) {
+  const courses = await listCourses(userId)
+  for (const c of courses) await generateSessions(c.id)
+  return courses.length
+}
+
 export async function listSessionsForCourse(courseId: string) {
   const { data, error } = await supabase
     .from("sessions")
@@ -139,6 +151,8 @@ export type CourseStats = {
   absent: number
   totalSessions: number
   remainingSessions: number
+  /** Future sessions already marked as a planned skip -- these consume the safe-skip budget. */
+  plannedFutureSkips: number
 }
 
 export async function getCourseStats(courseId: string, userId: string): Promise<CourseStats> {
@@ -172,11 +186,24 @@ export async function getCourseStats(courseId: string, userId: string): Promise<
   const resolvedNeutral = records.filter((r) => r.status === "cancelled" || r.status === "on_duty").length
   const total = totalSessions ?? 0
 
+  // future sessions the student has already penciled in as a skip -- they still
+  // sit in remainingSessions (they haven't happened), so the safe-skip budget
+  // has to reserve for them or every planner would re-offer skips already spent
+  const { count: plannedFutureSkips, error: plannedError } = await supabase
+    .from("attendance_records")
+    .select("*, sessions!inner(course_id, session_date)", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("status", "absent")
+    .eq("sessions.course_id", courseId)
+    .gt("sessions.session_date", todayISO)
+  if (plannedError) throw plannedError
+
   return {
     attended,
     absent,
     totalSessions: total,
     remainingSessions: Math.max(0, total - attended - absent - resolvedNeutral),
+    plannedFutureSkips: plannedFutureSkips ?? 0,
   }
 }
 

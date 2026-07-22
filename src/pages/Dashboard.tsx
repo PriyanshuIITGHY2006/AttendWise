@@ -73,6 +73,7 @@ export function Dashboard() {
             remainingSessions: stats.remainingSessions,
             thresholdPercent: course.attendance_threshold,
             strictNoSkip: course.strict_no_skip,
+            alreadyPlannedSkips: stats.plannedFutureSkips,
           },
           courseSessions.length,
         )

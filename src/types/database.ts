@@ -204,24 +204,30 @@ export type Database = {
       }
       institute_calendar: {
         Row: {
+          audience: string
           created_at: string
           date: string
           day_type: string
           description: string | null
+          follows_day_of_week: number | null
           id: string
         }
         Insert: {
+          audience?: string
           created_at?: string
           date: string
           day_type?: string
           description?: string | null
+          follows_day_of_week?: number | null
           id?: string
         }
         Update: {
+          audience?: string
           created_at?: string
           date?: string
           day_type?: string
           description?: string | null
+          follows_day_of_week?: number | null
           id?: string
         }
         Relationships: []
@@ -349,6 +355,7 @@ export type Database = {
           full_name: string | null
           has_completed_tour: boolean
           id: string
+          is_first_year_ug: boolean
           role: string
         }
         Insert: {
@@ -358,6 +365,7 @@ export type Database = {
           full_name?: string | null
           has_completed_tour?: boolean
           id: string
+          is_first_year_ug?: boolean
           role?: string
         }
         Update: {
@@ -367,6 +375,7 @@ export type Database = {
           full_name?: string | null
           has_completed_tour?: boolean
           id?: string
+          is_first_year_ug?: boolean
           role?: string
         }
         Relationships: []

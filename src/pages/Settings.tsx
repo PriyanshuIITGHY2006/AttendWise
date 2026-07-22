@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react"
 import { useAuth } from "../context/AuthContext"
 import { getGlobalNotificationSettings, updateGlobalNotificationSettings } from "../features/notifications/api"
+import { regenerateAllCourses } from "../features/courses/api"
+import { supabase } from "../lib/supabase"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 
@@ -11,6 +13,9 @@ export function Settings() {
   const [muted, setMuted] = useState(false)
   const [leadTime, setLeadTime] = useState(15)
   const [loaded, setLoaded] = useState(false)
+  const [firstYear, setFirstYear] = useState(false)
+  const [resyncing, setResyncing] = useState(false)
+  const [resyncMsg, setResyncMsg] = useState<string | null>(null)
 
   useEffect(() => {
     if (!user) return
@@ -20,6 +25,10 @@ export function Settings() {
       setLoaded(true)
     })
   }, [user])
+
+  useEffect(() => {
+    if (profile) setFirstYear(profile.is_first_year_ug)
+  }, [profile])
 
   async function toggleMuted() {
     if (!user) return
@@ -32,6 +41,29 @@ export function Settings() {
     if (!user) return
     setLeadTime(minutes)
     await updateGlobalNotificationSettings(user.id, { lead_time_minutes: minutes })
+  }
+
+  // First-year UG students get two extra Saturday classes from the institute's
+  // day-order swaps, so flipping this has to rebuild the generated sessions.
+  async function toggleFirstYear() {
+    if (!user) return
+    const next = !firstYear
+    setFirstYear(next)
+    setResyncing(true)
+    setResyncMsg(null)
+    await supabase.from("profiles").update({ is_first_year_ug: next }).eq("id", user.id)
+    const count = await regenerateAllCourses(user.id)
+    setResyncing(false)
+    setResyncMsg(`Rebuilt the schedule for ${count} course${count === 1 ? "" : "s"}.`)
+  }
+
+  async function resyncCalendar() {
+    if (!user) return
+    setResyncing(true)
+    setResyncMsg(null)
+    const count = await regenerateAllCourses(user.id)
+    setResyncing(false)
+    setResyncMsg(`Re-synced ${count} course${count === 1 ? "" : "s"} with the academic calendar.`)
   }
 
   return (
@@ -91,6 +123,39 @@ export function Settings() {
           )}
         </Card>
       )}
+
+      <Card className="mt-6">
+        <h2 className="font-medium">Schedule &amp; calendar</h2>
+        <p className="mt-1 text-sm text-neutral-500">
+          Classes follow the institute academic calendar — holidays, exam weeks, and day-order swaps (e.g. a Thursday that runs the
+          Wednesday timetable) are handled automatically.
+        </p>
+
+        <div className="mt-4 flex items-start justify-between gap-3">
+          <div>
+            <span className="text-sm">First-year UG student</span>
+            <p className="text-xs text-neutral-500">Adds the two extra Saturday classes the calendar assigns to first-years.</p>
+          </div>
+          <button
+            type="button"
+            onClick={toggleFirstYear}
+            disabled={resyncing}
+            className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${firstYear ? "bg-indigo-600" : "bg-neutral-300 dark:bg-neutral-700"}`}
+          >
+            <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${firstYear ? "left-[22px]" : "left-0.5"}`} />
+          </button>
+        </div>
+
+        <div className="mt-4 border-t border-neutral-100 pt-4 dark:border-neutral-800">
+          <Button variant="secondary" onClick={resyncCalendar} disabled={resyncing}>
+            {resyncing ? "Re-syncing…" : "Re-sync with academic calendar"}
+          </Button>
+          <p className="mt-2 text-xs text-neutral-500">
+            Rebuilds upcoming classes from the latest calendar. Your marked attendance is never changed.
+          </p>
+          {resyncMsg && <p className="mt-2 text-xs font-medium text-emerald-600 dark:text-emerald-400">{resyncMsg}</p>}
+        </div>
+      </Card>
 
       <Button variant="secondary" onClick={signOut} className="mt-6 md:hidden">
         Sign out

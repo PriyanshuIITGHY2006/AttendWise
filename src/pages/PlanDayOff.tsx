@@ -65,6 +65,10 @@ export function PlanDayOff() {
             remainingSessions: stats.remainingSessions,
             thresholdPercent: course.attendance_threshold,
             strictNoSkip: course.strict_no_skip,
+            // reserve budget for skips already planned anywhere in the course --
+            // unmarked (the candidates here) are records-free, so they never
+            // overlap these, and no skip gets offered twice
+            alreadyPlannedSkips: stats.plannedFutureSkips,
           },
           unmarked.length,
         )

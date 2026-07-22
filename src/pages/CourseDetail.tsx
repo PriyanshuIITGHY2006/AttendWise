@@ -122,6 +122,8 @@ export function CourseDetail() {
   const pastSessions = sessions.filter((s) => s.session_date <= todayISO).reverse()
   const futureSessions = sessions.filter((s) => s.session_date > todayISO)
   const effectiveMaxSafeSkips = course.strict_no_skip ? 0 : safety.maxSafeSkips
+  // what's left after skips already penciled in -- matches the planner's budget
+  const safeSkipsLeft = Math.max(0, effectiveMaxSafeSkips - stats.plannedFutureSkips)
   const recoverySessions =
     safety.status === "red" && safety.recoveryClassesNeeded != null
       ? futureSessions.slice(0, safety.recoveryClassesNeeded)
@@ -172,7 +174,7 @@ export function CourseDetail() {
           </div>
           <div>
             <dt className="text-xs text-neutral-500">Safe skips left</dt>
-            <dd className="text-lg font-semibold">{safety.canReachThreshold ? effectiveMaxSafeSkips : "—"}</dd>
+            <dd className="text-lg font-semibold">{safety.canReachThreshold ? safeSkipsLeft : "—"}</dd>
           </div>
         </dl>
         {!course.strict_no_skip && (safety.status === "red" || safety.status === "yellow") && (
