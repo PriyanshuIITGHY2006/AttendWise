@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listCourses, getCourseStats, type Course, type CourseStats } from "../features/courses/api"
+import { listCourses, getAllCourseStats, type Course, type CourseStats } from "../features/courses/api"
 import { computeBunkSafety } from "../features/attendance/bunkSafety"
 import { termLabel } from "../features/courses/CourseForm"
 import { Card } from "../components/ui/Card"
@@ -67,12 +67,10 @@ export function Courses() {
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const data = await listCourses(user.id)
+    // Two parallel calls total, instead of a per-course stats waterfall.
+    const [data, statsMap] = await Promise.all([listCourses(user.id), getAllCourseStats()])
     setCourses(data)
-    const entries = await Promise.all(
-      data.map(async (c) => [c.id, await getCourseStats(c.id, user.id)] as const),
-    )
-    setStats(Object.fromEntries(entries))
+    setStats(Object.fromEntries(statsMap))
     setLoading(false)
   }, [user])
 

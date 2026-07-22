@@ -481,6 +481,17 @@ export type Database = {
     }
     Functions: {
       am_i_material_allowed: { Args: never; Returns: boolean }
+      course_stats_for_user: {
+        Args: never
+        Returns: {
+          course_id: string
+          attended: number
+          absent: number
+          total_sessions: number
+          remaining_sessions: number
+          planned_future_skips: number
+        }[]
+      }
       generate_sessions_for_course: {
         Args: { p_course_id: string }
         Returns: undefined

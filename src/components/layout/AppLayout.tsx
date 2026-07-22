@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ComponentType } from "react"
+import { Suspense, useEffect, useRef, useState, type ComponentType } from "react"
 import { NavLink, Outlet, useLocation } from "react-router-dom"
 import { useAuth } from "../../context/AuthContext"
 import { WelcomeSplash } from "./WelcomeSplash"
@@ -216,7 +216,9 @@ export function AppLayout() {
       <main ref={mainRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-6xl px-4 pb-10 pt-8 sm:px-6">
           <RevealProvider value={ready}>
-            <Outlet />
+            <Suspense fallback={<p className="text-sm text-neutral-400">Loading…</p>}>
+              <Outlet />
+            </Suspense>
           </RevealProvider>
         </div>
       </main>

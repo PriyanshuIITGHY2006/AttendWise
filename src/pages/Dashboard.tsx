@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getCourseStats, listUpcomingPlannedSkips } from "../features/courses/api"
+import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getAllCourseStats, EMPTY_COURSE_STATS, listUpcomingPlannedSkips } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { computeBunkSafety, computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
 import { unmarkedNudge } from "../features/notifications/copy"
@@ -43,11 +43,14 @@ export function Dashboard() {
   // of blanking the whole page back to a loading state.
   const fetchData = useCallback(async () => {
     if (!user) return null
-    const [today, courses, events, unmarkedPast] = await Promise.all([
+    // All course stats come from one bulk RPC now, shared by the verdicts below
+    // and the notification sync -- no per-course stats waterfall on either.
+    const [today, courses, events, unmarkedPast, statsMap] = await Promise.all([
       listTodaySessions(user.id, todayISO()),
       listCourses(user.id),
       listUpcomingEvents(user.id),
       listUnmarkedPastSessions(),
+      getAllCourseStats(),
     ])
     setSessions(today)
     setCourseCount(courses.length)
@@ -62,26 +65,24 @@ export function Dashboard() {
       if (!byCourse.has(s.course_id)) byCourse.set(s.course_id, [])
       byCourse.get(s.course_id)!.push(s)
     }
-    const verdictEntries = await Promise.all(
-      [...byCourse.entries()].map(async ([courseId, courseSessions]) => {
-        const course = courseSessions[0].courses
-        const stats = await getCourseStats(courseId, user.id)
-        const verdict = computeSkipVerdict(
-          {
-            attended: stats.attended,
-            absent: stats.absent,
-            remainingSessions: stats.remainingSessions,
-            thresholdPercent: course.attendance_threshold,
-            strictNoSkip: course.strict_no_skip,
-            alreadyPlannedSkips: stats.plannedFutureSkips,
-          },
-          courseSessions.length,
-        )
-        return [courseId, verdict] as const
-      }),
-    )
+    const verdictEntries = [...byCourse.entries()].map(([courseId, courseSessions]) => {
+      const course = courseSessions[0].courses
+      const stats = statsMap.get(courseId) ?? EMPTY_COURSE_STATS
+      const verdict = computeSkipVerdict(
+        {
+          attended: stats.attended,
+          absent: stats.absent,
+          remainingSessions: stats.remainingSessions,
+          thresholdPercent: course.attendance_threshold,
+          strictNoSkip: course.strict_no_skip,
+          alreadyPlannedSkips: stats.plannedFutureSkips,
+        },
+        courseSessions.length,
+      )
+      return [courseId, verdict] as const
+    })
     setVerdicts(Object.fromEntries(verdictEntries))
-    return { today, courses, events: events as UpcomingEvent[], unmarkedPast }
+    return { today, courses, events: events as UpcomingEvent[], unmarkedPast, statsMap }
   }, [user])
 
   // Notification scheduling only needs to run once per app open, not after
@@ -113,7 +114,7 @@ export function Dashboard() {
       await notifyUnmarkedIfNeeded(data.unmarkedPast.length, prefs)
       await Promise.all(
         data.courses.map(async (course) => {
-          const stats = await getCourseStats(course.id, user.id)
+          const stats = data.statsMap.get(course.id) ?? EMPTY_COURSE_STATS
           const safety = computeBunkSafety({
             attended: stats.attended,
             absent: stats.absent,

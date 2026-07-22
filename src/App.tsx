@@ -1,3 +1,4 @@
+import { lazy } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext"
 import { ProtectedRoute } from "./components/layout/ProtectedRoute"
@@ -5,17 +6,24 @@ import { AppLayout } from "./components/layout/AppLayout"
 import { Login } from "./pages/Login"
 import { SignUp } from "./pages/SignUp"
 import { Dashboard } from "./pages/Dashboard"
-import { Courses } from "./pages/Courses"
-import { NewCourse } from "./pages/NewCourse"
-import { EditCourse } from "./pages/EditCourse"
-import { CourseDetail } from "./pages/CourseDetail"
-import { Materials } from "./pages/Materials"
-import { Calendar } from "./pages/Calendar"
-import { Timetable } from "./pages/Timetable"
-import { Insights } from "./pages/Insights"
-import { Grades } from "./pages/Grades"
-import { PlanDayOff } from "./pages/PlanDayOff"
-import { Settings } from "./pages/Settings"
+
+// Everything past the two entry screens (Login) and the landing page (Today) is
+// code-split, so the initial download/parse only covers what the first screen
+// needs; each other page arrives as its own small chunk on first navigation.
+const named = <T extends Record<string, unknown>, K extends keyof T>(loader: () => Promise<T>, key: K) =>
+  lazy(() => loader().then((m) => ({ default: m[key] as React.ComponentType })))
+
+const Courses = named(() => import("./pages/Courses"), "Courses")
+const NewCourse = named(() => import("./pages/NewCourse"), "NewCourse")
+const EditCourse = named(() => import("./pages/EditCourse"), "EditCourse")
+const CourseDetail = named(() => import("./pages/CourseDetail"), "CourseDetail")
+const Materials = named(() => import("./pages/Materials"), "Materials")
+const Calendar = named(() => import("./pages/Calendar"), "Calendar")
+const Timetable = named(() => import("./pages/Timetable"), "Timetable")
+const Insights = named(() => import("./pages/Insights"), "Insights")
+const Grades = named(() => import("./pages/Grades"), "Grades")
+const PlanDayOff = named(() => import("./pages/PlanDayOff"), "PlanDayOff")
+const Settings = named(() => import("./pages/Settings"), "Settings")
 
 export default function App() {
   return (

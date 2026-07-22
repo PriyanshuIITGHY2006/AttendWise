@@ -273,6 +273,37 @@ export async function listAllAttendance(userId: string) {
   })
 }
 
+/**
+ * Attendance stats for ALL of the user's active courses in one round trip, via
+ * the course_stats_for_user RPC. Use this instead of calling getCourseStats in a
+ * loop -- it collapses N x 3 queries into a single call. Returns a map keyed by
+ * course id; a course with no row falls back to zeroed stats.
+ */
+export async function getAllCourseStats(): Promise<Map<string, CourseStats>> {
+  const { data, error } = await supabase.rpc("course_stats_for_user")
+  if (error) throw error
+  const map = new Map<string, CourseStats>()
+  for (const r of data ?? []) {
+    map.set(r.course_id, {
+      attended: r.attended,
+      absent: r.absent,
+      totalSessions: r.total_sessions,
+      remainingSessions: r.remaining_sessions,
+      plannedFutureSkips: r.planned_future_skips,
+    })
+  }
+  return map
+}
+
+/** Zeroed stats for a course with no attendance/sessions yet. */
+export const EMPTY_COURSE_STATS: CourseStats = {
+  attended: 0,
+  absent: 0,
+  totalSessions: 0,
+  remainingSessions: 0,
+  plannedFutureSkips: 0,
+}
+
 export async function listTodaySessions(userId: string, date: string) {
   const { data, error } = await supabase
     .from("sessions")
