@@ -204,7 +204,10 @@ export function Dashboard() {
           {showUnmarked && (
             <div className="mt-3 space-y-2 border-t border-amber-200 pt-3 dark:border-amber-500/20">
               {unmarked.map((s) => (
-                <div key={s.session_id} className="flex items-center justify-between gap-3 text-sm">
+                <div
+                  key={s.session_id}
+                  className="flex flex-col gap-2 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-3"
+                >
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.course_color }} />
                     <span className="truncate font-medium">{s.course_name}</span>
@@ -212,11 +215,13 @@ export function Dashboard() {
                       {new Date(s.session_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                     </span>
                   </div>
-                  <div className="flex shrink-0 gap-2">
-                    <Button variant="secondary" onClick={() => mark(s.session_id, "absent")}>
+                  <div className="flex gap-2 sm:shrink-0">
+                    <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => mark(s.session_id, "absent")}>
                       Absent
                     </Button>
-                    <Button onClick={() => mark(s.session_id, "present")}>Present</Button>
+                    <Button className="flex-1 sm:flex-none" onClick={() => mark(s.session_id, "present")}>
+                      Present
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -237,7 +242,11 @@ export function Dashboard() {
                 const myRecord = s.attendance_records?.[0]
                 const verdict = verdicts[s.course_id]
                 return (
-                  <Card key={s.id} index={i} className="flex items-center justify-between gap-4">
+                  <Card
+                    key={s.id}
+                    index={i}
+                    className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                  >
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: s.courses.color }} />
@@ -253,16 +262,22 @@ export function Dashboard() {
                         {myRecord.status === "present" ? "Marked present" : "Marked absent"}
                       </Badge>
                     ) : (
-                      <div className="flex shrink-0 items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
                         {verdict && (
                           <Badge tone={s.courses.strict_no_skip ? "red" : verdict.safeCount > 0 ? "green" : "red"}>
                             {s.courses.strict_no_skip ? "Zero-tolerance" : verdict.safeCount > 0 ? "Safe to skip" : "Risky to skip"}
                           </Badge>
                         )}
-                        <Button variant="secondary" onClick={() => mark(s.id, "absent")}>
+                        <Button
+                          variant="secondary"
+                          className="flex-1 sm:flex-none"
+                          onClick={() => mark(s.id, "absent")}
+                        >
                           Absent
                         </Button>
-                        <Button onClick={() => mark(s.id, "present")}>Present</Button>
+                        <Button className="flex-1 sm:flex-none" onClick={() => mark(s.id, "present")}>
+                          Present
+                        </Button>
                       </div>
                     )}
                   </Card>
