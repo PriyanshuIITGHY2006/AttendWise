@@ -22,15 +22,13 @@ Android app id: **`in.ac.iitg.attendwise`**
 3. Download **`google-services.json`** → place it in **`android/app/google-services.json`**.
 
 ## 2. Add Firebase to the Android build
-In `android/build.gradle` (project level), add to `dependencies` of `buildscript`:
-```gradle
-classpath 'com.google.gms:google-services:4.4.2'
-```
-In `android/app/build.gradle`, at the very bottom:
-```gradle
-apply plugin: 'com.google.gms.google-services'
-```
-`@capacitor/push-notifications` (already installed) pulls in Firebase Messaging.
+**Already done** — `npx cap sync` wired this up when the push plugin was
+installed. `android/build.gradle` already has the
+`com.google.gms:google-services` classpath, and `android/app/build.gradle`
+applies the plugin automatically once `google-services.json` is present. Nothing
+to edit; just make sure step 1 dropped `google-services.json` into
+`android/app/`. Ignore Firebase's "Add Firebase SDK" (analytics/BoM) step — the
+push plugin brings Firebase Messaging itself.
 
 ## 3. Get the service-account key
 Firebase console → **Project settings → Service accounts → Generate new private
