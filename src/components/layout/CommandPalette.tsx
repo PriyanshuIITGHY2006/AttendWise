@@ -43,6 +43,7 @@ export function CommandPalette({ hasMaterialAccess }: { hasMaterialAccess: boole
       { id: "nav-new-course", label: "Add course", hint: "Action", go: () => navigate("/courses/new") },
       { id: "nav-plan", label: "Plan a day off", hint: "Go to", go: () => navigate("/plan") },
       { id: "nav-insights", label: "Insights", hint: "Go to", go: () => navigate("/insights") },
+      { id: "nav-grades", label: "Grades & GPA", hint: "Go to", go: () => navigate("/grades") },
       { id: "nav-calendar", label: "Calendar", hint: "Go to", go: () => navigate("/calendar") },
       ...(hasMaterialAccess ? [{ id: "nav-materials", label: "Materials", hint: "Go to", go: () => navigate("/materials") }] : []),
       { id: "nav-settings", label: "Settings", hint: "Go to", go: () => navigate("/settings") },

@@ -84,9 +84,17 @@ export function Courses() {
     <div>
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">Courses</h1>
-        <Link to="/courses/new">
-          <Button>Add course</Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            to="/grades"
+            className="rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+          >
+            Grades
+          </Link>
+          <Link to="/courses/new">
+            <Button>Add course</Button>
+          </Link>
+        </div>
       </div>
 
       {loading ? (

@@ -13,6 +13,7 @@ import { Materials } from "./pages/Materials"
 import { Calendar } from "./pages/Calendar"
 import { Timetable } from "./pages/Timetable"
 import { Insights } from "./pages/Insights"
+import { Grades } from "./pages/Grades"
 import { PlanDayOff } from "./pages/PlanDayOff"
 import { Settings } from "./pages/Settings"
 
@@ -34,6 +35,7 @@ export default function App() {
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/timetable" element={<Timetable />} />
               <Route path="/insights" element={<Insights />} />
+              <Route path="/grades" element={<Grades />} />
               <Route path="/plan" element={<PlanDayOff />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
