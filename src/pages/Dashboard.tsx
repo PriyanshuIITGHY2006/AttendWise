@@ -167,10 +167,20 @@ export function Dashboard() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
-      <p className="mt-1 text-sm text-neutral-500">
-        {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
-      </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Today</h1>
+          <p className="mt-1 text-sm text-neutral-500">
+            {new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}
+          </p>
+        </div>
+        <Link
+          to="/insights"
+          className="shrink-0 rounded-lg border border-neutral-200 px-3 py-1.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+        >
+          Insights
+        </Link>
+      </div>
 
       {unmarked.length > 0 && (
         <Card className="mt-6 bg-amber-50 dark:bg-amber-500/10">

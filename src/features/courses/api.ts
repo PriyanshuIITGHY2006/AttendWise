@@ -258,6 +258,21 @@ export async function listUpcomingPlannedSkips(userId: string) {
   })
 }
 
+/** Every resolved (past) attendance record for the user, flattened for analytics. */
+export async function listAllAttendance(userId: string) {
+  const todayISO = new Date().toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select("status, sessions!inner(session_date, course_id)")
+    .eq("user_id", userId)
+    .lte("sessions.session_date", todayISO)
+  if (error) throw error
+  return (data ?? []).map((r) => {
+    const session = r.sessions as unknown as { session_date: string; course_id: string }
+    return { status: r.status, date: session.session_date, courseId: session.course_id }
+  })
+}
+
 export async function listTodaySessions(userId: string, date: string) {
   const { data, error } = await supabase
     .from("sessions")

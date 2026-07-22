@@ -12,6 +12,7 @@ import { CourseDetail } from "./pages/CourseDetail"
 import { Materials } from "./pages/Materials"
 import { Calendar } from "./pages/Calendar"
 import { Timetable } from "./pages/Timetable"
+import { Insights } from "./pages/Insights"
 import { PlanDayOff } from "./pages/PlanDayOff"
 import { Settings } from "./pages/Settings"
 
@@ -32,6 +33,7 @@ export default function App() {
               <Route path="/materials" element={<Materials />} />
               <Route path="/calendar" element={<Calendar />} />
               <Route path="/timetable" element={<Timetable />} />
+              <Route path="/insights" element={<Insights />} />
               <Route path="/plan" element={<PlanDayOff />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
