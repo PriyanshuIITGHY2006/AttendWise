@@ -3,14 +3,29 @@
 // not instead of it. Variants are picked deterministically from a seed
 // (not Math.random()) so the same event shows the same line all day
 // instead of flickering on every re-render.
+//
+// Every function takes a trailing `plain` flag. When the user sets their
+// notification voice to "Plain" in Settings, we return a straight,
+// no-jokes version of the same fact instead of the roast.
 function pick<T>(variants: T[], seed: string): T {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
   return variants[hash % variants.length]
 }
 
-export function thresholdRoast(courseName: string, percent: number, status: "red" | "yellow", seed: string): string {
+export function thresholdRoast(
+  courseName: string,
+  percent: number,
+  status: "red" | "yellow",
+  seed: string,
+  plain = false,
+): string {
   const pct = percent.toFixed(0)
+  if (plain) {
+    return status === "red"
+      ? `${courseName} is at ${pct}%, below your required attendance. Try not to miss the next classes.`
+      : `${courseName} is at ${pct}% with no safe skips left. Attend the upcoming classes to stay above the requirement.`
+  }
   if (status === "red") {
     return pick(
       [
@@ -35,8 +50,9 @@ export function thresholdRoast(courseName: string, percent: number, status: "red
   )
 }
 
-export function unmarkedNudge(count: number, seed: string): string {
+export function unmarkedNudge(count: number, seed: string, plain = false): string {
   const n = count === 1 ? "class" : "classes"
+  if (plain) return `You have ${count} unmarked ${n} from earlier. Mark them to keep your attendance accurate.`
   return pick(
     [
       `${count} ${n} from earlier are floating in limbo, unmarked. Schrödinger's attendance.`,
@@ -48,7 +64,8 @@ export function unmarkedNudge(count: number, seed: string): string {
   )
 }
 
-export function plannedSkipReminder(courseName: string, seed: string): string {
+export function plannedSkipReminder(courseName: string, seed: string, plain = false): string {
+  if (plain) return `Reminder: you planned to skip ${courseName} tomorrow.`
   return pick(
     [
       `Reminder: you're planning to skip ${courseName} tomorrow. Last call to back out like a responsible adult.`,
@@ -59,7 +76,8 @@ export function plannedSkipReminder(courseName: string, seed: string): string {
   )
 }
 
-export function classStartingSoon(courseName: string, minutes: number, seed: string): string {
+export function classStartingSoon(courseName: string, minutes: number, seed: string, plain = false): string {
+  if (plain) return `${courseName} starts in ${minutes} min.`
   return pick(
     [
       `${courseName} starts in ${minutes} min. Bed is not a lecture hall, unfortunately.`,
@@ -71,8 +89,9 @@ export function classStartingSoon(courseName: string, minutes: number, seed: str
   )
 }
 
-export function quizReminder(title: string, courseName: string, days: number, seed: string): string {
+export function quizReminder(title: string, courseName: string, days: number, seed: string, plain = false): string {
   const d = days === 1 ? "day" : "days"
+  if (plain) return `${title} (${courseName}) is in ${days} ${d}.`
   return pick(
     [
       `${title} (${courseName}) is ${days} ${d} away. Hope "starting tonight" energy holds up.`,
@@ -83,7 +102,8 @@ export function quizReminder(title: string, courseName: string, days: number, se
   )
 }
 
-export function recoveryDayReminder(courseName: string, seed: string): string {
+export function recoveryDayReminder(courseName: string, seed: string, plain = false): string {
+  if (plain) return `${courseName} meets today — attending helps recover your attendance.`
   return pick(
     [
       `${courseName} needs you today. This is a rescue mission, not a side quest.`,
@@ -94,12 +114,29 @@ export function recoveryDayReminder(courseName: string, seed: string): string {
   )
 }
 
-export function weeklyDigest(atRiskCount: number, quizCount: number, seed: string): string {
+// Morning nudge fired daily at the user's chosen digest time. It is a repeating
+// notification with a fixed body, so it stays generic (no per-day counts, which
+// would go stale) -- it just points the user back into the app to check and mark.
+export function dailyDigest(seed: string, plain = false): string {
+  if (plain) return "Good morning. Open AttendWise to check today's classes and mark attendance."
+  return pick(
+    [
+      "Good morning. Today's classes are waiting to be marked present (optimistically).",
+      "Rise and grind. Check today's lineup before it checks you.",
+      "New day, fresh attendance to protect. Open up and take a look.",
+      "Morning roll call: peek at today's classes so nothing sneaks past unmarked.",
+    ],
+    seed,
+  )
+}
+
+export function weeklyDigest(atRiskCount: number, quizCount: number, seed: string, plain = false): string {
   if (atRiskCount === 0 && quizCount === 0) {
+    if (plain) return "All courses are above their attendance requirement and nothing is due this week."
     return pick(["All courses green, nothing due this week. Suspiciously well-behaved of you.", "Clean week ahead. Enjoy it, it won't last."], seed)
   }
   const parts: string[] = []
   if (atRiskCount > 0) parts.push(`${atRiskCount} course${atRiskCount === 1 ? "" : "s"} need${atRiskCount === 1 ? "s" : ""} attention`)
   if (quizCount > 0) parts.push(`${quizCount} quiz${quizCount === 1 ? "" : "zes"} incoming`)
-  return `This week: ${parts.join(", ")}. No pressure.`
+  return `This week: ${parts.join(", ")}.${plain ? "" : " No pressure."}`
 }

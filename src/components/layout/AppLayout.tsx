@@ -7,6 +7,7 @@ import { ProductTour } from "./ProductTour"
 import { Logomark } from "../ui/Logomark"
 import { RevealProvider } from "../../context/RevealContext"
 import { useOverallStatus } from "../../features/courses/useOverallStatus"
+import { useNotificationActions } from "../../features/notifications/useNotificationActions"
 import { TodayIcon, CoursesIcon, PlanIcon, CalendarIcon, MaterialsIcon } from "./navIcons"
 
 const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
@@ -140,6 +141,8 @@ export function AppLayout() {
   const { courseCount, worstStatus } = useOverallStatus()
   const mainRef = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
+
+  useNotificationActions(profile?.id)
 
   useEffect(() => {
     if (showSplash) sessionStorage.removeItem(SPLASH_FLAG_KEY)

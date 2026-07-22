@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getCourseStats } from "../features/courses/api"
+import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getCourseStats, listUpcomingPlannedSkips } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { computeBunkSafety, computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
 import { unmarkedNudge } from "../features/notifications/copy"
@@ -91,21 +91,26 @@ export function Dashboard() {
   const syncNotifications = useCallback(
     async (data: NonNullable<Awaited<ReturnType<typeof fetchData>>>) => {
       if (!user) return
-      const notifSettings = await getGlobalNotificationSettings(user.id)
-      if (notifSettings.muted) return
-      await syncScheduledNotifications(
-        data.today
+      const prefs = await getGlobalNotificationSettings(user.id)
+      const plannedSkips = prefs.muted || !prefs.planned_skip_reminders ? [] : await listUpcomingPlannedSkips(user.id)
+      // The engine itself no-ops when muted (after clearing pending), so we
+      // still call it while muted to flush anything previously scheduled.
+      await syncScheduledNotifications({
+        todaySessions: data.today
           .filter((s) => !s.attendance_records?.[0])
           .map((s) => ({ id: s.id, courseId: s.course_id, courseName: s.courses.name, startTime: s.start_time, alreadyMarked: false })),
-        data.events.map((ev) => ({
+        upcomingEvents: data.events.map((ev) => ({
           id: ev.id,
           title: ev.title,
           courseName: ev.courses?.name ?? "",
           eventDateISO: ev.event_date,
         })),
-        notifSettings.lead_time_minutes,
-      )
-      await notifyUnmarkedIfNeeded(data.unmarkedPast.length)
+        plannedSkips,
+        prefs,
+        userId: user.id,
+      })
+      if (prefs.muted) return
+      await notifyUnmarkedIfNeeded(data.unmarkedPast.length, prefs)
       await Promise.all(
         data.courses.map(async (course) => {
           const stats = await getCourseStats(course.id, user.id)
@@ -115,7 +120,7 @@ export function Dashboard() {
             remainingSessions: stats.remainingSessions,
             thresholdPercent: course.attendance_threshold,
           })
-          await notifyThresholdIfChanged(course.id, course.name, safety.currentPercent, safety.status)
+          await notifyThresholdIfChanged(course.id, course.name, safety.currentPercent, safety.status, prefs)
         }),
       )
     },

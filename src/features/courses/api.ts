@@ -207,6 +207,28 @@ export async function getCourseStats(courseId: string, userId: string): Promise<
   }
 }
 
+/**
+ * Future sessions the student has already marked as a planned skip, within the
+ * next few days -- used to schedule "skipping tomorrow?" reminders.
+ */
+export async function listUpcomingPlannedSkips(userId: string) {
+  const today = new Date()
+  const todayISO = today.toISOString().slice(0, 10)
+  const horizon = new Date(today.getTime() + 4 * 86_400_000).toISOString().slice(0, 10)
+  const { data, error } = await supabase
+    .from("attendance_records")
+    .select("session_id, sessions!inner(session_date, course_id, courses!inner(name, user_id))")
+    .eq("user_id", userId)
+    .eq("status", "absent")
+    .gt("sessions.session_date", todayISO)
+    .lte("sessions.session_date", horizon)
+  if (error) throw error
+  return (data ?? []).map((r) => {
+    const session = r.sessions as unknown as { session_date: string; courses: { name: string } }
+    return { sessionId: r.session_id, courseName: session.courses.name, dateISO: session.session_date }
+  })
+}
+
 export async function listTodaySessions(userId: string, date: string) {
   const { data, error } = await supabase
     .from("sessions")
