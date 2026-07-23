@@ -334,6 +334,7 @@ export type Database = {
           file_path: string | null
           id: string
           linked_session_id: string | null
+          notes: string
           tags: string[]
           title: string
           user_id: string
@@ -346,6 +347,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           linked_session_id?: string | null
+          notes?: string
           tags?: string[]
           title: string
           user_id: string
@@ -358,6 +360,7 @@ export type Database = {
           file_path?: string | null
           id?: string
           linked_session_id?: string | null
+          notes?: string
           tags?: string[]
           title?: string
           user_id?: string
