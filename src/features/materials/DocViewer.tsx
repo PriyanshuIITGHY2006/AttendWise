@@ -11,12 +11,16 @@ export type OpenDoc = {
 }
 
 const ZOOMS = [1, 1.5, 2, 3] as const
+const nextZoom = (z: number, dir: 1 | -1) => {
+  const i = ZOOMS.indexOf(z as (typeof ZOOMS)[number])
+  return ZOOMS[Math.min(Math.max((i < 0 ? 0 : i) + dir, 0), ZOOMS.length - 1)]
+}
 
 /**
- * Multi-tab document viewer. Open PDFs/images from anywhere in the explorer
- * accumulate as tabs; each keeps its own zoom + render, and a notes panel is
- * attached to whichever tab is active. "Files" minimises back to the explorer
- * without closing the tabs.
+ * Multi-tab document viewer with an optional two-pane split. Tabs are opened
+ * from anywhere in the explorer; "Split" shows two of them side by side (stacked
+ * on phones). Clicking a pane focuses it, and zoom / notes / download act on the
+ * focused pane. "Files" minimises back to the explorer keeping the tabs open.
  */
 export function DocViewer({
   docs,
@@ -35,22 +39,36 @@ export function DocViewer({
 }) {
   const [zoomById, setZoomById] = useState<Record<string, number>>({})
   const [notesOpen, setNotesOpen] = useState(false)
+  const [split, setSplit] = useState(false)
+  const [laneBId, setLaneBId] = useState<string | null>(null)
+  const [focusedId, setFocusedId] = useState<string | null>(null)
+
   const active = docs.find((d) => d.id === activeId) ?? docs[0]
 
-  const setZoom = (fn: (z: number) => number) =>
-    setZoomById((prev) => ({ ...prev, [active.id]: fn(prev[active.id] ?? 1) }))
-  const zoomIn = () => setZoom((z) => ZOOMS[Math.min(ZOOMS.indexOf(z as (typeof ZOOMS)[number]) + 1, ZOOMS.length - 1)] ?? z)
-  const zoomOut = () => setZoom((z) => ZOOMS[Math.max(ZOOMS.indexOf(z as (typeof ZOOMS)[number]) - 1, 0)] ?? z)
+  // Keep the secondary pane + focus valid as tabs open/close.
+  useEffect(() => {
+    if (docs.length < 2 && split) setSplit(false)
+    if (split && (!laneBId || !docs.some((d) => d.id === laneBId) || laneBId === activeId)) {
+      setLaneBId(docs.find((d) => d.id !== activeId)?.id ?? null)
+    }
+  }, [docs, split, laneBId, activeId])
+
+  const laneB = split ? docs.find((d) => d.id === laneBId) ?? null : null
+  const focused = docs.find((d) => d.id === focusedId) ?? active
+  const panes = split && laneB ? [active, laneB] : [active]
+
+  const setZoom = (id: string, dir: 1 | -1) => setZoomById((p) => ({ ...p, [id]: nextZoom(p[id] ?? 1, dir) }))
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") (notesOpen ? setNotesOpen(false) : onMinimize())
+      if (e.key === "Escape") notesOpen ? setNotesOpen(false) : onMinimize()
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
   }, [notesOpen, onMinimize])
 
   if (!active) return null
+  const focusId = focused?.id ?? active.id
 
   return (
     <div
@@ -64,11 +82,20 @@ export function DocViewer({
           <span className="hidden sm:inline">Files</span>
         </button>
         <div className="min-w-0 flex-1" />
-        <button onClick={zoomOut} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Zoom out">
+        <button onClick={() => setZoom(focusId, -1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Zoom out">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14" strokeLinecap="round" /></svg>
         </button>
-        <button onClick={zoomIn} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Zoom in">
+        <button onClick={() => setZoom(focusId, 1)} className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Zoom in">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
+        </button>
+        <button
+          onClick={() => { setSplit((v) => !v); setFocusedId(activeId) }}
+          disabled={docs.length < 2}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg disabled:opacity-30 ${split ? "bg-white/15 text-white" : "hover:bg-white/10"}`}
+          aria-label="Split view"
+          title="Split view (two PDFs side by side)"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16" /></svg>
         </button>
         <button
           onClick={() => setNotesOpen((v) => !v)}
@@ -76,25 +103,20 @@ export function DocViewer({
           aria-label="Notes"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" /><path d="M8 12h8M8 16h5" strokeLinecap="round" /></svg>
-          {active.notes.trim() && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-indigo-400" />}
+          {focused?.notes.trim() && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-indigo-400" />}
         </button>
-        <a href={active.url} download={active.name} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Download">
+        <a href={focused?.url} download={focused?.name} target="_blank" rel="noopener noreferrer" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg hover:bg-white/10" aria-label="Download">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </a>
       </div>
 
-      {/* tab strip */}
+      {/* tab strip (drives the primary/left pane) */}
       <div className="flex gap-1 overflow-x-auto px-2 pb-2">
         {docs.map((d) => {
           const isActive = d.id === active.id
           return (
-            <div
-              key={d.id}
-              className={`group flex h-8 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-lg pl-2.5 pr-1 text-xs ${isActive ? "bg-white text-neutral-900" : "bg-white/10 text-neutral-300 hover:bg-white/15"}`}
-            >
-              <button onClick={() => onActivate(d.id)} className="min-w-0 truncate py-1.5">
-                {d.name}
-              </button>
+            <div key={d.id} className={`group flex h-8 max-w-[11rem] shrink-0 items-center gap-1.5 rounded-lg pl-2.5 pr-1 text-xs ${isActive ? "bg-white text-neutral-900" : "bg-white/10 text-neutral-300 hover:bg-white/15"}`}>
+              <button onClick={() => { onActivate(d.id); setFocusedId(d.id) }} className="min-w-0 truncate py-1.5">{d.name}</button>
               <button onClick={() => onCloseTab(d.id)} className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${isActive ? "hover:bg-neutral-200" : "hover:bg-white/20"}`} aria-label="Close tab">
                 <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
               </button>
@@ -103,27 +125,52 @@ export function DocViewer({
         })}
       </div>
 
-      {/* content + notes (notes stack below on mobile, side panel on desktop) */}
+      {/* content + notes */}
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
-        <div className="relative min-h-0 min-w-0 flex-1">
-          {docs.map((d) => (
-            <div key={d.id} className={d.id === active.id ? "absolute inset-0" : "hidden"}>
-              {d.kind === "image" ? (
-                <ImagePane url={d.url} zoom={zoomById[d.id] ?? 1} />
-              ) : (
-                <PdfPane url={d.url} zoom={zoomById[d.id] ?? 1} active={d.id === active.id} />
+        {/* panes: side by side on desktop, stacked on mobile */}
+        <div className={`flex min-h-0 min-w-0 flex-1 ${split ? "flex-col sm:flex-row" : ""}`}>
+          {panes.map((d, i) => (
+            <div
+              key={`${i}-${d.id}`}
+              onMouseDown={() => setFocusedId(d.id)}
+              onTouchStart={() => setFocusedId(d.id)}
+              className={`relative flex min-h-0 min-w-0 flex-1 flex-col ${split && i === 1 ? "border-t border-white/10 sm:border-l sm:border-t-0" : ""} ${split && d.id === focusId ? "ring-1 ring-inset ring-indigo-400/60" : ""}`}
+            >
+              {split && (
+                <div className="flex h-8 shrink-0 items-center gap-2 bg-neutral-900/80 px-2 text-xs text-neutral-300">
+                  {i === 0 ? (
+                    <span className="min-w-0 flex-1 truncate">{d.name}</span>
+                  ) : (
+                    <select
+                      value={d.id}
+                      onChange={(e) => setLaneBId(e.target.value)}
+                      className="min-w-0 flex-1 truncate bg-transparent text-neutral-200 outline-none"
+                    >
+                      {docs.filter((o) => o.id !== active.id).map((o) => (
+                        <option key={o.id} value={o.id} className="bg-neutral-900">{o.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {i === 1 && (
+                    <button onClick={() => setSplit(false)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-white/10" aria-label="Close split">
+                      <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
+                    </button>
+                  )}
+                </div>
               )}
+              <div className="relative min-h-0 flex-1">
+                {d.kind === "image" ? (
+                  <ImagePane url={d.url} zoom={zoomById[d.id] ?? 1} />
+                ) : (
+                  <PdfPane key={d.id} url={d.url} zoom={zoomById[d.id] ?? 1} />
+                )}
+              </div>
             </div>
           ))}
         </div>
 
         {notesOpen && (
-          <NotesPanel
-            key={active.id}
-            initial={active.notes}
-            onChange={(v) => onNotesChange(active.id, v)}
-            onClose={() => setNotesOpen(false)}
-          />
+          <NotesPanel key={focusId} initial={focused?.notes ?? ""} onChange={(v) => onNotesChange(focusId, v)} onClose={() => setNotesOpen(false)} />
         )}
       </div>
     </div>
@@ -177,9 +224,6 @@ function NotesPanel({ initial, onChange, onClose }: { initial: string; onChange:
   )
 }
 
-// The height is "45vh" on both, but on sm+ we want full height side panel.
-// Tailwind can't express that inline; override via a wrapper class instead.
-
 function ImagePane({ url, zoom }: { url: string; zoom: number }) {
   const [loaded, setLoaded] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -205,19 +249,15 @@ function ImagePane({ url, zoom }: { url: string; zoom: number }) {
   )
 }
 
-function PdfPane({ url, zoom, active }: { url: string; zoom: number; active: boolean }) {
+function PdfPane({ url, zoom }: { url: string; zoom: number }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
-  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle")
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const pdfRef = useRef<LoadedPdf | null>(null)
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
-  const startedRef = useRef(false)
   const renderedZoom = useRef<number | null>(null)
 
-  // Load the document on first activation (lazy-imports pdf.js).
   useEffect(() => {
-    if (!active || startedRef.current) return
-    startedRef.current = true
     setStatus("loading")
     let cancelled = false
     ;(async () => {
@@ -234,15 +274,14 @@ function PdfPane({ url, zoom, active }: { url: string; zoom: number; active: boo
     })()
     return () => {
       cancelled = true
+      pdfRef.current?.destroy()
+      pdfRef.current = null
+      renderedZoom.current = null
     }
-  }, [active, url])
+  }, [url])
 
-  // Destroy on unmount (tab closed).
-  useEffect(() => () => pdfRef.current?.destroy(), [])
-
-  // Render pages when ready+visible, or when zoom changes.
   useEffect(() => {
-    if (status !== "ready" || !active || !pdfRef.current) return
+    if (status !== "ready" || !pdfRef.current) return
     if (renderedZoom.current === zoom) return
     const container = scrollRef.current
     if (!container) return
@@ -263,7 +302,7 @@ function PdfPane({ url, zoom, active }: { url: string; zoom: number; active: boo
     return () => {
       cancelled = true
     }
-  }, [status, active, zoom, numPages])
+  }, [status, zoom, numPages])
 
   if (status === "error") {
     return (
@@ -275,7 +314,7 @@ function PdfPane({ url, zoom, active }: { url: string; zoom: number; active: boo
 
   return (
     <div ref={scrollRef} className="h-full w-full overflow-auto px-3 py-3">
-      {status !== "ready" && (
+      {status === "loading" && (
         <div className="flex h-full items-center justify-center">
           <Spinner />
         </div>
