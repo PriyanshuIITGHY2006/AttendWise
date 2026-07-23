@@ -11,6 +11,17 @@
          font CDN handshake on the critical path. -->
     <link rel="preconnect" href="https://jlueyxbqknnmcoesgnmg.supabase.co" crossorigin />
     <script type="text/javascript">
+      // Apply the saved theme before first paint so there's no light flash.
+      ;(function () {
+        try {
+          var t = localStorage.getItem("attendwise_theme") || "light"
+          var dark = t === "dark" || (t === "system" && matchMedia("(prefers-color-scheme: dark)").matches)
+          document.documentElement.classList.toggle("dark", dark)
+          document.documentElement.style.colorScheme = dark ? "dark" : "light"
+        } catch (e) {}
+      })()
+    </script>
+    <script type="text/javascript">
       // Decodes the path GitHub Pages' 404.html re-encoded into the query
       // string, restoring the real URL so React Router sees the right route.
       ;(function (l) {

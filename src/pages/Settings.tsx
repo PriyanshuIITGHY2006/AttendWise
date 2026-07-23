@@ -8,8 +8,15 @@ import {
 } from "../features/notifications/api"
 import { regenerateAllCourses } from "../features/courses/api"
 import { supabase } from "../lib/supabase"
+import { getStoredTheme, setTheme, type Theme } from "../lib/theme"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
+
+const THEME_OPTIONS: { id: Theme; label: string }[] = [
+  { id: "light", label: "Light" },
+  { id: "dark", label: "Dark" },
+  { id: "system", label: "System" },
+]
 
 const LEAD_TIME_OPTIONS = [5, 10, 15, 30, 60]
 
@@ -58,6 +65,7 @@ const toInput = (t: string | null) => (t ? t.slice(0, 5) : "")
 export function Settings() {
   const { user, profile, signOut } = useAuth()
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS)
+  const [theme, setThemeState] = useState<Theme>(getStoredTheme())
   const [loaded, setLoaded] = useState(false)
   const [firstYear, setFirstYear] = useState(false)
   const [resyncing, setResyncing] = useState(false)
@@ -130,6 +138,30 @@ export function Settings() {
             <dd className="font-medium">{profile?.email}</dd>
           </div>
         </dl>
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="font-medium">Appearance</h2>
+        <p className="mt-1 text-sm text-neutral-500">Choose your theme.</p>
+        <div className="mt-3 grid grid-cols-3 gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800">
+          {THEME_OPTIONS.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => {
+                setThemeState(o.id)
+                setTheme(o.id)
+              }}
+              className={`rounded-md py-1.5 text-sm font-medium transition-colors ${
+                theme === o.id
+                  ? "bg-white text-neutral-900 shadow-sm dark:bg-neutral-950 dark:text-neutral-100"
+                  : "text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
       </Card>
 
       {loaded && (

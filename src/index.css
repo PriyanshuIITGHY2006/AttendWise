@@ -46,6 +46,17 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+/* Dark theme (opt-in via the .dark class on <html>). Mirrors the light canvas:
+   a near-black background lifted by the same faint indigo bloom up top. */
+html.dark {
+  color-scheme: dark;
+}
+.dark body {
+  @apply text-neutral-100;
+  background-color: #0a0a0f;
+  background-image: radial-gradient(56rem 32rem at 50% -16rem, rgb(99 102 241 / 0.14), transparent 74%);
+}
+
 @layer base {
   h1,
   h2,
