@@ -1,0 +1,16 @@
+<!-- Notification status-bar icon: a monochrome silhouette of the AttendWise
+     checkmark. Android status-bar icons use only the alpha channel and are
+     tinted by the system (or by iconColor), so the shape must be white on a
+     transparent background. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:pathData="M5,12.5 L10,17.5 L19,7.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.75"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>

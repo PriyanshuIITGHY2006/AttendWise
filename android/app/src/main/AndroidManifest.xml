@@ -30,6 +30,15 @@
 
         </activity>
 
+        <!-- Give FCM (remote) notifications the same monochrome icon + brand
+             tint as the local ones, instead of the generic system fallback. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_attendwise" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_accent" />
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"

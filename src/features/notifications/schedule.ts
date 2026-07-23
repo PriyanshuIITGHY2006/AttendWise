@@ -24,6 +24,42 @@ const DIGEST_ID = NAMESPACE.digest + 1
 // straight from the notification without opening the app.
 export const CLASS_ACTION_TYPE = "ATTEND_CLASS"
 
+// Our own notification channel, created with HIGH importance so notifications
+// actually play a sound and pop as heads-up -- Android's default channel was
+// landing them silently. A channel's importance/sound are locked once created,
+// so this id is versioned: bump the suffix to force a fresh channel if these
+// settings ever need to change.
+const CHANNEL_ID = "attendwise-alerts-v1"
+
+// Android-only presentation options spread into every scheduled notification:
+// the channel (for sound), the monochrome status-bar icon, and the brand tint.
+const ANDROID_OPTS = {
+  channelId: CHANNEL_ID,
+  smallIcon: "ic_stat_attendwise",
+  iconColor: "#4F46E5",
+} as const
+
+/**
+ * Creates the high-importance channel that all AttendWise notifications post to.
+ * Idempotent -- safe to call on every app start. Omitting `sound` makes the
+ * channel use the system default notification sound (importance HIGH already
+ * enables sound + heads-up).
+ */
+export async function ensureNotificationChannel() {
+  if (!NATIVE()) return
+  if (Capacitor.getPlatform() !== "android") return
+  await LocalNotifications.createChannel({
+    id: CHANNEL_ID,
+    name: "Class reminders & alerts",
+    description: "Class reminders, attendance warnings and nudges",
+    importance: 5, // HIGH: sound + heads-up banner
+    visibility: 1, // show full content on the lock screen
+    vibration: true,
+    lights: true,
+    lightColor: "#4F46E5",
+  })
+}
+
 function hashToRange(seed: string, base: number, span: number): number {
   let hash = 0
   for (let i = 0; i < seed.length; i++) hash = (hash * 31 + seed.charCodeAt(i)) >>> 0
@@ -49,6 +85,7 @@ export async function ensureNotificationPermission(): Promise<boolean> {
  */
 export async function registerNotificationActions() {
   if (!NATIVE()) return
+  await ensureNotificationChannel()
   await LocalNotifications.registerActionTypes({
     types: [
       {
@@ -165,6 +202,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
       if (fireAt.getTime() <= now) continue
       if (inQuietHours(fireAt, prefs.quiet_start, prefs.quiet_end)) continue
       notifications.push({
+        ...ANDROID_OPTS,
         id: hashToRange(`class-${s.id}`, NAMESPACE.class, 100_000_000),
         title: "Class starting soon",
         body: classStartingSoon(s.courseName, prefs.lead_time_minutes, `${s.id}-${s.startTime}`, plain),
@@ -184,6 +222,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
       if (fireAt.getTime() <= now) continue
       if (inQuietHours(fireAt, prefs.quiet_start, prefs.quiet_end)) continue
       notifications.push({
+        ...ANDROID_OPTS,
         id: hashToRange(`quiz-${ev.id}`, NAMESPACE.quiz, 100_000_000),
         title: "Coming up",
         body: quizReminder(ev.title, ev.courseName, Math.max(1, daysAway), ev.id, plain),
@@ -201,6 +240,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
       if (dayBefore.getTime() <= now) continue
       if (inQuietHours(dayBefore, prefs.quiet_start, prefs.quiet_end)) continue
       notifications.push({
+        ...ANDROID_OPTS,
         id: hashToRange(`planned-${skip.sessionId}`, NAMESPACE.planned, 50_000_000),
         title: "Skipping tomorrow?",
         body: plannedSkipReminder(skip.courseName, skip.sessionId, plain),
@@ -214,6 +254,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
   if (prefs.daily_digest) {
     const [dh, dm] = prefs.daily_digest_time.split(":").map(Number)
     notifications.push({
+      ...ANDROID_OPTS,
       id: DIGEST_ID,
       title: "AttendWise",
       body: dailyDigest(`digest-${prefs.daily_digest_time}`, plain),
@@ -256,6 +297,7 @@ export async function notifyThresholdIfChanged(
   await LocalNotifications.schedule({
     notifications: [
       {
+        ...ANDROID_OPTS,
         id: hashToRange(`threshold-${courseId}-${status}-${today}`, NAMESPACE.threshold, 100_000_000),
         title: status === "red" ? "Attendance in trouble" : "Cutting it close",
         body: thresholdRoast(courseName, percent, status, `${courseId}-${today}`, prefs.humor_level === "plain"),
@@ -277,6 +319,7 @@ export async function notifyUnmarkedIfNeeded(count: number, prefs: NotificationP
   await LocalNotifications.schedule({
     notifications: [
       {
+        ...ANDROID_OPTS,
         id: hashToRange(`unmarked-${today}`, NAMESPACE.unmarked, 100_000_000),
         title: "Unmarked classes",
         body: unmarkedNudge(count, `${count}-${today}`, prefs.humor_level === "plain"),
