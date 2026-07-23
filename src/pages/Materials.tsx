@@ -13,7 +13,12 @@ import {
   type Material,
 } from "../features/materials/api"
 import { fileKind, isViewable, displayName, kindMeta, type FileKind } from "../features/materials/fileKind"
+import { maybeCompressImage, formatBytes } from "../features/materials/compressImage"
 import { DocViewer, type OpenDoc } from "../features/materials/DocViewer"
+
+// Stay a little under Supabase's 50 MB per-file cap so the error is friendly
+// rather than a raw storage rejection mid-upload.
+const MAX_UPLOAD_BYTES = 48 * 1024 * 1024
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
@@ -545,7 +550,13 @@ function AddModal({
     setSubmitting(true)
     setError(null)
     try {
-      const filePath = file ? await uploadMaterialFile(userId, courseId, file) : null
+      // Shrink big photos before upload; PDFs/others pass through unchanged.
+      const toUpload = file ? await maybeCompressImage(file) : null
+      if (toUpload && toUpload.size > MAX_UPLOAD_BYTES) {
+        setError(`That file is ${formatBytes(toUpload.size)} — over the 48 MB limit. Compress it, or paste a link instead.`)
+        return
+      }
+      const filePath = toUpload ? await uploadMaterialFile(userId, courseId, toUpload) : null
       await createMaterial({
         course_id: courseId,
         user_id: userId,
