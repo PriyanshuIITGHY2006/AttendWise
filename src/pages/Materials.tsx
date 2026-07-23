@@ -9,6 +9,9 @@ import {
   createMaterial,
   moveMaterial,
   updateMaterialNotes,
+  setMaterialStarred,
+  renameMaterial,
+  touchMaterialOpened,
   deleteMaterial,
   type Material,
 } from "../features/materials/api"
@@ -59,6 +62,8 @@ export function Materials() {
 
   const [folder, setFolder] = useState<string | null>(null) // course_id, or null = root
   const [subcat, setSubcat] = useState<CategoryId | null>(null) // category within a course
+  const [special, setSpecial] = useState<"starred" | "recent" | null>(null) // virtual root folders
+  const [dragOver, setDragOver] = useState(false)
   const [layout, setLayout] = useState<"grid" | "list">("grid")
   const [query, setQuery] = useState("")
   const [urls, setUrls] = useState<Record<string, string>>({})
@@ -86,8 +91,12 @@ export function Materials() {
   const goRoot = () => {
     setFolder(null)
     setSubcat(null)
+    setSpecial(null)
     setQuery("")
   }
+
+  const starredCount = useMemo(() => materials.filter((m) => m.starred).length, [materials])
+  const recentCount = useMemo(() => materials.filter((m) => m.last_opened_at).length, [materials])
 
   // Level 1: course folders (courses with at least one material), with counts.
   const folders = useMemo(() => {
@@ -119,13 +128,21 @@ export function Materials() {
           m.courses?.name.toLowerCase().includes(q) ||
           categoryLabel(m.category).toLowerCase().includes(q),
       )
+    } else if (special === "starred") {
+      list = list.filter((m) => m.starred)
+    } else if (special === "recent") {
+      list = list
+        .filter((m) => m.last_opened_at)
+        .slice()
+        .sort((a, b) => (b.last_opened_at ?? "").localeCompare(a.last_opened_at ?? ""))
+        .slice(0, 30)
     } else if (folder && subcat) {
       list = list.filter((m) => m.course_id === folder && ((m.category as CategoryId) ?? "extras") === subcat)
     } else {
       list = []
     }
     return list.map(toEntry)
-  }, [materials, folder, subcat, query, searching])
+  }, [materials, folder, subcat, special, query, searching])
 
   // Batch-sign visible files so image tiles get thumbnails and the viewer opens
   // instantly.
@@ -145,6 +162,11 @@ export function Materials() {
       }
       const path = entry.material.file_path
       if (!path) return
+      // Bump "recently opened" (fire-and-forget + optimistic).
+      touchMaterialOpened(entry.material.id)
+      const nowIso = new Date().toISOString()
+      setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, last_opened_at: nowIso } : m)))
+
       const url = urls[path] ?? (await getMaterialFileUrl(path))
       if (!urls[path]) setUrls((prev) => ({ ...prev, [path]: url }))
 
@@ -200,6 +222,44 @@ export function Materials() {
     }
   }
 
+  function handleStar(entry: Entry) {
+    const starred = !entry.material.starred
+    setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, starred } : m)))
+    setActionsFor(null)
+    setMaterialStarred(entry.material.id, starred).catch(() => load())
+  }
+
+  async function handleRename(entry: Entry) {
+    const next = prompt("Rename file", entry.name)?.trim()
+    setActionsFor(null)
+    if (!next || next === entry.name) return
+    setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, title: next } : m)))
+    try {
+      await renameMaterial(entry.material.id, next)
+    } catch {
+      load()
+    }
+  }
+
+  // Upload dropped files into the folder currently being viewed.
+  const uploadInto = useCallback(
+    async (files: FileList | File[], courseId: string, category: CategoryId) => {
+      if (!user) return
+      for (const file of Array.from(files)) {
+        try {
+          const toUpload = await maybeCompressImage(file)
+          if (toUpload.size > MAX_UPLOAD_BYTES) continue
+          const filePath = await uploadMaterialFile(user.id, courseId, toUpload)
+          await createMaterial({ course_id: courseId, user_id: user.id, title: file.name, file_path: filePath, external_link: null, category })
+        } catch {
+          /* skip a failed file, keep going */
+        }
+      }
+      load()
+    },
+    [user, load],
+  )
+
   if (!hasMaterialAccess) {
     return (
       <div>
@@ -212,19 +272,20 @@ export function Materials() {
   }
 
   // Which level are we rendering?
-  const showCourseFolders = !searching && !folder
+  const showCourseFolders = !searching && !folder && !special
   const showCategoryFolders = !searching && !!folder && !subcat
-  const showFiles = searching || (!!folder && !!subcat)
+  const showFiles = searching || !!special || (!!folder && !!subcat)
+  const specialLabel = special === "starred" ? "Starred" : special === "recent" ? "Recent" : null
 
   return (
     <div className="mx-auto max-w-4xl">
       {/* breadcrumb + add */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-1.5 text-sm">
-          <Crumb active={!folder && !searching} onClick={goRoot}>
+          <Crumb active={!folder && !searching && !special} onClick={goRoot}>
             Materials
           </Crumb>
-          {!searching && currentCourseName && (
+          {!searching && !special && currentCourseName && (
             <>
               <Sep />
               <Crumb active={!subcat} onClick={() => setSubcat(null)}>
@@ -232,10 +293,16 @@ export function Materials() {
               </Crumb>
             </>
           )}
-          {!searching && subcat && (
+          {!searching && !special && subcat && (
             <>
               <Sep />
               <Crumb active>{categoryLabel(subcat)}</Crumb>
+            </>
+          )}
+          {specialLabel && (
+            <>
+              <Sep />
+              <Crumb active>{specialLabel}</Crumb>
             </>
           )}
           {searching && (
@@ -282,11 +349,24 @@ export function Materials() {
         folders.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} canAdd={courses.length > 0} />
         ) : (
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {folders.map(({ course, count }) => (
-              <FolderCard key={course.id} color={course.color} title={course.name} subtitle={`${count} item${count === 1 ? "" : "s"}`} onClick={() => setFolder(course.id)} />
-            ))}
-          </div>
+          <>
+            {(starredCount > 0 || recentCount > 0) && (
+              <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                {starredCount > 0 && (
+                  <QuickCard glyph="star" tint="#f59e0b" title="Starred" subtitle={`${starredCount} item${starredCount === 1 ? "" : "s"}`} onClick={() => setSpecial("starred")} />
+                )}
+                {recentCount > 0 && (
+                  <QuickCard glyph="clock" tint="#6366f1" title="Recent" subtitle="Recently opened" onClick={() => setSpecial("recent")} />
+                )}
+              </div>
+            )}
+            <p className="mt-6 text-xs font-medium uppercase tracking-wide text-neutral-400">Courses</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {folders.map(({ course, count }) => (
+                <FolderCard key={course.id} color={course.color} title={course.name} subtitle={`${count} item${count === 1 ? "" : "s"}`} onClick={() => setFolder(course.id)} />
+              ))}
+            </div>
+          </>
         )
       ) : showCategoryFolders ? (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -294,19 +374,43 @@ export function Materials() {
             <FolderCard key={c.id} color={c.color} title={c.label} subtitle={`${c.count} item${c.count === 1 ? "" : "s"}`} onClick={() => setSubcat(c.id)} />
           ))}
         </div>
-      ) : entries.length === 0 ? (
-        <p className="mt-6 text-sm text-neutral-500">{searching ? "No files match your search." : "This folder is empty. Tap Add to upload."}</p>
-      ) : layout === "grid" ? (
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-          {entries.map((e) => (
-            <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching} />
-          ))}
-        </div>
       ) : (
-        <div className="mt-5 divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200/70 dark:divide-neutral-800 dark:border-neutral-800">
-          {entries.map((e) => (
-            <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching} />
-          ))}
+        <div
+          onDragOver={folder && subcat ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
+          onDragLeave={folder && subcat ? () => setDragOver(false) : undefined}
+          onDrop={
+            folder && subcat
+              ? (e) => {
+                  e.preventDefault()
+                  setDragOver(false)
+                  if (e.dataTransfer.files.length) uploadInto(e.dataTransfer.files, folder, subcat)
+                }
+              : undefined
+          }
+          className={`relative mt-5 min-h-[6rem] rounded-xl ${dragOver ? "outline-dashed outline-2 outline-indigo-400" : ""}`}
+        >
+          {dragOver && (
+            <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-indigo-50/80 text-sm font-medium text-indigo-700 dark:bg-indigo-500/10 dark:text-indigo-300">
+              Drop files to upload here
+            </div>
+          )}
+          {entries.length === 0 ? (
+            <p className="text-sm text-neutral-500">
+              {searching ? "No files match your search." : special ? "Nothing here yet." : "This folder is empty. Drop files here, or tap Add."}
+            </p>
+          ) : layout === "grid" ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {entries.map((e) => (
+                <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching || !!special} />
+              ))}
+            </div>
+          ) : (
+            <div className="divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200/70 dark:divide-neutral-800 dark:border-neutral-800">
+              {entries.map((e) => (
+                <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching || !!special} />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -351,6 +455,8 @@ export function Materials() {
           entry={actionsFor}
           onClose={() => setActionsFor(null)}
           onMove={(cat) => handleMove(actionsFor, cat)}
+          onStar={() => handleStar(actionsFor)}
+          onRename={() => handleRename(actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
         />
       )}
@@ -358,8 +464,30 @@ export function Materials() {
   )
 }
 
-function FileActionsSheet({ entry, onClose, onMove, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onDelete: () => void }) {
+function QuickCard({ glyph, tint, title, subtitle, onClick }: { glyph: "star" | "clock"; tint: string; title: string; subtitle: string; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="group flex items-center gap-3 rounded-xl border border-neutral-200/70 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-card-hover dark:border-neutral-800 dark:bg-neutral-900"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${tint}1a` }}>
+        {glyph === "star" ? (
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill={tint}><path d="M12 2l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.9l1.2-6.6L2.5 9.7l6.6-.9L12 2z" /></svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke={tint} strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        )}
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-sm font-medium">{title}</p>
+        <p className="truncate text-xs text-neutral-500">{subtitle}</p>
+      </div>
+    </button>
+  )
+}
+
+function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onStar: () => void; onRename: () => void; onDelete: () => void }) {
   const current = (entry.material.category as CategoryId) ?? "extras"
+  const starred = entry.material.starred
   return (
     <div className="fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
@@ -368,6 +496,16 @@ function FileActionsSheet({ entry, onClose, onMove, onDelete }: { entry: Entry; 
         onClick={(e) => e.stopPropagation()}
       >
         <p className="truncate px-1 pb-2 text-sm font-medium">{entry.name}</p>
+        <div className="mb-2 flex gap-2 border-b border-neutral-100 pb-3 dark:border-neutral-800">
+          <button onClick={onStar} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neutral-100 py-2 text-sm font-medium hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill={starred ? "#f59e0b" : "none"} stroke={starred ? "#f59e0b" : "currentColor"} strokeWidth="2"><path d="M12 2l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.9l1.2-6.6L2.5 9.7l6.6-.9L12 2z" strokeLinejoin="round" /></svg>
+            {starred ? "Starred" : "Star"}
+          </button>
+          <button onClick={onRename} className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-neutral-100 py-2 text-sm font-medium hover:bg-neutral-200 dark:bg-neutral-800 dark:hover:bg-neutral-700">
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Rename
+          </button>
+        </div>
         <p className="px-1 pb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Move to folder</p>
         <div className="space-y-1">
           {CATEGORIES.map((c) => {
@@ -477,8 +615,11 @@ function FileTile({ entry, thumb, onOpen, onMenu, showCourse }: { entry: Entry; 
   return (
     <div className="group relative overflow-hidden rounded-xl border border-neutral-200/70 bg-white transition-all hover:-translate-y-0.5 hover:shadow-card-hover dark:border-neutral-800 dark:bg-neutral-900">
       <button onClick={onOpen} className="block w-full text-left">
-        <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-neutral-50 dark:bg-neutral-800/50">
+        <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-neutral-50 dark:bg-neutral-800/50">
           <Thumb entry={entry} thumb={thumb} size="tile" />
+          {entry.material.starred && (
+            <svg viewBox="0 0 24 24" className="absolute left-1.5 top-1.5 h-4 w-4 drop-shadow" fill="#f59e0b"><path d="M12 2l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.9l1.2-6.6L2.5 9.7l6.6-.9L12 2z" /></svg>
+          )}
         </div>
         <div className="min-w-0 p-2.5">
           <p className="truncate text-sm font-medium">{entry.name}</p>
@@ -504,7 +645,10 @@ function FileRow({ entry, onOpen, onMenu, showCourse }: { entry: Entry; onOpen: 
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
         <Thumb entry={entry} size="row" />
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium">{entry.name}</p>
+          <p className="flex items-center gap-1.5 truncate text-sm font-medium">
+            {entry.material.starred && <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0" fill="#f59e0b"><path d="M12 2l2.9 6.1 6.6.9-4.8 4.6 1.2 6.6L12 17.8 6.1 20.9l1.2-6.6L2.5 9.7l6.6-.9L12 2z" /></svg>}
+            <span className="truncate">{entry.name}</span>
+          </p>
           <p className="truncate text-xs text-neutral-500">
             {(showCourse && entry.material.courses ? `${entry.material.courses.name} · ` : "") + fmtDate(entry.material.created_at)}
           </p>

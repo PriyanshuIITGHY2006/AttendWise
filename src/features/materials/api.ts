@@ -109,6 +109,21 @@ export async function updateMaterialNotes(id: string, notes: string) {
   if (error) throw error
 }
 
+export async function setMaterialStarred(id: string, starred: boolean) {
+  const { error } = await supabase.from("materials").update({ starred }).eq("id", id)
+  if (error) throw error
+}
+
+export async function renameMaterial(id: string, title: string) {
+  const { error } = await supabase.from("materials").update({ title }).eq("id", id)
+  if (error) throw error
+}
+
+// Fire-and-forget "recently opened" bump; never blocks opening a file.
+export function touchMaterialOpened(id: string) {
+  supabase.from("materials").update({ last_opened_at: new Date().toISOString() }).eq("id", id).then(() => {})
+}
+
 export async function deleteMaterial(material: Material) {
   if (material.file_path) {
     if (isR2(material.file_path)) {
