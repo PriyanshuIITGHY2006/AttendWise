@@ -19,7 +19,10 @@ export default defineConfig(({ command }) => ({
       registerType: 'autoUpdate',
       injectRegister: 'auto',
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff,woff2}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,ico,woff,woff2}'],
+        // pdf.js is a large lazy chunk; allow it (and its worker) to be precached
+        // so PDF viewing works offline, and raise the single-file cap to fit it.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         clientsClaim: true,
         // SPA: unknown routes resolve to the app shell instead of a 404.
