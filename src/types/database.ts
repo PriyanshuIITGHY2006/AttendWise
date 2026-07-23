@@ -121,6 +121,7 @@ export type Database = {
         Row: {
           course_id: string
           created_at: string
+          done: boolean
           event_date: string
           event_type: string
           id: string
@@ -134,6 +135,7 @@ export type Database = {
         Insert: {
           course_id: string
           created_at?: string
+          done?: boolean
           event_date: string
           event_type?: string
           id?: string
@@ -147,6 +149,7 @@ export type Database = {
         Update: {
           course_id?: string
           created_at?: string
+          done?: boolean
           event_date?: string
           event_type?: string
           id?: string

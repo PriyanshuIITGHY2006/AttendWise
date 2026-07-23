@@ -26,6 +26,22 @@ export async function listAllEventsForUser(userId: string) {
   return data
 }
 
+// All of a user's events with their course, for the Deadlines screen.
+export async function listEventsWithCourse(userId: string) {
+  const { data, error } = await supabase
+    .from("course_events")
+    .select("*, courses(name, color)")
+    .eq("user_id", userId)
+    .order("event_date", { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function setEventDone(id: string, done: boolean) {
+  const { error } = await supabase.from("course_events").update({ done }).eq("id", id)
+  if (error) throw error
+}
+
 export async function listEventsForCourse(courseId: string) {
   const { data, error } = await supabase
     .from("course_events")
