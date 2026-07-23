@@ -8,11 +8,12 @@ import {
   getMaterialFileUrls,
   createMaterial,
   moveMaterial,
+  updateMaterialNotes,
   deleteMaterial,
   type Material,
 } from "../features/materials/api"
 import { fileKind, isViewable, displayName, kindMeta, type FileKind } from "../features/materials/fileKind"
-import { FileViewer, type ViewerItem } from "../features/materials/FileViewer"
+import { DocViewer, type OpenDoc } from "../features/materials/DocViewer"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
@@ -56,7 +57,9 @@ export function Materials() {
   const [layout, setLayout] = useState<"grid" | "list">("grid")
   const [query, setQuery] = useState("")
   const [urls, setUrls] = useState<Record<string, string>>({})
-  const [viewer, setViewer] = useState<{ items: ViewerItem[]; index: number } | null>(null)
+  const [openDocs, setOpenDocs] = useState<OpenDoc[]>([])
+  const [activeDocId, setActiveDocId] = useState<string | null>(null)
+  const [viewerVisible, setViewerVisible] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
   const [actionsFor, setActionsFor] = useState<Entry | null>(null)
 
@@ -141,22 +144,38 @@ export function Materials() {
       if (!urls[path]) setUrls((prev) => ({ ...prev, [path]: url }))
 
       if (isViewable(entry.kind)) {
-        const viewables = entries.filter((e) => e.material.file_path && isViewable(e.kind))
-        const items: ViewerItem[] = viewables.map((e) => ({
-          id: e.material.id,
-          name: e.name,
-          kind: e.kind,
-          url: urls[e.material.file_path!] ?? (e.material.id === entry.material.id ? url : ""),
-          downloadName: e.name,
-        }))
-        const index = viewables.findIndex((e) => e.material.id === entry.material.id)
-        setViewer({ items, index: Math.max(0, index) })
+        // Open (or re-focus) this file as a tab in the viewer.
+        setOpenDocs((prev) => {
+          if (prev.some((d) => d.id === entry.material.id)) return prev
+          const doc: OpenDoc = { id: entry.material.id, name: entry.name, kind: entry.kind, url, notes: entry.material.notes ?? "" }
+          return [...prev, doc]
+        })
+        setActiveDocId(entry.material.id)
+        setViewerVisible(true)
       } else {
         window.open(url, "_blank", "noopener,noreferrer")
       }
     },
-    [entries, urls],
+    [urls],
   )
+
+  const closeTab = useCallback(
+    (id: string) => {
+      setOpenDocs((prev) => {
+        const next = prev.filter((d) => d.id !== id)
+        setActiveDocId((cur) => (cur === id ? (next[next.length - 1]?.id ?? null) : cur))
+        if (next.length === 0) setViewerVisible(false)
+        return next
+      })
+    },
+    [],
+  )
+
+  const saveNotes = useCallback((id: string, notes: string) => {
+    setOpenDocs((prev) => prev.map((d) => (d.id === id ? { ...d, notes } : d)))
+    setMaterials((prev) => prev.map((m) => (m.id === id ? { ...m, notes } : m)))
+    updateMaterialNotes(id, notes).catch(() => {})
+  }, [])
 
   async function handleDelete(entry: Entry) {
     if (!confirm(`Delete "${entry.name}"?`)) return
@@ -300,13 +319,26 @@ export function Materials() {
         />
       )}
 
-      {viewer && (
-        <FileViewer
-          items={viewer.items}
-          index={viewer.index}
-          onIndexChange={(i) => setViewer((v) => (v ? { ...v, index: i } : v))}
-          onClose={() => setViewer(null)}
+      {viewerVisible && openDocs.length > 0 && activeDocId && (
+        <DocViewer
+          docs={openDocs}
+          activeId={activeDocId}
+          onActivate={setActiveDocId}
+          onCloseTab={closeTab}
+          onMinimize={() => setViewerVisible(false)}
+          onNotesChange={saveNotes}
         />
+      )}
+
+      {/* Minimised viewer -> quick reopen pill (keeps tabs across folders). */}
+      {!viewerVisible && openDocs.length > 0 && (
+        <button
+          onClick={() => setViewerVisible(true)}
+          className="fixed bottom-20 right-4 z-30 flex items-center gap-2 rounded-full bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white shadow-brand sm:bottom-6"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" /></svg>
+          {openDocs.length} open
+        </button>
       )}
 
       {actionsFor && (

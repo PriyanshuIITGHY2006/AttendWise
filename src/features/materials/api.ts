@@ -51,6 +51,11 @@ export async function moveMaterial(id: string, category: string) {
   if (error) throw error
 }
 
+export async function updateMaterialNotes(id: string, notes: string) {
+  const { error } = await supabase.from("materials").update({ notes }).eq("id", id)
+  if (error) throw error
+}
+
 export async function deleteMaterial(material: Material) {
   if (material.file_path) {
     await supabase.storage.from("materials").remove([material.file_path])
