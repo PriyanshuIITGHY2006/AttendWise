@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getAllCourseStats, EMPTY_COURSE_STATS, listUpcomingPlannedSkips, listUpcomingClassesForNotify } from "../features/courses/api"
@@ -27,6 +27,23 @@ function todayISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
+function fmtCountdown(ms: number): string {
+  const min = Math.round(ms / 60000)
+  if (min < 1) return "now"
+  if (min < 60) return `in ${min} min`
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return m ? `in ${h}h ${m}m` : `in ${h}h`
+}
+
+// PostgREST may type a to-one embed as an object or a single-element array;
+// normalise to the room string either way.
+function roomOf(s: { course_schedule?: { room: string | null } | { room: string | null }[] | null }): string | null {
+  const cs = s.course_schedule
+  if (!cs) return null
+  return (Array.isArray(cs) ? cs[0]?.room : cs.room) ?? null
+}
+
 export function Dashboard() {
   const { user } = useAuth()
   const [sessions, setSessions] = useState<TodaySession[]>([])
@@ -36,6 +53,22 @@ export function Dashboard() {
   const [courseCount, setCourseCount] = useState<number | null>(null)
   const [verdicts, setVerdicts] = useState<Record<string, SkipVerdict>>({})
   const [loading, setLoading] = useState(true)
+  const [now, setNow] = useState(() => Date.now())
+
+  // Tick every 30s so the "next class" countdown stays live.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(t)
+  }, [])
+
+  // The next class today that hasn't started yet (sessions are start-time sorted).
+  const nextClass = useMemo(() => {
+    for (const s of sessions) {
+      const start = new Date(`${s.session_date}T${s.start_time}`).getTime()
+      if (start > now) return { session: s, start }
+    }
+    return null
+  }, [sessions, now])
 
   // Fetches fresh data and updates state -- used both for the initial load
   // and for silent refreshes after marking attendance. Never toggles the
@@ -187,6 +220,25 @@ export function Dashboard() {
         </Link>
       </div>
 
+      {nextClass && (
+        <div className="mt-6 flex items-center justify-between gap-3 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-4 dark:border-indigo-500/20 dark:bg-indigo-500/10">
+          <div className="min-w-0">
+            <p className="text-xs font-medium uppercase tracking-wide text-indigo-600 dark:text-indigo-400">Next class</p>
+            <p className="mt-0.5 flex items-center gap-2 font-medium">
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: nextClass.session.courses.color }} />
+              <span className="truncate">{nextClass.session.courses.name}</span>
+            </p>
+            <p className="mt-0.5 truncate text-sm text-neutral-500">
+              {nextClass.session.start_time.slice(0, 5)}
+              {roomOf(nextClass.session) ? ` · Room ${roomOf(nextClass.session)}` : ""}
+            </p>
+          </div>
+          <span className="shrink-0 rounded-full bg-white px-3 py-1 text-sm font-semibold text-indigo-700 shadow-sm dark:bg-neutral-900 dark:text-indigo-300">
+            {fmtCountdown(nextClass.start - now)}
+          </span>
+        </div>
+      )}
+
       {unmarked.length > 0 && (
         <Card className="mt-6 bg-amber-50 dark:bg-amber-500/10">
           <div className="flex items-center justify-between gap-3">
@@ -255,6 +307,7 @@ export function Dashboard() {
                       </div>
                       <p className="mt-0.5 text-sm text-neutral-500">
                         {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                        {roomOf(s) ? ` · Room ${roomOf(s)}` : ""}
                       </p>
                     </div>
                     {myRecord ? (
