@@ -7,6 +7,7 @@ import {
   getMaterialFileUrl,
   getMaterialFileUrls,
   createMaterial,
+  moveMaterial,
   deleteMaterial,
   type Material,
 } from "../features/materials/api"
@@ -57,6 +58,7 @@ export function Materials() {
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [viewer, setViewer] = useState<{ items: ViewerItem[]; index: number } | null>(null)
   const [addOpen, setAddOpen] = useState(false)
+  const [actionsFor, setActionsFor] = useState<Entry | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -159,7 +161,19 @@ export function Materials() {
   async function handleDelete(entry: Entry) {
     if (!confirm(`Delete "${entry.name}"?`)) return
     await deleteMaterial(entry.material)
+    setActionsFor(null)
     load()
+  }
+
+  async function handleMove(entry: Entry, category: CategoryId) {
+    // Optimistic: reflect the new folder immediately, then persist.
+    setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, category } : m)))
+    setActionsFor(null)
+    try {
+      await moveMaterial(entry.material.id, category)
+    } catch {
+      load() // revert to server truth on failure
+    }
   }
 
   if (!hasMaterialAccess) {
@@ -261,13 +275,13 @@ export function Materials() {
       ) : layout === "grid" ? (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
           {entries.map((e) => (
-            <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onDelete={() => handleDelete(e)} showCourse={searching} />
+            <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching} />
           ))}
         </div>
       ) : (
         <div className="mt-5 divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200/70 dark:divide-neutral-800 dark:border-neutral-800">
           {entries.map((e) => (
-            <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onDelete={() => handleDelete(e)} showCourse={searching} />
+            <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching} />
           ))}
         </div>
       )}
@@ -294,6 +308,56 @@ export function Materials() {
           onClose={() => setViewer(null)}
         />
       )}
+
+      {actionsFor && (
+        <FileActionsSheet
+          entry={actionsFor}
+          onClose={() => setActionsFor(null)}
+          onMove={(cat) => handleMove(actionsFor, cat)}
+          onDelete={() => handleDelete(actionsFor)}
+        />
+      )}
+    </div>
+  )
+}
+
+function FileActionsSheet({ entry, onClose, onMove, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onDelete: () => void }) {
+  const current = (entry.material.category as CategoryId) ?? "extras"
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
+        style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <p className="truncate px-1 pb-2 text-sm font-medium">{entry.name}</p>
+        <p className="px-1 pb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Move to folder</p>
+        <div className="space-y-1">
+          {CATEGORIES.map((c) => {
+            const isCurrent = c.id === current
+            return (
+              <button
+                key={c.id}
+                disabled={isCurrent}
+                onClick={() => onMove(c.id)}
+                className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm ${isCurrent ? "cursor-default text-neutral-400" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
+              >
+                <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none">
+                  <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill={c.color} opacity={isCurrent ? 0.4 : 0.9} />
+                </svg>
+                <span className="flex-1 font-medium">{c.label}</span>
+                {isCurrent && <span className="text-xs text-neutral-400">Current</span>}
+              </button>
+            )
+          })}
+        </div>
+        <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+          <button onClick={onDelete} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
+            <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span className="font-medium">Delete</span>
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -364,7 +428,15 @@ function Thumb({ entry, thumb, size }: { entry: Entry; thumb?: string; size: "ti
   )
 }
 
-function FileTile({ entry, thumb, onOpen, onDelete, showCourse }: { entry: Entry; thumb?: string; onOpen: () => void; onDelete: () => void; showCourse: boolean }) {
+function MoreIcon({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="currentColor">
+      <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
+    </svg>
+  )
+}
+
+function FileTile({ entry, thumb, onOpen, onMenu, showCourse }: { entry: Entry; thumb?: string; onOpen: () => void; onMenu: () => void; showCourse: boolean }) {
   return (
     <div className="group relative overflow-hidden rounded-xl border border-neutral-200/70 bg-white transition-all hover:-translate-y-0.5 hover:shadow-card-hover dark:border-neutral-800 dark:bg-neutral-900">
       <button onClick={onOpen} className="block w-full text-left">
@@ -379,17 +451,17 @@ function FileTile({ entry, thumb, onOpen, onDelete, showCourse }: { entry: Entry
         </div>
       </button>
       <button
-        onClick={onDelete}
-        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/80 text-neutral-500 opacity-0 backdrop-blur transition-opacity hover:text-red-600 group-hover:opacity-100 dark:bg-neutral-900/80"
-        aria-label="Delete"
+        onClick={onMenu}
+        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/80 text-neutral-500 opacity-0 backdrop-blur transition-opacity hover:text-neutral-900 group-hover:opacity-100 dark:bg-neutral-900/80 dark:hover:text-neutral-100"
+        aria-label="File actions"
       >
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        <MoreIcon />
       </button>
     </div>
   )
 }
 
-function FileRow({ entry, onOpen, onDelete, showCourse }: { entry: Entry; onOpen: () => void; onDelete: () => void; showCourse: boolean }) {
+function FileRow({ entry, onOpen, onMenu, showCourse }: { entry: Entry; onOpen: () => void; onMenu: () => void; showCourse: boolean }) {
   return (
     <div className="flex items-center gap-3 bg-white px-3 py-2.5 dark:bg-neutral-900">
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -401,8 +473,8 @@ function FileRow({ entry, onOpen, onDelete, showCourse }: { entry: Entry; onOpen
           </p>
         </div>
       </button>
-      <button onClick={onDelete} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:text-red-600" aria-label="Delete">
-        <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <button onClick={onMenu} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800" aria-label="File actions">
+        <MoreIcon />
       </button>
     </div>
   )

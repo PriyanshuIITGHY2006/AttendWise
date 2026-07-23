@@ -46,6 +46,11 @@ export async function createMaterial(material: TablesInsert<"materials">) {
   return data
 }
 
+export async function moveMaterial(id: string, category: string) {
+  const { error } = await supabase.from("materials").update({ category }).eq("id", id)
+  if (error) throw error
+}
+
 export async function deleteMaterial(material: Material) {
   if (material.file_path) {
     await supabase.storage.from("materials").remove([material.file_path])
