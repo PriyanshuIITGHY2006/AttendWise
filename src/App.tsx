@@ -23,6 +23,7 @@ const Timetable = named(() => import("./pages/Timetable"), "Timetable")
 const Insights = named(() => import("./pages/Insights"), "Insights")
 const Grades = named(() => import("./pages/Grades"), "Grades")
 const PlanDayOff = named(() => import("./pages/PlanDayOff"), "PlanDayOff")
+const Deadlines = named(() => import("./pages/Deadlines"), "Deadlines")
 const Settings = named(() => import("./pages/Settings"), "Settings")
 
 export default function App() {
@@ -45,6 +46,7 @@ export default function App() {
               <Route path="/insights" element={<Insights />} />
               <Route path="/grades" element={<Grades />} />
               <Route path="/plan" element={<PlanDayOff />} />
+              <Route path="/deadlines" element={<Deadlines />} />
               <Route path="/settings" element={<Settings />} />
             </Route>
           </Route>

@@ -380,7 +380,12 @@ export function Dashboard() {
         </div>
 
         <div>
-          <h2 className="text-sm font-medium text-neutral-500">Upcoming</h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium text-neutral-500">Upcoming</h2>
+            <Link to="/deadlines" className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400">
+              All deadlines →
+            </Link>
+          </div>
           <div className="mt-3 space-y-2">
             {upcoming.length === 0 ? (
               <Card>
