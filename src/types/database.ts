@@ -327,6 +327,7 @@ export type Database = {
       }
       materials: {
         Row: {
+          category: string
           course_id: string
           created_at: string
           external_link: string | null
@@ -338,6 +339,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string
           course_id: string
           created_at?: string
           external_link?: string | null
@@ -349,6 +351,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string
           course_id?: string
           created_at?: string
           external_link?: string | null
