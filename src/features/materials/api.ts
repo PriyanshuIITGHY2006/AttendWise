@@ -26,6 +26,20 @@ export async function getMaterialFileUrl(path: string) {
   return data.signedUrl
 }
 
+// Batch-sign many paths in one request (used to lazily load image thumbnails in
+// the explorer without a signed-URL call per tile). Returns a path -> url map;
+// paths that fail to sign are simply omitted.
+export async function getMaterialFileUrls(paths: string[]): Promise<Record<string, string>> {
+  if (paths.length === 0) return {}
+  const { data, error } = await supabase.storage.from("materials").createSignedUrls(paths, 3600)
+  if (error) throw error
+  const map: Record<string, string> = {}
+  for (const item of data ?? []) {
+    if (item.signedUrl && item.path) map[item.path] = item.signedUrl
+  }
+  return map
+}
+
 export async function createMaterial(material: TablesInsert<"materials">) {
   const { data, error } = await supabase.from("materials").insert(material).select().single()
   if (error) throw error
