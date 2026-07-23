@@ -53,6 +53,7 @@ export function Dashboard() {
   const [courseCount, setCourseCount] = useState<number | null>(null)
   const [verdicts, setVerdicts] = useState<Record<string, SkipVerdict>>({})
   const [loading, setLoading] = useState(true)
+  const [statusMenu, setStatusMenu] = useState<string | null>(null) // session id whose extra-status menu is open
   const [now, setNow] = useState(() => Date.now())
 
   // Tick every 30s so the "next class" countdown stays live.
@@ -60,6 +61,18 @@ export function Dashboard() {
     const t = setInterval(() => setNow(Date.now()), 30_000)
     return () => clearInterval(t)
   }, [])
+
+  // Close the per-card status menu on any outside click.
+  useEffect(() => {
+    if (!statusMenu) return
+    const close = () => setStatusMenu(null)
+    // Defer so the opening click doesn't immediately close it.
+    const t = setTimeout(() => document.addEventListener("click", close), 0)
+    return () => {
+      clearTimeout(t)
+      document.removeEventListener("click", close)
+    }
+  }, [statusMenu])
 
   // The next class today that hasn't started yet (sessions are start-time sorted).
   const nextClass = useMemo(() => {
@@ -178,8 +191,9 @@ export function Dashboard() {
     }
   }, [fetchData, syncNotifications])
 
-  async function mark(sessionId: string, status: "present" | "absent") {
+  async function mark(sessionId: string, status: "present" | "absent" | "on_duty" | "cancelled") {
     if (!user) return
+    setStatusMenu(null)
     await markAttendance(sessionId, user.id, status)
     fetchData()
   }
@@ -311,8 +325,18 @@ export function Dashboard() {
                       </p>
                     </div>
                     {myRecord ? (
-                      <Badge tone={myRecord.status === "present" ? "green" : "red"}>
-                        {myRecord.status === "present" ? "Marked present" : "Marked absent"}
+                      <Badge
+                        tone={
+                          myRecord.status === "present" ? "green" : myRecord.status === "absent" ? "red" : myRecord.status === "on_duty" ? "yellow" : "neutral"
+                        }
+                      >
+                        {myRecord.status === "present"
+                          ? "Marked present"
+                          : myRecord.status === "absent"
+                            ? "Marked absent"
+                            : myRecord.status === "on_duty"
+                              ? "On duty"
+                              : "Class cancelled"}
                       </Badge>
                     ) : (
                       <div className="flex flex-wrap items-center gap-2 sm:shrink-0 sm:flex-nowrap">
@@ -321,16 +345,31 @@ export function Dashboard() {
                             {s.courses.strict_no_skip ? "Zero-tolerance" : verdict.safeCount > 0 ? "Safe to skip" : "Risky to skip"}
                           </Badge>
                         )}
-                        <Button
-                          variant="secondary"
-                          className="flex-1 sm:flex-none"
-                          onClick={() => mark(s.id, "absent")}
-                        >
+                        <Button variant="secondary" className="flex-1 sm:flex-none" onClick={() => mark(s.id, "absent")}>
                           Absent
                         </Button>
                         <Button className="flex-1 sm:flex-none" onClick={() => mark(s.id, "present")}>
                           Present
                         </Button>
+                        <div className="relative shrink-0">
+                          <button
+                            onClick={() => setStatusMenu(statusMenu === s.id ? null : s.id)}
+                            className="flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 text-neutral-500 hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+                            aria-label="More statuses"
+                          >
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+                          </button>
+                          {statusMenu === s.id && (
+                            <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-neutral-200 bg-white p-1 shadow-lg dark:border-neutral-700 dark:bg-neutral-900">
+                              <button onClick={() => mark(s.id, "on_duty")} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                                <span className="h-1.5 w-1.5 rounded-full bg-blue-500" /> On duty / medical
+                              </button>
+                              <button onClick={() => mark(s.id, "cancelled")} className="flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
+                                <span className="h-1.5 w-1.5 rounded-full bg-neutral-400" /> Class cancelled
+                              </button>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </Card>
