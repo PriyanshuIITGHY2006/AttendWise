@@ -333,8 +333,10 @@ export type Database = {
           external_link: string | null
           file_path: string | null
           id: string
+          last_opened_at: string | null
           linked_session_id: string | null
           notes: string
+          starred: boolean
           tags: string[]
           title: string
           user_id: string
@@ -346,8 +348,10 @@ export type Database = {
           external_link?: string | null
           file_path?: string | null
           id?: string
+          last_opened_at?: string | null
           linked_session_id?: string | null
           notes?: string
+          starred?: boolean
           tags?: string[]
           title: string
           user_id: string
@@ -359,8 +363,10 @@ export type Database = {
           external_link?: string | null
           file_path?: string | null
           id?: string
+          last_opened_at?: string | null
           linked_session_id?: string | null
           notes?: string
+          starred?: boolean
           tags?: string[]
           title?: string
           user_id?: string
