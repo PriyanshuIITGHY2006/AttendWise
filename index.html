@@ -6,12 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#ffffff" />
     <title>AttendWise</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700&display=swap"
-      rel="stylesheet"
-    />
+    <!-- Warm the Supabase connection early so the first data query isn't waiting
+         on DNS/TLS. Fonts are now self-hosted (see main.tsx), so no third-party
+         font CDN handshake on the critical path. -->
+    <link rel="preconnect" href="https://jlueyxbqknnmcoesgnmg.supabase.co" crossorigin />
     <script type="text/javascript">
       // Decodes the path GitHub Pages' 404.html re-encoded into the query
       // string, restoring the real URL so React Router sees the right route.
