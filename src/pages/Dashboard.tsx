@@ -11,6 +11,7 @@ import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 import { tapFeedback } from "../lib/haptics"
+import { PageSkeleton } from "../components/ui/Skeleton"
 
 type TodaySession = Awaited<ReturnType<typeof listTodaySessions>>[number]
 type UpcomingEvent = CourseEvent & { courses: { name: string; color: string } | null }
@@ -200,7 +201,7 @@ export function Dashboard() {
     fetchData()
   }
 
-  if (loading) return <p className="text-sm text-neutral-400">Loading…</p>
+  if (loading) return <PageSkeleton />
 
   if (courseCount === 0) {
     return (

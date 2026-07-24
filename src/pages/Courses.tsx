@@ -5,6 +5,7 @@ import { listCourses, getAllCourseStats, type Course, type CourseStats } from ".
 import { computeBunkSafety } from "../features/attendance/bunkSafety"
 import { termLabel } from "../features/courses/CourseForm"
 import { Card } from "../components/ui/Card"
+import { ListSkeleton } from "../components/ui/Skeleton"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 
@@ -96,7 +97,7 @@ export function Courses() {
       </div>
 
       {loading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <ListSkeleton />
       ) : courses.length === 0 ? (
         <Card className="mx-auto mt-6 max-w-md text-center">
           <p className="text-sm text-neutral-500">No courses yet. Add one to start tracking attendance.</p>

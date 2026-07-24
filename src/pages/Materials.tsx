@@ -23,6 +23,7 @@ import { DocViewer, type OpenDoc } from "../features/materials/DocViewer"
 // rather than a raw storage rejection mid-upload.
 const MAX_UPLOAD_BYTES = 48 * 1024 * 1024
 import { Card } from "../components/ui/Card"
+import { ListSkeleton } from "../components/ui/Skeleton"
 import { Button } from "../components/ui/Button"
 import { Input, Label } from "../components/ui/Input"
 
@@ -356,7 +357,7 @@ export function Materials() {
 
       {/* body */}
       {loading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <ListSkeleton />
       ) : showCourseFolders ? (
         folders.length === 0 ? (
           <EmptyState onAdd={() => setAddOpen(true)} canAdd={courses.length > 0} />
