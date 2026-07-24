@@ -5,6 +5,7 @@ import { computeInsights, type Insights as InsightsData } from "../features/atte
 import { buildAttendanceReport, shareOrCopy, downloadCsv } from "../features/report/shareReport"
 import { CURRENT_SEMESTER } from "../features/courses/currentSemester"
 import { Card } from "../components/ui/Card"
+import { PageSkeleton } from "../components/ui/Skeleton"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 
@@ -148,7 +149,7 @@ export function Insights() {
       ? data.thisMonthPercent - data.lastMonthPercent
       : null
 
-  if (loading) return <p className="text-sm text-neutral-400">Loading…</p>
+  if (loading) return <PageSkeleton />
 
   if (data.present + data.absent === 0) {
     return (

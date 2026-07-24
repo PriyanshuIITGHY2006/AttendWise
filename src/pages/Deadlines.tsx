@@ -7,6 +7,7 @@ import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 import { Input, Label } from "../components/ui/Input"
 import { tapFeedback } from "../lib/haptics"
+import { ListSkeleton } from "../components/ui/Skeleton"
 
 type EventWithCourse = CourseEvent & { courses: { name: string; color: string } | null }
 
@@ -140,7 +141,7 @@ export function Deadlines() {
       </div>
 
       {loading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <ListSkeleton />
       ) : events.length === 0 ? (
         <Card className="mx-auto mt-6 max-w-md text-center">
           <p className="text-sm text-neutral-500">No deadlines yet.</p>

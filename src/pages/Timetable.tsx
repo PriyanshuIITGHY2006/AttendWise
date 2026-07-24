@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from "react"
 import { useAuth } from "../context/AuthContext"
 import { listSessionsInRange, type TimetableSession } from "../features/courses/api"
 import { listInstituteCalendar, type InstituteCalendarDay } from "../features/calendar/api"
+import { ListSkeleton } from "../components/ui/Skeleton"
 
 const WEEKDAY = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -152,7 +153,7 @@ export function Timetable() {
       </div>
 
       {loading ? (
-        <p className="mt-6 text-sm text-neutral-400">Loading…</p>
+        <ListSkeleton />
       ) : (
         <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200/70 dark:border-neutral-800">
           <div className="min-w-max">

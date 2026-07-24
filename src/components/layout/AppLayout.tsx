@@ -5,11 +5,13 @@ import { WelcomeSplash } from "./WelcomeSplash"
 import { CommandPalette } from "./CommandPalette"
 import { ProductTour } from "./ProductTour"
 import { Logomark } from "../ui/Logomark"
+import { PageSkeleton } from "../ui/Skeleton"
 import { RevealProvider } from "../../context/RevealContext"
 import { useOverallStatus } from "../../features/courses/useOverallStatus"
 import { useNotificationActions } from "../../features/notifications/useNotificationActions"
 import { usePushRegistration } from "../../features/notifications/push"
 import { TodayIcon, CoursesIcon, PlanIcon, CalendarIcon, MaterialsIcon, TimetableIcon } from "./navIcons"
+import { tapFeedback } from "../../lib/haptics"
 
 const SPLASH_FLAG_KEY = "attendwise_just_signed_in"
 
@@ -63,20 +65,21 @@ function BottomNavItem({ entry }: { entry: NavEntry }) {
       to={entry.to}
       end={entry.end}
       data-tour={entry.tourId}
+      onClick={tapFeedback}
       className={({ isActive }) =>
-        `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-medium transition-colors ${
-          isActive ? "text-indigo-600" : "text-neutral-400 hover:text-neutral-600"
+        `flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl py-1.5 text-[11px] font-medium transition-transform active:scale-90 ${
+          isActive ? "text-indigo-600 dark:text-indigo-400" : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
         }`
       }
     >
       {({ isActive }) => (
         <>
           <span
-            className={`flex h-8 w-full max-w-[3.5rem] items-center justify-center rounded-full transition-colors ${
-              isActive ? "bg-indigo-50" : ""
+            className={`flex h-8 w-full max-w-[3.5rem] items-center justify-center rounded-full transition-all duration-200 ${
+              isActive ? "bg-indigo-50 dark:bg-indigo-500/15" : ""
             }`}
           >
-            <Icon className="h-5 w-5" />
+            <Icon className={`h-5 w-5 transition-transform duration-200 ${isActive ? "scale-110" : ""}`} />
           </span>
           <span className="max-w-full truncate">{entry.shortLabel}</span>
         </>
@@ -218,7 +221,7 @@ export function AppLayout() {
       <main ref={mainRef} className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none">
         <div className="mx-auto w-full max-w-6xl px-4 pb-10 pt-8 sm:px-6">
           <RevealProvider value={ready}>
-            <Suspense fallback={<p className="text-sm text-neutral-400">Loading…</p>}>
+            <Suspense fallback={<PageSkeleton />}>
               <Outlet />
             </Suspense>
           </RevealProvider>
