@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useCallback, type FormEvent } from "react
 import { useAuth } from "../context/AuthContext"
 import { listCourses, type Course } from "../features/courses/api"
 import { listEventsWithCourse, setEventDone, updateEvent, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
+import { isScored, MarksChip, ScoreEditor } from "../features/events/marks"
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
@@ -32,23 +33,6 @@ function countdownLabel(dateISO: string): { text: string; tone: "green" | "yello
   if (n === 1) return { text: "Tomorrow", tone: "yellow" }
   if (n <= 3) return { text: `in ${n} days`, tone: "yellow" }
   return { text: `in ${n} days`, tone: "neutral" }
-}
-
-// A scored event is one with both a score and a positive max — used for the
-// marks tracker. Weightage is optional; when present, per-course averages are
-// weighted, otherwise every assessment counts equally.
-function isScored(e: CourseEvent): e is CourseEvent & { score: number; max_score: number } {
-  return e.score != null && e.max_score != null && e.max_score > 0
-}
-
-function pct(score: number, max: number): number {
-  return Math.round((score / max) * 1000) / 10
-}
-
-function scoreTone(percent: number): "green" | "yellow" | "red" {
-  if (percent >= 75) return "green"
-  if (percent >= 40) return "yellow"
-  return "red"
 }
 
 export function Deadlines() {
@@ -278,8 +262,6 @@ function EventRow({
   const [editing, setEditing] = useState(false)
   const cd = event.done ? null : countdownLabel(event.event_date)
   const dateStr = new Date(`${event.event_date}T00:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })
-  const scored = isScored(event)
-  const percent = scored ? pct(event.score, event.max_score) : null
 
   return (
     <Card className="py-3">
@@ -301,20 +283,7 @@ function EventRow({
               <span className="truncate">{[event.courses?.name, dateStr].filter(Boolean).join(" · ")}</span>
             </span>
             <Badge tone="neutral">{TYPE_LABELS[event.event_type] ?? "Other"}</Badge>
-            {percent != null ? (
-              <button onClick={() => setEditing((v) => !v)} className="transition-transform active:scale-95" aria-label="Edit marks">
-                <Badge tone={scoreTone(percent)}>
-                  {event.score}/{event.max_score} · {percent}%
-                </Badge>
-              </button>
-            ) : (
-              <button
-                onClick={() => setEditing((v) => !v)}
-                className="rounded-full border border-dashed border-neutral-300 px-2 py-0.5 text-xs font-medium text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 active:scale-95 dark:border-neutral-600 dark:hover:text-neutral-300"
-              >
-                + Marks
-              </button>
-            )}
+            <MarksChip event={event} onClick={() => setEditing((v) => !v)} />
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -335,48 +304,6 @@ function EventRow({
         />
       )}
     </Card>
-  )
-}
-
-// Inline marks entry: score / max plus optional weightage (% of final grade).
-// Clearing both score and max removes the marks for this assessment.
-function ScoreEditor({
-  event,
-  onCancel,
-  onSave,
-}: {
-  event: EventWithCourse
-  onCancel: () => void
-  onSave: (score: number | null, max: number | null) => void
-}) {
-  const [score, setScore] = useState(event.score != null ? String(event.score) : "")
-  const [max, setMax] = useState(event.max_score != null ? String(event.max_score) : "")
-
-  function submit(e: FormEvent) {
-    e.preventDefault()
-    const s = score.trim() === "" ? null : Number(score)
-    const m = max.trim() === "" ? null : Number(max)
-    onSave(Number.isFinite(s as number) ? s : null, Number.isFinite(m as number) ? m : null)
-  }
-
-  const inputClass = "w-full rounded-md border border-neutral-300 bg-white px-2.5 py-1.5 text-sm dark:border-neutral-700 dark:bg-neutral-900"
-
-  return (
-    <form onSubmit={submit} className="mt-3 flex items-end gap-2 border-t border-neutral-100 pt-3 dark:border-neutral-800">
-      <div className="flex-1">
-        <label className="mb-1 block text-xs font-medium text-neutral-500">Score</label>
-        <input type="number" inputMode="decimal" step="any" min="0" value={score} onChange={(e) => setScore(e.target.value)} placeholder="18" className={inputClass} autoFocus />
-      </div>
-      <span className="pb-2 text-neutral-400">/</span>
-      <div className="flex-1">
-        <label className="mb-1 block text-xs font-medium text-neutral-500">Out of</label>
-        <input type="number" inputMode="decimal" step="any" min="0" value={max} onChange={(e) => setMax(e.target.value)} placeholder="20" className={inputClass} />
-      </div>
-      <Button type="submit" className="shrink-0">Save</Button>
-      <button type="button" onClick={onCancel} className="shrink-0 rounded-lg px-2 py-2 text-sm text-neutral-500 transition-colors hover:text-neutral-700 dark:hover:text-neutral-300">
-        Cancel
-      </button>
-    </form>
   )
 }
 

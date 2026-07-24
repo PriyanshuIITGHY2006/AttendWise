@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react"
+import { useEffect, useMemo, useRef, useState, useCallback } from "react"
 import { useAuth } from "../context/AuthContext"
 import { listSessionsInRange, type TimetableSession } from "../features/courses/api"
 import { listInstituteCalendar, type InstituteCalendarDay } from "../features/calendar/api"
@@ -31,6 +31,8 @@ function toMin(hhmm: string) {
 }
 
 const PX_PER_HOUR = 56
+const COL_WIDTH = 118
+const GUTTER_WIDTH = 44
 
 type DayColumn = {
   date: Date
@@ -47,6 +49,7 @@ export function Timetable() {
   const [sessions, setSessions] = useState<TimetableSession[]>([])
   const [calendar, setCalendar] = useState<InstituteCalendarDay[]>([])
   const [loading, setLoading] = useState(true)
+  const scrollRef = useRef<HTMLDivElement>(null)
 
   const isFirstYear = profile?.is_first_year_ug ?? false
   const todayISO = toISO(new Date())
@@ -118,6 +121,17 @@ export function Timetable() {
     return { startHour: min, hours: hrs, gridHeight: (max - min) * PX_PER_HOUR }
   }, [sessions])
 
+  // On the current week, horizontally centre today's column so opening the
+  // Timetable lands on today instead of Monday (matters on narrow phone
+  // screens where only 2-3 columns are visible at once).
+  const todayIndex = useMemo(() => columns.findIndex((c) => c.isToday), [columns])
+  useEffect(() => {
+    const el = scrollRef.current
+    if (loading || !el || weekOffset !== 0 || todayIndex < 0) return
+    const target = GUTTER_WIDTH + todayIndex * COL_WIDTH - (el.clientWidth - GUTTER_WIDTH - COL_WIDTH) / 2
+    el.scrollTo({ left: Math.max(0, target), behavior: "smooth" })
+  }, [loading, weekOffset, todayIndex])
+
   const rangeLabel = `${weekStart.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${weekEnd.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
 
   return (
@@ -155,7 +169,7 @@ export function Timetable() {
       {loading ? (
         <ListSkeleton />
       ) : (
-        <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200/70 dark:border-neutral-800">
+        <div ref={scrollRef} className="mt-6 overflow-x-auto rounded-xl border border-neutral-200/70 dark:border-neutral-800">
           <div className="min-w-max">
             {/* header row: day names + dates */}
             <div className="flex border-b border-neutral-200/70 dark:border-neutral-800">
@@ -183,11 +197,19 @@ export function Timetable() {
             {/* body: time gutter + day columns */}
             <div className="flex">
               <div className="sticky left-0 z-20 w-11 shrink-0 bg-white dark:bg-neutral-900" style={{ height: gridHeight }}>
-                {hours.map((h, i) => (
-                  <div key={h} className="relative" style={{ height: PX_PER_HOUR }}>
-                    {i > 0 && <span className="absolute -top-1.5 right-1 text-[10px] text-neutral-400">{h}:00</span>}
-                  </div>
-                ))}
+                {hours.map((h, i) =>
+                  i === 0 ? null : (
+                    // Centre each label on its hour gridline (which sits at i*PX)
+                    // so the labels line up exactly with the blocks' top edges.
+                    <span
+                      key={h}
+                      className="absolute right-1 -translate-y-1/2 text-[10px] tabular-nums text-neutral-400"
+                      style={{ top: i * PX_PER_HOUR }}
+                    >
+                      {h}:00
+                    </span>
+                  ),
+                )}
               </div>
 
               {columns.map((col) => (
