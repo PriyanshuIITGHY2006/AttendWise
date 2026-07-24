@@ -10,6 +10,7 @@ import { syncScheduledNotifications, notifyThresholdIfChanged, notifyUnmarkedIfN
 import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
+import { tapFeedback } from "../lib/haptics"
 
 type TodaySession = Awaited<ReturnType<typeof listTodaySessions>>[number]
 type UpcomingEvent = CourseEvent & { courses: { name: string; color: string } | null }
@@ -193,6 +194,7 @@ export function Dashboard() {
 
   async function mark(sessionId: string, status: "present" | "absent" | "on_duty" | "cancelled") {
     if (!user) return
+    tapFeedback()
     setStatusMenu(null)
     await markAttendance(sessionId, user.id, status)
     fetchData()
