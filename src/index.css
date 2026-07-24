@@ -65,6 +65,39 @@ html.dark {
   }
 }
 
+/* Modal / sheet entrance. The backdrop fades in; the panel pops in with a
+   gentle scale on desktop and slides up from the bottom on phones (matching the
+   bottom-sheet layout). Honours prefers-reduced-motion. */
+@keyframes aw-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes aw-pop-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aw-sheet-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.aw-overlay {
+  animation: aw-overlay-in 0.18s ease-out;
+}
+.aw-sheet {
+  animation: aw-pop-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (max-width: 639px) {
+  .aw-sheet {
+    animation: aw-sheet-up 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aw-overlay,
+  .aw-sheet {
+    animation: none;
+  }
+}
+
 /* App-shell height. `dvh` tracks the *dynamic* viewport, so the shell stays
    exactly one screen tall even as the mobile browser/WebView chrome grows and
    shrinks -- the `vh` line is the fallback for engines without dvh support.
