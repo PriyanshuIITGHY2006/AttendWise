@@ -3,11 +3,12 @@ import type { Tables, TablesInsert } from "../../types/database"
 
 export type Material = Tables<"materials">
 
-export async function listMaterials(userId: string) {
+// RLS returns the user's own materials plus any in courses shared with them, so
+// we don't filter by user_id here (the arg is kept for call-site clarity).
+export async function listMaterials(_userId: string) {
   const { data, error } = await supabase
     .from("materials")
     .select("*, courses(name, color)")
-    .eq("user_id", userId)
     .order("created_at", { ascending: false })
   if (error) throw error
   return data
@@ -126,9 +127,14 @@ export function touchMaterialOpened(id: string) {
 
 export async function deleteMaterial(material: Material) {
   if (material.file_path) {
+    // Storage removal only succeeds for your own uploads (folder = your uid); on
+    // a shared file you didn't upload it'll be blocked, so ignore that error and
+    // still remove the DB row (RLS allows deleting shared-course materials).
     if (isR2(material.file_path)) {
       await invokeStorage({ action: "delete", key: r2Key(material.file_path) }).catch(() => {})
     } else {
+      // Returns { error } rather than throwing, so a blocked shared-file removal
+      // is ignored and the DB row still gets deleted below.
       await supabase.storage.from("materials").remove([material.file_path])
     }
   }

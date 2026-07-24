@@ -1,0 +1,7 @@
+-- Share a course's whole materials folder with someone by email. Recipients can
+-- view, upload, and delete materials in that course. Applied to the live project
+-- via migration `course_folder_sharing`. See that migration for the full policy
+-- set (course_shares table, can_access_course(), materials + storage policies).
+--
+-- Verified with simulated users: owner sees it, shared recipient sees it, a
+-- stranger is blocked.
