@@ -142,6 +142,9 @@ export function Timetable() {
   useEffect(() => {
     const el = scrollRef.current
     if (loading || !el || weekOffset !== 0 || todayIndex < 0) return
+    // Only relevant when the week overflows (phones). On a laptop the columns
+    // stretch to fill and everything's visible, so there's nothing to scroll to.
+    if (el.scrollWidth <= el.clientWidth + 4) return
     const target = GUTTER_WIDTH + todayIndex * COL_WIDTH - (el.clientWidth - GUTTER_WIDTH - COL_WIDTH) / 2
     el.scrollTo({ left: Math.max(0, target), behavior: "smooth" })
   }, [loading, weekOffset, todayIndex])
@@ -200,14 +203,17 @@ export function Timetable() {
         <ListSkeleton />
       ) : (
         <div ref={scrollRef} className="mt-6 overflow-x-auto rounded-xl border border-neutral-200/70 dark:border-neutral-800">
-          <div className="min-w-max">
+          {/* min-w-full lets the day columns stretch to fill the width on a
+              laptop (flex-1), while their 118px floor forces a horizontal
+              scroll on phones where the whole week can't fit at once. */}
+          <div className="min-w-full">
             {/* header row: day names + dates */}
             <div className="flex border-b border-neutral-200/70 dark:border-neutral-800">
               <div className="sticky left-0 z-20 w-11 shrink-0 bg-white dark:bg-neutral-900" />
               {columns.map((col) => (
                 <div
                   key={col.iso}
-                  className={`w-[118px] shrink-0 border-l border-neutral-100 px-2 py-2 text-center dark:border-neutral-800 ${
+                  className={`min-w-[118px] flex-1 border-l border-neutral-100 px-2 py-2 text-center dark:border-neutral-800 ${
                     col.isToday ? "bg-indigo-50/60 dark:bg-indigo-500/10" : ""
                   }`}
                 >
@@ -245,7 +251,7 @@ export function Timetable() {
               {columns.map((col) => (
                 <div
                   key={col.iso}
-                  className={`relative w-[118px] shrink-0 border-l border-neutral-100 dark:border-neutral-800 ${
+                  className={`relative min-w-[118px] flex-1 border-l border-neutral-100 dark:border-neutral-800 ${
                     col.isToday ? "bg-indigo-50/40 dark:bg-indigo-500/[0.06]" : ""
                   }`}
                   style={{ height: gridHeight }}
