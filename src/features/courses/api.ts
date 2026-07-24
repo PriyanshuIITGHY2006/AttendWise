@@ -124,7 +124,8 @@ export type TimetableSession = {
   end_time: string
   component_type: string
   status: string
-  courses: { name: string; color: string }
+  courses: { name: string; color: string; code: string | null; instructor: string | null }
+  course_schedule: { room: string | null } | null
 }
 
 /**
@@ -135,7 +136,7 @@ export type TimetableSession = {
 export async function listSessionsInRange(userId: string, startISO: string, endISO: string): Promise<TimetableSession[]> {
   const { data, error } = await supabase
     .from("sessions")
-    .select("id, course_id, session_date, start_time, end_time, component_type, status, courses!inner(name, color, user_id)")
+    .select("id, course_id, session_date, start_time, end_time, component_type, status, courses!inner(name, color, code, instructor, user_id), course_schedule(room)")
     .eq("courses.user_id", userId)
     .gte("session_date", startISO)
     .lte("session_date", endISO)

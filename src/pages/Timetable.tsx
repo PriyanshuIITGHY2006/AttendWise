@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react"
+import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 import { listSessionsInRange, type TimetableSession } from "../features/courses/api"
 import { listInstituteCalendar, type InstituteCalendarDay } from "../features/calendar/api"
@@ -50,6 +51,19 @@ export function Timetable() {
   const [calendar, setCalendar] = useState<InstituteCalendarDay[]>([])
   const [loading, setLoading] = useState(true)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // The session whose detail card is showing. `locked` = opened by tap/click
+  // (stays until dismissed); unlocked = a hover preview that closes on mouse-out.
+  const [popover, setPopover] = useState<{ session: TimetableSession; rect: DOMRect; locked: boolean } | null>(null)
+
+  const showPreview = useCallback((session: TimetableSession, el: HTMLElement) => {
+    setPopover((p) => (p?.locked ? p : { session, rect: el.getBoundingClientRect(), locked: false }))
+  }, [])
+  const hidePreview = useCallback(() => {
+    setPopover((p) => (p?.locked ? p : null))
+  }, [])
+  const toggleLock = useCallback((session: TimetableSession, el: HTMLElement) => {
+    setPopover((p) => (p && p.session.id === session.id && p.locked ? null : { session, rect: el.getBoundingClientRect(), locked: true }))
+  }, [])
 
   const isFirstYear = profile?.is_first_year_ug ?? false
   const todayISO = toISO(new Date())
@@ -131,6 +145,22 @@ export function Timetable() {
     const target = GUTTER_WIDTH + todayIndex * COL_WIDTH - (el.clientWidth - GUTTER_WIDTH - COL_WIDTH) / 2
     el.scrollTo({ left: Math.max(0, target), behavior: "smooth" })
   }, [loading, weekOffset, todayIndex])
+
+  // Any scroll (the grid scrolls horizontally, the page vertically), a resize,
+  // or Escape invalidates the anchor rect -- just dismiss the card.
+  useEffect(() => {
+    if (!popover) return
+    const close = () => setPopover(null)
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close()
+    window.addEventListener("resize", close)
+    window.addEventListener("scroll", close, true)
+    window.addEventListener("keydown", onKey)
+    return () => {
+      window.removeEventListener("resize", close)
+      window.removeEventListener("scroll", close, true)
+      window.removeEventListener("keydown", onKey)
+    }
+  }, [popover])
 
   const rangeLabel = `${weekStart.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${weekEnd.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
 
@@ -232,21 +262,32 @@ export function Timetable() {
                       const cancelled = s.status === "cancelled"
                       const top = ((toMin(s.start_time) - startHour * 60) / 60) * PX_PER_HOUR
                       const height = Math.max(26, ((toMin(s.end_time) - toMin(s.start_time)) / 60) * PX_PER_HOUR - 3)
+                      const isOpen = popover?.session.id === s.id
                       return (
-                        <div
+                        <button
                           key={s.id}
-                          className="absolute inset-x-1 overflow-hidden rounded-md p-1.5 shadow-sm"
+                          type="button"
+                          onMouseEnter={(e) => showPreview(s, e.currentTarget)}
+                          onMouseLeave={hidePreview}
+                          onClick={(e) => toggleLock(s, e.currentTarget)}
+                          className={`absolute inset-x-1 overflow-hidden rounded-md p-1.5 text-left shadow-sm transition-shadow hover:z-10 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/50 ${
+                            isOpen ? "z-10 ring-2 ring-indigo-500/50" : ""
+                          }`}
                           style={{ top, height, backgroundColor: `${s.courses.color}22`, borderLeft: `3px solid ${s.courses.color}` }}
-                          title={`${s.courses.name} · ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}`}
                         >
-                          <p className={`truncate text-[11px] font-semibold leading-tight ${cancelled ? "text-neutral-400 line-through" : "text-neutral-800 dark:text-neutral-100"}`}>
+                          <p className={`text-[11px] font-semibold leading-tight ${height > 40 ? "line-clamp-2" : "truncate"} ${cancelled ? "text-neutral-400 line-through" : "text-neutral-800 dark:text-neutral-100"}`}>
                             {s.courses.name}
                           </p>
                           <p className="truncate text-[10px] text-neutral-500">
                             {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
                           </p>
-                          {height > 46 && <span className="mt-0.5 inline-block rounded bg-white/60 px-1 text-[9px] font-medium text-neutral-600 dark:bg-black/30 dark:text-neutral-300">{s.component_type}</span>}
-                        </div>
+                          {height > 60 && (
+                            <span className="mt-0.5 block truncate text-[9px] font-medium uppercase tracking-wide text-neutral-500">
+                              {s.component_type}
+                              {s.course_schedule?.room ? ` · ${s.course_schedule.room}` : ""}
+                            </span>
+                          )}
+                        </button>
                       )
                     })
                   )}
@@ -256,6 +297,80 @@ export function Timetable() {
           </div>
         </div>
       )}
+
+      {popover && (
+        <>
+          {/* click-catcher so a tapped-open card dismisses on any outside tap */}
+          {popover.locked && <div className="fixed inset-0 z-30" onClick={() => setPopover(null)} />}
+          <SessionPopover session={popover.session} rect={popover.rect} onClose={() => setPopover(null)} />
+        </>
+      )}
+    </div>
+  )
+}
+
+// A fixed-position detail card anchored to a session block. Positioned in the
+// viewport (so the grid's horizontal scroll can't clip it), preferring below the
+// block and flipping above when there's no room, clamped to the screen edges.
+function SessionPopover({ session, rect, onClose }: { session: TimetableSession; rect: DOMRect; onClose: () => void }) {
+  const W = 232
+  const margin = 8
+  const left = Math.min(Math.max(margin, rect.left), window.innerWidth - W - margin)
+  const below = rect.bottom + 8
+  const flipUp = below + 150 > window.innerHeight && rect.top - 8 > 150
+  const meta = [session.courses.code, session.courses.instructor].filter(Boolean).join(" · ")
+  const cancelled = session.status === "cancelled"
+
+  return (
+    <div
+      className="fixed z-40 rounded-xl border border-neutral-200/80 bg-white p-3 shadow-elevated dark:border-neutral-700 dark:bg-neutral-900"
+      style={{
+        width: W,
+        left,
+        top: flipUp ? undefined : below,
+        bottom: flipUp ? window.innerHeight - rect.top + 8 : undefined,
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="flex items-start gap-2">
+        <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: session.courses.color }} />
+        <div className="min-w-0 flex-1">
+          <p className={`text-sm font-semibold leading-snug ${cancelled ? "text-neutral-400 line-through" : ""}`}>{session.courses.name}</p>
+          {meta && <p className="mt-0.5 truncate text-xs text-neutral-500">{meta}</p>}
+        </div>
+      </div>
+
+      <dl className="mt-2.5 space-y-1.5 text-xs">
+        <div className="flex items-center gap-2">
+          <dt className="w-14 shrink-0 text-neutral-400">Time</dt>
+          <dd className="font-medium tabular-nums">{session.start_time.slice(0, 5)}–{session.end_time.slice(0, 5)}</dd>
+        </div>
+        <div className="flex items-center gap-2">
+          <dt className="w-14 shrink-0 text-neutral-400">Type</dt>
+          <dd className="font-medium capitalize">{session.component_type}</dd>
+        </div>
+        {session.course_schedule?.room && (
+          <div className="flex items-center gap-2">
+            <dt className="w-14 shrink-0 text-neutral-400">Room</dt>
+            <dd className="font-medium">{session.course_schedule.room}</dd>
+          </div>
+        )}
+        {cancelled && (
+          <div className="flex items-center gap-2">
+            <dt className="w-14 shrink-0 text-neutral-400">Status</dt>
+            <dd className="font-medium text-red-600 dark:text-red-400">Cancelled</dd>
+          </div>
+        )}
+      </dl>
+
+      <Link
+        to={`/courses/${session.course_id}`}
+        onClick={onClose}
+        className="mt-3 flex items-center justify-center gap-1 rounded-lg bg-neutral-100 py-1.5 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-200 dark:bg-neutral-800 dark:text-neutral-200 dark:hover:bg-neutral-700"
+      >
+        View course
+        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14M13 6l6 6-6 6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      </Link>
     </div>
   )
 }
