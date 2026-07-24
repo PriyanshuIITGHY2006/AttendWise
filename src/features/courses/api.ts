@@ -23,6 +23,34 @@ export async function getCourse(courseId: string) {
   return data
 }
 
+export type CourseShare = Tables<"course_shares">
+
+// Courses the user can see for Materials: their own + any shared with them (RLS
+// returns both). Compare `user_id` to know which are shared vs owned.
+export async function listAccessibleCourses(): Promise<Course[]> {
+  const { data, error } = await supabase.from("courses").select("*").eq("archived", false).order("created_at")
+  if (error) throw error
+  return data
+}
+
+export async function shareCourse(courseId: string, ownerId: string, email: string) {
+  const { error } = await supabase
+    .from("course_shares")
+    .insert({ course_id: courseId, owner_id: ownerId, shared_with_email: email.trim().toLowerCase() })
+  if (error) throw error
+}
+
+export async function listCourseShares(courseId: string): Promise<CourseShare[]> {
+  const { data, error } = await supabase.from("course_shares").select("*").eq("course_id", courseId).order("created_at")
+  if (error) throw error
+  return data
+}
+
+export async function unshareCourse(shareId: string) {
+  const { error } = await supabase.from("course_shares").delete().eq("id", shareId)
+  if (error) throw error
+}
+
 export async function createCourse(course: TablesInsert<"courses">) {
   const { data, error } = await supabase.from("courses").insert(course).select().single()
   if (error) throw error

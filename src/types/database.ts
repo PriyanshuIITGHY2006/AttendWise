@@ -218,6 +218,30 @@ export type Database = {
           },
         ]
       }
+      course_shares: {
+        Row: {
+          id: string
+          course_id: string
+          owner_id: string
+          shared_with_email: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          course_id: string
+          owner_id: string
+          shared_with_email: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          course_id?: string
+          owner_id?: string
+          shared_with_email?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
       courses: {
         Row: {
           archived: boolean

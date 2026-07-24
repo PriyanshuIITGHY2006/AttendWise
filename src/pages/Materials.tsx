@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, type FormEvent } from "react"
 import { useAuth } from "../context/AuthContext"
-import { listCourses, type Course } from "../features/courses/api"
+import { listAccessibleCourses, shareCourse, listCourseShares, unshareCourse, type Course, type CourseShare } from "../features/courses/api"
 import {
   listMaterials,
   uploadMaterialFile,
@@ -71,12 +71,13 @@ export function Materials() {
   const [activeDocId, setActiveDocId] = useState<string | null>(null)
   const [viewerVisible, setViewerVisible] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [shareOpen, setShareOpen] = useState(false)
   const [actionsFor, setActionsFor] = useState<Entry | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [c, m] = await Promise.all([listCourses(user.id), listMaterials(user.id)])
+    const [c, m] = await Promise.all([listAccessibleCourses(), listMaterials(user.id)])
     setCourses(c)
     setMaterials(m as MaterialWithCourse[])
     setLoading(false)
@@ -312,9 +313,20 @@ export function Materials() {
             </>
           )}
         </div>
-        <Button onClick={() => setAddOpen(true)} disabled={courses.length === 0}>
-          Add
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          {folder && courses.find((c) => c.id === folder)?.user_id === user?.id && (
+            <button
+              onClick={() => setShareOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-neutral-200 px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 dark:border-neutral-700 dark:hover:bg-neutral-800"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM18 22a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM8.6 13.5l6.8 4M15.4 6.5l-6.8 4" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <span className="hidden sm:inline">Share</span>
+            </button>
+          )}
+          <Button onClick={() => setAddOpen(true)} disabled={courses.length === 0}>
+            Add
+          </Button>
+        </div>
       </div>
 
       {/* toolbar */}
@@ -363,7 +375,14 @@ export function Materials() {
             <p className="mt-6 text-xs font-medium uppercase tracking-wide text-neutral-400">Courses</p>
             <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {folders.map(({ course, count }) => (
-                <FolderCard key={course.id} color={course.color} title={course.name} subtitle={`${count} item${count === 1 ? "" : "s"}`} onClick={() => setFolder(course.id)} />
+                <FolderCard
+                  key={course.id}
+                  color={course.color}
+                  title={course.name}
+                  subtitle={`${count} item${count === 1 ? "" : "s"}`}
+                  shared={course.user_id !== user?.id}
+                  onClick={() => setFolder(course.id)}
+                />
               ))}
             </div>
           </>
@@ -460,6 +479,94 @@ export function Materials() {
           onDelete={() => handleDelete(actionsFor)}
         />
       )}
+
+      {shareOpen && folder && user && (
+        <ShareModal
+          courseId={folder}
+          courseName={courses.find((c) => c.id === folder)?.name ?? "this course"}
+          ownerId={user.id}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: string; courseName: string; ownerId: string; onClose: () => void }) {
+  const [shares, setShares] = useState<CourseShare[]>([])
+  const [email, setEmail] = useState("")
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const load = useCallback(() => {
+    listCourseShares(courseId).then(setShares).catch(() => {})
+  }, [courseId])
+  useEffect(() => load(), [load])
+
+  async function add(e: FormEvent) {
+    e.preventDefault()
+    const addr = email.trim().toLowerCase()
+    if (!addr || !addr.includes("@")) {
+      setError("Enter a valid email.")
+      return
+    }
+    setBusy(true)
+    setError(null)
+    try {
+      await shareCourse(courseId, ownerId, addr)
+      setEmail("")
+      load()
+    } catch (err) {
+      setError(err instanceof Error && err.message.includes("duplicate") ? "Already shared with that email." : "Couldn't share.")
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function remove(id: string) {
+    setShares((prev) => prev.filter((s) => s.id !== id))
+    try {
+      await unshareCourse(id)
+    } catch {
+      load()
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
+        style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="min-w-0 truncate text-base font-semibold">Share “{courseName}”</h2>
+          <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <p className="mt-1 text-sm text-neutral-500">People you share with can view, upload, and delete files in this course's folder.</p>
+
+        <form onSubmit={add} className="mt-4 flex gap-2">
+          <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="friend@email.com" className="flex-1" />
+          <Button type="submit" disabled={busy}>{busy ? "…" : "Share"}</Button>
+        </form>
+        {error && <p className="mt-2 text-sm text-red-600 dark:text-red-400">{error}</p>}
+
+        <div className="mt-4 space-y-1">
+          {shares.length === 0 ? (
+            <p className="text-sm text-neutral-400">Not shared with anyone yet.</p>
+          ) : (
+            shares.map((s) => (
+              <div key={s.id} className="flex items-center justify-between rounded-lg px-1 py-1.5 text-sm">
+                <span className="min-w-0 truncate">{s.shared_with_email}</span>
+                <button onClick={() => remove(s.id)} className="shrink-0 text-xs font-medium text-red-600 hover:underline">Remove</button>
+              </div>
+            ))
+          )}
+        </div>
+        <p className="mt-3 text-xs text-neutral-400">Note: they need Materials access on their account to open it.</p>
+      </div>
     </div>
   )
 }
@@ -560,7 +667,7 @@ function EmptyState({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean }) {
   )
 }
 
-function FolderCard({ color, title, subtitle, onClick }: { color: string; title: string; subtitle: string; onClick: () => void }) {
+function FolderCard({ color, title, subtitle, shared, onClick }: { color: string; title: string; subtitle: string; shared?: boolean; onClick: () => void }) {
   return (
     <button
       onClick={onClick}
@@ -571,7 +678,14 @@ function FolderCard({ color, title, subtitle, onClick }: { color: string; title:
         <path d="M3 9h18" stroke="white" strokeOpacity="0.5" strokeWidth="1" />
       </svg>
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium">{title}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="truncate text-sm font-medium">{title}</p>
+          {shared && (
+            <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+              Shared
+            </span>
+          )}
+        </div>
         <p className="text-xs text-neutral-500">{subtitle}</p>
       </div>
     </button>
