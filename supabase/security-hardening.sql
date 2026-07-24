@@ -11,13 +11,17 @@ alter function public.can_access_course(uuid) set schema private;      -- -> pri
 revoke all on function private.can_access_course(uuid) from anon, public;
 grant execute on function private.can_access_course(uuid) to authenticated;
 
--- 2) am_i_material_allowed only returns the caller's own allow-status, so it
---    doesn't need SECURITY DEFINER (removes the definer-exposure warning).
+-- 2) am_i_material_allowed MUST stay SECURITY DEFINER.
+--    It was briefly switched to SECURITY INVOKER to silence the definer-exposure
+--    warning, but that broke Materials access: the client calls it as the
+--    `authenticated` role, which has no USAGE on the `private` schema, so the
+--    inner private.has_material_access call failed and the check returned null
+--    (Materials tab disappeared). Reverted below. The warning is a false
+--    positive here -- it only ever returns the caller's own boolean status.
 create or replace function public.am_i_material_allowed()
-returns boolean language sql stable security invoker set search_path = public as $$
+returns boolean language sql stable security definer set search_path = public as $$
   select private.has_material_access(auth.email());
 $$;
-grant execute on function private.has_material_access(text) to authenticated;
 
 -- NOTE (accepted): pg_net grants USAGE/EXECUTE on schema `net` to anon +
 -- authenticated by default (granted by supabase_admin, not revocable as
