@@ -534,9 +534,9 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <div className="aw-overlay fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
+        className="aw-sheet w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
         style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -597,9 +597,9 @@ function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }
   const current = (entry.material.category as CategoryId) ?? "extras"
   const starred = entry.material.starred
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <div className="aw-overlay fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-4 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
+        className="aw-sheet w-full max-w-md rounded-t-2xl bg-white p-4 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
         style={{ paddingBottom: "calc(1rem + env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -835,9 +835,9 @@ function AddModal({
   const selectClass = "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+    <div className="aw-overlay fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
       <div
-        className="w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
+        className="aw-sheet w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
         style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
         onClick={(e) => e.stopPropagation()}
       >
