@@ -4,4 +4,9 @@
     <string name="title_activity_main">AttendWise</string>
     <string name="package_name">in.ac.iitg.attendwise</string>
     <string name="custom_url_scheme">in.ac.iitg.attendwise</string>
+
+    <string name="widget_next_desc">Your next class today, with time and room.</string>
+    <string name="widget_attendance_desc">Overall attendance, and your lowest course.</string>
+    <string name="widget_deadlines_desc">Quizzes and assignments due today.</string>
+    <string name="widget_skip_desc">The class that\'s safest to skip today.</string>
 </resources>

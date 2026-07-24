@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
-import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getAllCourseStats, EMPTY_COURSE_STATS, listUpcomingPlannedSkips, listUpcomingClassesForNotify } from "../features/courses/api"
+import { listTodaySessions, markAttendance, listCourses, listUnmarkedPastSessions, getAllCourseStats, EMPTY_COURSE_STATS, listUpcomingPlannedSkips, listUpcomingClassesForNotify, type Course, type CourseStats } from "../features/courses/api"
 import { listUpcomingEvents, type CourseEvent } from "../features/events/api"
 import { computeBunkSafety, computeSkipVerdict, type SkipVerdict } from "../features/attendance/bunkSafety"
 import { unmarkedNudge } from "../features/notifications/copy"
@@ -12,6 +12,7 @@ import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 import { tapFeedback } from "../lib/haptics"
 import { PageSkeleton } from "../components/ui/Skeleton"
+import { updateHomeWidget } from "../features/widget/homeWidget"
 
 type TodaySession = Awaited<ReturnType<typeof listTodaySessions>>[number]
 type UpcomingEvent = CourseEvent & { courses: { name: string; color: string } | null }
@@ -44,6 +45,61 @@ function roomOf(s: { course_schedule?: { room: string | null } | { room: string 
   const cs = s.course_schedule
   if (!cs) return null
   return (Array.isArray(cs) ? cs[0]?.room : cs.room) ?? null
+}
+
+// Formats the four glance lines for the Android home-screen widget from the
+// dashboard's already-loaded data and pushes them across the native bridge.
+// Entirely a no-op on the web (updateHomeWidget guards on platform).
+function pushWidgetSnapshot(
+  today: TodaySession[],
+  courses: Course[],
+  events: UpcomingEvent[],
+  statsMap: Map<string, CourseStats>,
+  verdictEntries: readonly (readonly [string, SkipVerdict])[],
+) {
+  const nowMs = Date.now()
+  const next = today.find((s) => new Date(`${s.session_date}T${s.start_time}`).getTime() > nowMs)
+  let nextTitle = "No more classes today"
+  let nextMeta = ""
+  if (next) {
+    nextTitle = next.courses.name
+    const room = roomOf(next)
+    nextMeta = `${next.start_time.slice(0, 5)}–${next.end_time.slice(0, 5)}${room ? ` · ${room}` : ""}`
+  }
+
+  let totalAttended = 0
+  let totalHeld = 0
+  let lowest: { name: string; pct: number } | null = null
+  for (const c of courses) {
+    const st = statsMap.get(c.id) ?? EMPTY_COURSE_STATS
+    const held = st.attended + st.absent
+    totalAttended += st.attended
+    totalHeld += held
+    if (held > 0) {
+      const p = (st.attended / held) * 100
+      if (!lowest || p < lowest.pct) lowest = { name: c.name, pct: p }
+    }
+  }
+  const overallPct = totalHeld > 0 ? Math.round((totalAttended / totalHeld) * 100) : null
+  const attendanceMain = overallPct == null ? "—" : `${overallPct}%`
+  const attendanceSub = lowest && courses.length > 1 ? `low: ${lowest.name} ${Math.round(lowest.pct)}%` : "overall"
+
+  const t = todayISO()
+  const deadlinesMain = String(events.filter((e) => e.event_date === t).length)
+
+  const courseName = new Map(courses.map((c) => [c.id, c.name]))
+  const safe = verdictEntries.find(([, v]) => v.safeCount >= 1)
+  const skipMain = safe ? (courseName.get(safe[0]) ?? "A class") : "None safe today"
+
+  updateHomeWidget({
+    nextTitle,
+    nextMeta,
+    attendanceMain,
+    attendanceSub,
+    deadlinesMain,
+    skipMain,
+    updated: new Date().toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }),
+  })
 }
 
 export function Dashboard() {
@@ -130,6 +186,10 @@ export function Dashboard() {
       return [courseId, verdict] as const
     })
     setVerdicts(Object.fromEntries(verdictEntries))
+
+    // Feed the Android home-screen widget from the same data (no-op on web).
+    pushWidgetSnapshot(today, courses, events as UpcomingEvent[], statsMap, verdictEntries)
+
     return { today, courses, events: events as UpcomingEvent[], unmarkedPast, statsMap }
   }, [user])
 
