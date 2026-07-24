@@ -125,6 +125,40 @@ export function touchMaterialOpened(id: string) {
   supabase.from("materials").update({ last_opened_at: new Date().toISOString() }).eq("id", id).then(() => {})
 }
 
+export type PdfAnnotation = Tables<"pdf_annotations">
+
+export async function listAnnotations(materialId: string): Promise<PdfAnnotation[]> {
+  const { data, error } = await supabase.from("pdf_annotations").select("*").eq("material_id", materialId)
+  if (error) throw error
+  return data
+}
+
+export async function createAnnotation(a: {
+  material_id: string
+  page: number
+  x: number
+  y: number
+  content?: string
+  color?: string
+}): Promise<PdfAnnotation> {
+  const { data, error } = await supabase.from("pdf_annotations").insert(a).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function updateAnnotation(id: string, patch: Partial<Pick<PdfAnnotation, "x" | "y" | "content" | "color">>) {
+  const { error } = await supabase
+    .from("pdf_annotations")
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq("id", id)
+  if (error) throw error
+}
+
+export async function deleteAnnotation(id: string) {
+  const { error } = await supabase.from("pdf_annotations").delete().eq("id", id)
+  if (error) throw error
+}
+
 export async function deleteMaterial(material: Material) {
   if (material.file_path) {
     // Storage removal only succeeds for your own uploads (folder = your uid); on
