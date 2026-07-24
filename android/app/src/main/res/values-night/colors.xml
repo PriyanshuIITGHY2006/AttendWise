@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget palette (dark), applied when the system is in dark mode. -->
+    <color name="widget_surface">#171A21</color>
+    <color name="widget_text">#F5F5F5</color>
+    <color name="widget_muted">#9CA3AF</color>
+    <color name="widget_accent">#A5B4FC</color>
+    <color name="widget_divider">#2A2F3A</color>
+</resources>
