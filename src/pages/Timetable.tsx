@@ -2,8 +2,6 @@ import { useEffect, useMemo, useState, useCallback } from "react"
 import { useAuth } from "../context/AuthContext"
 import { listSessionsInRange, type TimetableSession } from "../features/courses/api"
 import { listInstituteCalendar, type InstituteCalendarDay } from "../features/calendar/api"
-import { Card } from "../components/ui/Card"
-import { Badge } from "../components/ui/Badge"
 
 const WEEKDAY = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
@@ -26,6 +24,12 @@ function addDays(d: Date, n: number) {
   x.setDate(x.getDate() + n)
   return x
 }
+function toMin(hhmm: string) {
+  const [h, m] = hhmm.split(":").map(Number)
+  return h * 60 + m
+}
+
+const PX_PER_HOUR = 56
 
 type DayColumn = {
   date: Date
@@ -98,6 +102,21 @@ export function Timetable() {
     })
   }, [sessions, calendar, weekStart, isFirstYear, todayISO])
 
+  // Vertical time window for the grid, derived from the week's classes (padded)
+  // so there's no dead space; sensible default when the week is empty.
+  const { startHour, hours, gridHeight } = useMemo(() => {
+    let min = 8
+    let max = 17
+    if (sessions.length > 0) {
+      min = Math.min(...sessions.map((s) => Math.floor(toMin(s.start_time) / 60)))
+      max = Math.max(...sessions.map((s) => Math.ceil(toMin(s.end_time) / 60)))
+    }
+    min = Math.max(6, Math.min(min, 9))
+    max = Math.min(22, Math.max(max, min + 4))
+    const hrs = Array.from({ length: max - min }, (_, i) => min + i)
+    return { startHour: min, hours: hrs, gridHeight: (max - min) * PX_PER_HOUR }
+  }, [sessions])
+
   const rangeLabel = `${weekStart.toLocaleDateString(undefined, { day: "numeric", month: "short" })} – ${weekEnd.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`
 
   return (
@@ -135,59 +154,83 @@ export function Timetable() {
       {loading ? (
         <p className="mt-6 text-sm text-neutral-400">Loading…</p>
       ) : (
-        <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {columns.map((col, i) => (
-            <Card
-              key={col.iso}
-              index={i}
-              className={`flex flex-col ${col.isToday ? "ring-2 ring-indigo-500/40" : ""}`}
-            >
-              <div className="flex items-baseline justify-between">
-                <span className={`text-sm font-semibold ${col.isToday ? "text-indigo-600 dark:text-indigo-400" : ""}`}>
-                  {WEEKDAY_SHORT[appDow(col.date)]}
-                </span>
-                <span className="text-xs text-neutral-400">{col.date.getDate()}</span>
-              </div>
-
-              {col.swapFrom !== null && (
-                <div className="mt-2">
-                  <Badge tone="yellow">Runs {WEEKDAY[col.swapFrom]} timetable</Badge>
+        <div className="mt-6 overflow-x-auto rounded-xl border border-neutral-200/70 dark:border-neutral-800">
+          <div className="min-w-max">
+            {/* header row: day names + dates */}
+            <div className="flex border-b border-neutral-200/70 dark:border-neutral-800">
+              <div className="sticky left-0 z-20 w-11 shrink-0 bg-white dark:bg-neutral-900" />
+              {columns.map((col) => (
+                <div
+                  key={col.iso}
+                  className={`w-[118px] shrink-0 border-l border-neutral-100 px-2 py-2 text-center dark:border-neutral-800 ${
+                    col.isToday ? "bg-indigo-50/60 dark:bg-indigo-500/10" : ""
+                  }`}
+                >
+                  <div className={`text-sm font-semibold ${col.isToday ? "text-indigo-600 dark:text-indigo-400" : ""}`}>
+                    {WEEKDAY_SHORT[appDow(col.date)]}
+                  </div>
+                  <div className="text-xs text-neutral-400">{col.date.getDate()}</div>
+                  {col.swapFrom !== null && (
+                    <div className="mt-1 truncate text-[10px] font-medium text-amber-600 dark:text-amber-400" title={`Runs ${WEEKDAY[col.swapFrom]} timetable`}>
+                      ↻ {WEEKDAY_SHORT[col.swapFrom]}
+                    </div>
+                  )}
                 </div>
-              )}
+              ))}
+            </div>
 
-              <div className="mt-3 flex-1 space-y-2">
-                {col.holiday ? (
-                  <p className="rounded-lg bg-neutral-50 px-2.5 py-2 text-xs text-neutral-500 dark:bg-neutral-800/60">
-                    {col.holiday}
-                  </p>
-                ) : col.sessions.length === 0 ? (
-                  <p className="text-xs text-neutral-300 dark:text-neutral-600">No classes</p>
-                ) : (
-                  col.sessions.map((s) => {
-                    const cancelled = s.status === "cancelled"
-                    return (
-                      <div
-                        key={s.id}
-                        className="rounded-lg border border-neutral-100 p-2 dark:border-neutral-800"
-                        style={{ borderLeft: `3px solid ${s.courses.color}` }}
-                      >
-                        <p className={`truncate text-xs font-medium ${cancelled ? "text-neutral-400 line-through" : ""}`}>
-                          {s.courses.name}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-neutral-500">
-                          {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
-                        </p>
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          <Badge tone="neutral">{s.component_type}</Badge>
-                          {cancelled && <Badge tone="red">Cancelled</Badge>}
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
+            {/* body: time gutter + day columns */}
+            <div className="flex">
+              <div className="sticky left-0 z-20 w-11 shrink-0 bg-white dark:bg-neutral-900" style={{ height: gridHeight }}>
+                {hours.map((h, i) => (
+                  <div key={h} className="relative" style={{ height: PX_PER_HOUR }}>
+                    {i > 0 && <span className="absolute -top-1.5 right-1 text-[10px] text-neutral-400">{h}:00</span>}
+                  </div>
+                ))}
               </div>
-            </Card>
-          ))}
+
+              {columns.map((col) => (
+                <div
+                  key={col.iso}
+                  className={`relative w-[118px] shrink-0 border-l border-neutral-100 dark:border-neutral-800 ${
+                    col.isToday ? "bg-indigo-50/40 dark:bg-indigo-500/[0.06]" : ""
+                  }`}
+                  style={{ height: gridHeight }}
+                >
+                  {/* hour gridlines */}
+                  {hours.map((h, i) => (
+                    <div key={h} className="absolute inset-x-0 border-t border-neutral-100 dark:border-neutral-800/70" style={{ top: i * PX_PER_HOUR }} />
+                  ))}
+
+                  {col.holiday ? (
+                    <div className="absolute inset-0 flex items-center justify-center p-1.5 text-center text-[11px] text-neutral-400">{col.holiday}</div>
+                  ) : (
+                    col.sessions.map((s) => {
+                      const cancelled = s.status === "cancelled"
+                      const top = ((toMin(s.start_time) - startHour * 60) / 60) * PX_PER_HOUR
+                      const height = Math.max(26, ((toMin(s.end_time) - toMin(s.start_time)) / 60) * PX_PER_HOUR - 3)
+                      return (
+                        <div
+                          key={s.id}
+                          className="absolute inset-x-1 overflow-hidden rounded-md p-1.5 shadow-sm"
+                          style={{ top, height, backgroundColor: `${s.courses.color}22`, borderLeft: `3px solid ${s.courses.color}` }}
+                          title={`${s.courses.name} · ${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}`}
+                        >
+                          <p className={`truncate text-[11px] font-semibold leading-tight ${cancelled ? "text-neutral-400 line-through" : "text-neutral-800 dark:text-neutral-100"}`}>
+                            {s.courses.name}
+                          </p>
+                          <p className="truncate text-[10px] text-neutral-500">
+                            {s.start_time.slice(0, 5)}–{s.end_time.slice(0, 5)}
+                          </p>
+                          {height > 46 && <span className="mt-0.5 inline-block rounded bg-white/60 px-1 text-[9px] font-medium text-neutral-600 dark:bg-black/30 dark:text-neutral-300">{s.component_type}</span>}
+                        </div>
+                      )
+                    })
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
