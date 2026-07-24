@@ -17,7 +17,8 @@ import {
   type AttendanceRecord,
   type CourseSchedule,
 } from "../features/courses/api"
-import { listEventsForCourse, createEvent, deleteEvent, type CourseEvent } from "../features/events/api"
+import { listEventsForCourse, createEvent, updateEvent, deleteEvent, type CourseEvent } from "../features/events/api"
+import { coursePerformance, scoreTone, MarksChip, ScoreEditor } from "../features/events/marks"
 import { findNearbyEvent } from "../features/events/proximity"
 import { computeBunkSafety, projectPlanOutcome, suggestSkipSessions, type SkipStrategy } from "../features/attendance/bunkSafety"
 import { termLabel } from "../features/courses/CourseForm"
@@ -26,6 +27,7 @@ import { Card } from "../components/ui/Card"
 import { Button } from "../components/ui/Button"
 import { Badge } from "../components/ui/Badge"
 import { Input, Label } from "../components/ui/Input"
+import { PageSkeleton } from "../components/ui/Skeleton"
 
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
@@ -109,7 +111,7 @@ export function CourseDetail() {
     navigate("/courses")
   }
 
-  if (loading || !course || !stats) return <p className="text-sm text-neutral-400">Loading…</p>
+  if (loading || !course || !stats) return <PageSkeleton />
 
   const safety = computeBunkSafety({
     attended: stats.attended,
@@ -242,7 +244,6 @@ export function CourseDetail() {
       </Card>
 
       <Card className="mt-6" index={3}>
-        <h2 className="font-medium">Quizzes & assignments</h2>
         <EventsList courseId={course.id} />
       </Card>
 
@@ -666,6 +667,7 @@ function EventsList({ courseId }: { courseId: string }) {
   const [eventType, setEventType] = useState<CourseEvent["event_type"]>("quiz")
   const [eventDate, setEventDate] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
 
   const load = useCallback(() => {
     listEventsForCourse(courseId).then(setEvents)
@@ -691,11 +693,31 @@ function EventsList({ courseId }: { courseId: string }) {
     load()
   }
 
+  // Optimistic marks save so the chip and the course average update on tap.
+  function saveScore(ev: CourseEvent, score: number | null, max: number | null) {
+    setEvents((prev) => (prev ? prev.map((x) => (x.id === ev.id ? { ...x, score, max_score: max } : x)) : prev))
+    setEditingId(null)
+    updateEvent(ev.id, { score, max_score: max }).catch(load)
+  }
+
   const todayISO = new Date().toISOString().slice(0, 10)
+  const perf = events ? coursePerformance(events) : { average: 0, count: 0 }
+  const perfAvg = Math.round(perf.average * 10) / 10
 
   return (
-    <div className="mt-3">
-      <form onSubmit={handleAdd} className="flex flex-wrap items-end gap-2">
+    <div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="font-medium">Quizzes &amp; assignments</h2>
+        {perf.count > 0 && (
+          <span className="flex items-center gap-1.5 text-sm text-neutral-500">
+            <span className="text-xs">Average</span>
+            <Badge tone={scoreTone(perf.average)}>{perfAvg}%</Badge>
+            <span className="text-xs text-neutral-400">· {perf.count} scored</span>
+          </span>
+        )}
+      </div>
+
+      <form onSubmit={handleAdd} className="mt-3 flex flex-wrap items-end gap-2">
         <div className="min-w-[10rem] flex-1">
           <Label htmlFor="eventTitle">Title</Label>
           <Input id="eventTitle" required value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Quiz 2" />
@@ -720,21 +742,27 @@ function EventsList({ courseId }: { courseId: string }) {
       {events === null ? (
         <p className="mt-3 text-sm text-neutral-400">Loading…</p>
       ) : events.length === 0 ? (
-        <p className="mt-3 text-sm text-neutral-500">Nothing added yet.</p>
+        <p className="mt-3 text-sm text-neutral-500">Nothing added yet. Add a quiz or assignment above, then record your marks.</p>
       ) : (
         <div className="mt-4 divide-y divide-neutral-100 dark:divide-neutral-800">
           {events.map((ev) => (
-            <div key={ev.id} className="flex items-center justify-between py-2 text-sm">
-              <div className="flex items-center gap-2">
-                <Badge tone={ev.event_date < todayISO ? "neutral" : "yellow"}>{EVENT_TYPE_LABELS[ev.event_type]}</Badge>
-                <span className="font-medium">{ev.title}</span>
-                <span className="text-neutral-500">
-                  {new Date(ev.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </span>
+            <div key={ev.id} className="py-2.5 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                  <Badge tone={ev.event_date < todayISO ? "neutral" : "yellow"}>{EVENT_TYPE_LABELS[ev.event_type]}</Badge>
+                  <span className="truncate font-medium">{ev.title}</span>
+                  <span className="text-neutral-500">
+                    {new Date(ev.event_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                  </span>
+                  <MarksChip event={ev} onClick={() => setEditingId((id) => (id === ev.id ? null : ev.id))} />
+                </div>
+                <button onClick={() => handleDelete(ev.id)} className="shrink-0 text-neutral-400 transition-colors hover:text-red-600">
+                  Delete
+                </button>
               </div>
-              <button onClick={() => handleDelete(ev.id)} className="text-neutral-400 hover:text-red-600">
-                Delete
-              </button>
+              {editingId === ev.id && (
+                <ScoreEditor event={ev} onCancel={() => setEditingId(null)} onSave={(score, max) => saveScore(ev, score, max)} />
+              )}
             </div>
           ))}
         </div>
