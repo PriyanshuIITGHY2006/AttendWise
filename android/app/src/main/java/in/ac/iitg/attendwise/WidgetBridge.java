@@ -10,14 +10,22 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-// Bridges JS -> native: after the web app writes a fresh snapshot to
-// Preferences, it calls refresh() to redraw every home-screen widget instance.
+// Bridges JS -> native: the web app hands over a fresh glance snapshot; we
+// persist it to our own SharedPreferences file (read by the widgets) and then
+// redraw every home-screen widget instance. No extra storage plugin needed.
 @CapacitorPlugin(name = "WidgetBridge")
 public class WidgetBridge extends Plugin {
 
     @PluginMethod
-    public void refresh(PluginCall call) {
+    public void update(PluginCall call) {
+        String payload = call.getString("payload", "");
         Context ctx = getContext().getApplicationContext();
+
+        ctx.getSharedPreferences(WidgetCommon.PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(WidgetCommon.KEY, payload)
+                .apply();
+
         AppWidgetManager mgr = AppWidgetManager.getInstance(ctx);
         redraw(ctx, mgr, NextClassWidget.class);
         redraw(ctx, mgr, AttendanceWidget.class);

@@ -8,14 +8,17 @@ import android.content.SharedPreferences;
 import org.json.JSONObject;
 
 // Shared plumbing for the home-screen widgets. Each widget reads the same
-// glance snapshot the web app writes via @capacitor/preferences (stored in the
-// "CapacitorStorage" SharedPreferences file) and paints just its own slice.
+// glance snapshot the web app hands to WidgetBridge (persisted in our
+// "attendwise_widget" SharedPreferences file) and paints just its own slice.
 final class WidgetCommon {
     private WidgetCommon() {}
 
+    static final String PREFS = "attendwise_widget";
+    static final String KEY = "widget_payload";
+
     static JSONObject readPayload(Context ctx) {
-        SharedPreferences prefs = ctx.getSharedPreferences("CapacitorStorage", Context.MODE_PRIVATE);
-        String raw = prefs.getString("widget_payload", null);
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        String raw = prefs.getString(KEY, null);
         if (raw == null) return null;
         try {
             return new JSONObject(raw);
