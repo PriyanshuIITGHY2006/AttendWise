@@ -422,6 +422,45 @@ export type Database = {
           },
         ]
       }
+      pdf_annotations: {
+        Row: {
+          id: string
+          material_id: string
+          user_id: string
+          page: number
+          x: number
+          y: number
+          content: string
+          color: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          material_id: string
+          user_id?: string
+          page: number
+          x: number
+          y: number
+          content?: string
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          material_id?: string
+          user_id?: string
+          page?: number
+          x?: number
+          y?: number
+          content?: string
+          color?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           class_reminders: boolean
