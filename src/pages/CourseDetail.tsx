@@ -11,6 +11,7 @@ import {
   markAttendanceBulk,
   unmarkAttendance,
   deleteCourse,
+  createExtraSession,
   type Course,
   type CourseStats,
   type Session,
@@ -241,6 +242,7 @@ export function CourseDetail() {
       <Card className="mt-6" index={2}>
         <h2 className="font-medium">Weekly schedule</h2>
         <ScheduleList courseId={course.id} />
+        <ExtraClassAdder courseId={course.id} onAdded={load} />
       </Card>
 
       <Card className="mt-6" index={3}>
@@ -768,6 +770,95 @@ function EventsList({ courseId }: { courseId: string }) {
         </div>
       )}
     </div>
+  )
+}
+
+const EXTRA_TYPES = ["lecture", "tutorial", "lab", "other"] as const
+
+// Adds an occasional class that isn't part of the weekly schedule. It lands in
+// Today/Timetable and counts toward attendance like any other session, and (via
+// the null schedule_id) survives schedule regeneration.
+function ExtraClassAdder({ courseId, onAdded }: { courseId: string; onAdded: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [date, setDate] = useState("")
+  const [start, setStart] = useState("")
+  const [end, setEnd] = useState("")
+  const [type, setType] = useState<string>("lecture")
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    if (!date || !start || !end) {
+      setError("Pick a date, start and end time.")
+      return
+    }
+    if (end <= start) {
+      setError("End time must be after the start time.")
+      return
+    }
+    setSaving(true)
+    setError(null)
+    try {
+      await createExtraSession({ courseId, date, startTime: start, endTime: end, componentType: type })
+      setOpen(false)
+      setDate("")
+      setStart("")
+      setEnd("")
+      setType("lecture")
+      onAdded()
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Couldn't add the class."
+      setError(/duplicate|unique/i.test(msg) ? "There's already a class for this course at that time." : msg)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="mt-3 text-sm font-medium text-indigo-600 transition-colors hover:text-indigo-500 dark:text-indigo-400"
+      >
+        + Add extra class
+      </button>
+    )
+  }
+
+  const selectClass = "w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-900"
+
+  return (
+    <form onSubmit={submit} className="mt-3 space-y-3 border-t border-neutral-100 pt-3 dark:border-neutral-800">
+      <p className="text-xs text-neutral-500">A one-off class outside the weekly schedule — it counts toward attendance.</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <Label htmlFor="x-date">Date</Label>
+          <Input id="x-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="x-type">Type</Label>
+          <select id="x-type" value={type} onChange={(e) => setType(e.target.value)} className={selectClass}>
+            {EXTRA_TYPES.map((t) => (
+              <option key={t} value={t}>{t[0].toUpperCase() + t.slice(1)}</option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <Label htmlFor="x-start">Start</Label>
+          <Input id="x-start" type="time" value={start} onChange={(e) => setStart(e.target.value)} />
+        </div>
+        <div>
+          <Label htmlFor="x-end">End</Label>
+          <Input id="x-end" type="time" value={end} onChange={(e) => setEnd(e.target.value)} />
+        </div>
+      </div>
+      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      <div className="flex gap-2">
+        <Button type="submit" disabled={saving}>{saving ? "Adding…" : "Add class"}</Button>
+        <Button type="button" variant="ghost" onClick={() => { setOpen(false); setError(null) }}>Cancel</Button>
+      </div>
+    </form>
   )
 }
 
