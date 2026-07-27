@@ -1,0 +1,13 @@
+-- One-off "extra class" support (applied to the live project via migration
+-- `preserve_extra_sessions_on_regenerate`).
+--
+-- Extra classes are inserted client-side straight into `public.sessions` with a
+-- NULL schedule_id (the existing "sessions are managed by the course owner"
+-- RLS policy already permits owners to insert their own). The only change the
+-- DB needed was to stop regeneration from deleting them: generate_sessions_for_
+-- course now only clears sessions it generated (schedule_id IS NOT NULL), so a
+-- manually added extra class survives any later schedule edit.
+--
+-- The full updated function body lives in the migration; the key line added to
+-- its cleanup DELETE is:
+--     and s.schedule_id is not null

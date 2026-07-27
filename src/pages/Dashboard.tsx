@@ -374,7 +374,9 @@ export function Dashboard() {
                   <Card
                     key={s.id}
                     index={i}
-                    className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                    className={`flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${
+                      statusMenu === s.id ? "relative z-30" : ""
+                    }`}
                   >
                     <div className="min-w-0">
                       <div className="flex min-w-0 items-center gap-2">

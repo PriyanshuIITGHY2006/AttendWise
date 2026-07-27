@@ -156,6 +156,35 @@ export async function listSessionsForCourse(courseId: string) {
   return data
 }
 
+// Adds a one-off "extra class" -- an occasional session outside the recurring
+// weekly schedule. Stored with schedule_id null so regeneration leaves it be;
+// it then shows up in Today / Timetable and counts toward attendance like any
+// other session. Throws on a clash with an existing session at the same
+// course/date/start (unique constraint).
+export async function createExtraSession(input: {
+  courseId: string
+  date: string
+  startTime: string
+  endTime: string
+  componentType: string
+}) {
+  const { data, error } = await supabase
+    .from("sessions")
+    .insert({
+      course_id: input.courseId,
+      schedule_id: null,
+      session_date: input.date,
+      start_time: input.startTime,
+      end_time: input.endTime,
+      component_type: input.componentType,
+      status: "scheduled",
+    })
+    .select()
+    .single()
+  if (error) throw error
+  return data
+}
+
 export async function listAttendanceForCourse(courseId: string, userId: string) {
   const { data, error } = await supabase
     .from("attendance_records")
