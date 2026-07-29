@@ -461,6 +461,39 @@ export type Database = {
         }
         Relationships: []
       }
+      pdf_ink: {
+        Row: {
+          id: string
+          material_id: string
+          user_id: string
+          page: number
+          color: string
+          width: number
+          points: [number, number][]
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          material_id: string
+          user_id?: string
+          page: number
+          color?: string
+          width?: number
+          points: [number, number][]
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          material_id?: string
+          user_id?: string
+          page?: number
+          color?: string
+          width?: number
+          points?: [number, number][]
+          created_at?: string
+        }
+        Relationships: []
+      }
       notification_settings: {
         Row: {
           class_reminders: boolean
