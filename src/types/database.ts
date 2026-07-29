@@ -469,7 +469,7 @@ export type Database = {
           page: number
           color: string
           width: number
-          points: [number, number][]
+          points: number[][]
           created_at: string
         }
         Insert: {
@@ -479,7 +479,7 @@ export type Database = {
           page: number
           color?: string
           width?: number
-          points: [number, number][]
+          points: number[][]
           created_at?: string
         }
         Update: {

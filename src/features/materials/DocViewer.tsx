@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { getStroke } from "perfect-freehand"
 import type { FileKind } from "./fileKind"
 import type { LoadedPdf } from "./renderPdf"
 import {
@@ -659,33 +660,30 @@ function PdfPageWrap({
   )
 }
 
-// Draws a smooth quadratic path through fractional points onto a canvas context.
-function drawPath(ctx: CanvasRenderingContext2D, pts: Pt[], color: string, lineWidth: number, W: number, H: number) {
-  if (pts.length === 0) return
-  ctx.strokeStyle = color
-  ctx.lineWidth = lineWidth
-  ctx.lineJoin = "round"
-  ctx.lineCap = "round"
-  ctx.beginPath()
-  ctx.moveTo(pts[0][0] * W, pts[0][1] * H)
-  if (pts.length === 1) {
-    ctx.lineTo(pts[0][0] * W + 0.1, pts[0][1] * H)
-  } else {
-    for (let i = 1; i < pts.length - 1; i++) {
-      const x = pts[i][0] * W
-      const y = pts[i][1] * H
-      const nx = pts[i + 1][0] * W
-      const ny = pts[i + 1][1] * H
-      ctx.quadraticCurveTo(x, y, (x + nx) / 2, (y + ny) / 2)
-    }
-    const last = pts[pts.length - 1]
-    ctx.lineTo(last[0] * W, last[1] * H)
-  }
-  ctx.stroke()
+// Turn fractional input points into a filled stroke outline (perfect-freehand:
+// the same ink engine tldraw uses) so strokes are smooth and velocity-tapered.
+function strokePath(pts: Pt[], W: number, H: number, sizePx: number, last: boolean): Path2D {
+  const input = pts.map((p) => [p[0] * W, p[1] * H])
+  const outline = getStroke(input, {
+    size: sizePx,
+    thinning: 0.6,
+    smoothing: 0.62,
+    streamline: 0.5,
+    simulatePressure: true,
+    last,
+  })
+  const path = new Path2D()
+  if (outline.length === 0) return path
+  path.moveTo(outline[0][0], outline[0][1])
+  for (let i = 1; i < outline.length; i++) path.lineTo(outline[i][0], outline[i][1])
+  path.closePath()
+  return path
 }
 
-// A transparent canvas over one PDF page. Renders saved pen strokes and handles
-// live drawing / erasing. Fractional coords keep everything aligned at any zoom.
+// Two stacked canvases over one PDF page: a base layer that holds committed
+// strokes (repainted only when they change) and a light live layer for the
+// stroke in progress (repainted on animation frames). Splitting them keeps
+// drawing smooth no matter how many strokes are already on the page.
 function InkLayer({
   containerRef,
   strokes,
@@ -703,60 +701,81 @@ function InkLayer({
   onCommit: (points: Pt[], color: string, width: number) => void
   onErase: (ids: string[]) => void
 }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const baseRef = useRef<HTMLCanvasElement>(null)
+  const liveRef = useRef<HTMLCanvasElement>(null)
   const size = useRef({ w: 0, h: 0 })
-  const drawing = useRef(false)
   const cur = useRef<Pt[]>([])
   const activePointer = useRef<number | null>(null)
+  const raf = useRef(0)
   const strokesRef = useRef(strokes)
   strokesRef.current = strokes
   const active = tool === "pen" || tool === "eraser"
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
 
-  const redraw = useCallback(() => {
-    const cv = canvasRef.current
+  const paintBase = useCallback(() => {
+    const cv = baseRef.current
     const ctx = cv?.getContext("2d")
     if (!cv || !ctx) return
     ctx.clearRect(0, 0, cv.width, cv.height)
     const W = cv.width
     const H = cv.height
-    for (const s of strokesRef.current) drawPath(ctx, s.points, s.color, s.width * W, W, H)
+    for (const s of strokesRef.current) {
+      ctx.fillStyle = s.color
+      ctx.fill(strokePath(s.points as Pt[], W, H, s.width * W, true))
+    }
   }, [])
 
-  // Keep the bitmap matched to the page's layout size (unaffected by the live
-  // pinch transform), redrawing on any resize.
+  const paintLive = useCallback(() => {
+    raf.current = 0
+    const cv = liveRef.current
+    const ctx = cv?.getContext("2d")
+    if (!cv || !ctx) return
+    ctx.clearRect(0, 0, cv.width, cv.height)
+    if (cur.current.length === 0) return
+    ctx.fillStyle = color
+    ctx.fill(strokePath(cur.current, cv.width, cv.height, width * cv.width, false))
+  }, [color, width])
+
+  const scheduleLive = useCallback(() => {
+    if (!raf.current) raf.current = requestAnimationFrame(paintLive)
+  }, [paintLive])
+
+  // Keep both bitmaps matched to the page's layout size (unaffected by the live
+  // pinch transform), repainting the committed layer on any resize.
   useEffect(() => {
     const el = containerRef.current
-    const cv = canvasRef.current
-    if (!el || !cv) return
+    if (!el) return
     const apply = () => {
       const w = el.offsetWidth
       const h = el.offsetHeight
       if (w === 0 || h === 0) return
       size.current = { w, h }
-      cv.width = Math.round(w * dpr)
-      cv.height = Math.round(h * dpr)
-      redraw()
+      for (const cv of [baseRef.current, liveRef.current]) {
+        if (!cv) continue
+        cv.width = Math.round(w * dpr)
+        cv.height = Math.round(h * dpr)
+      }
+      paintBase()
     }
     apply()
     const ro = new ResizeObserver(apply)
     ro.observe(el)
     return () => ro.disconnect()
-  }, [containerRef, dpr, redraw])
+  }, [containerRef, dpr, paintBase])
 
   useEffect(() => {
-    redraw()
-  }, [strokes, redraw])
+    paintBase()
+  }, [strokes, paintBase])
 
-  function toFrac(e: React.PointerEvent): Pt {
+  function toFrac(clientX: number, clientY: number): Pt {
     const r = containerRef.current!.getBoundingClientRect()
-    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]
+    return [Math.min(1, Math.max(0, (clientX - r.left) / r.width)), Math.min(1, Math.max(0, (clientY - r.top) / r.height))]
   }
 
   function eraseAt(p: Pt) {
     const hit: string[] = []
     for (const s of strokesRef.current) {
-      if (s.points.some(([x, y]) => Math.hypot(x - p[0], y - p[1]) < 0.02)) hit.push(s.id)
+      if ((s.points as Pt[]).some(([x, y]) => Math.hypot(x - p[0], y - p[1]) < 0.02)) hit.push(s.id)
     }
     if (hit.length) onErase(hit)
   }
@@ -766,60 +785,55 @@ function InkLayer({
     e.preventDefault()
     activePointer.current = e.pointerId
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
-    drawing.current = true
-    const p = toFrac(e)
+    const p = toFrac(e.clientX, e.clientY)
     if (tool === "eraser") {
       eraseAt(p)
       return
     }
     cur.current = [p]
-    const cv = canvasRef.current!
-    const ctx = cv.getContext("2d")!
-    drawPath(ctx, cur.current, color, width * cv.width, cv.width, cv.height)
+    scheduleLive()
   }
 
   function onPointerMove(e: React.PointerEvent) {
-    if (!drawing.current || e.pointerId !== activePointer.current) return
+    if (e.pointerId !== activePointer.current) return
     e.preventDefault()
-    const p = toFrac(e)
     if (tool === "eraser") {
-      eraseAt(p)
+      eraseAt(toFrac(e.clientX, e.clientY))
       return
     }
-    const prev = cur.current[cur.current.length - 1]
-    cur.current.push(p)
-    const cv = canvasRef.current!
-    const ctx = cv.getContext("2d")!
-    ctx.strokeStyle = color
-    ctx.lineWidth = width * cv.width
-    ctx.lineJoin = "round"
-    ctx.lineCap = "round"
-    ctx.beginPath()
-    ctx.moveTo(prev[0] * cv.width, prev[1] * cv.height)
-    ctx.lineTo(p[0] * cv.width, p[1] * cv.height)
-    ctx.stroke()
+    // Coalesced events recover the sub-frame points the browser batched, so fast
+    // strokes stay smooth instead of turning into straight chords.
+    const evs = typeof e.nativeEvent.getCoalescedEvents === "function" ? e.nativeEvent.getCoalescedEvents() : [e.nativeEvent]
+    for (const ev of evs.length ? evs : [e.nativeEvent]) cur.current.push(toFrac(ev.clientX, ev.clientY))
+    scheduleLive()
   }
 
   function onPointerUp(e: React.PointerEvent) {
     if (e.pointerId !== activePointer.current) return
     activePointer.current = null
-    drawing.current = false
+    if (raf.current) { cancelAnimationFrame(raf.current); raf.current = 0 }
     if (tool === "pen" && cur.current.length > 0) {
       onCommit(cur.current, color, width)
       cur.current = []
     }
+    // Clear the live layer; the committed stroke will appear on the base layer.
+    const cv = liveRef.current
+    cv?.getContext("2d")?.clearRect(0, 0, cv.width, cv.height)
   }
 
   return (
-    <canvas
-      ref={canvasRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
-      className="absolute inset-0 h-full w-full"
-      style={{ pointerEvents: active ? "auto" : "none", touchAction: active ? "none" : "auto", cursor: tool === "eraser" ? "cell" : "crosshair" }}
-    />
+    <>
+      <canvas ref={baseRef} className="pointer-events-none absolute inset-0 h-full w-full" />
+      <canvas
+        ref={liveRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className="absolute inset-0 h-full w-full"
+        style={{ pointerEvents: active ? "auto" : "none", touchAction: active ? "none" : "auto", cursor: tool === "eraser" ? "cell" : "crosshair" }}
+      />
+    </>
   )
 }
 

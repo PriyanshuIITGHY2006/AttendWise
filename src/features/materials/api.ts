@@ -174,7 +174,7 @@ export async function createInkStroke(s: {
   page: number
   color: string
   width: number
-  points: [number, number][]
+  points: number[][]
 }): Promise<InkStroke> {
   const { data, error } = await supabase.from("pdf_ink").insert(s).select().single()
   if (error) throw error
