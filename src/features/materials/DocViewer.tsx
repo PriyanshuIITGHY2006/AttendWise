@@ -393,6 +393,9 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
   const [annos, setAnnos] = useState<PdfAnnotation[]>([])
   const [editing, setEditing] = useState<string | null>(null)
   const [ink, setInk] = useState<InkStroke[]>([])
+  const [page, setPage] = useState(1)
+  const [jumpOpen, setJumpOpen] = useState(false)
+  const scrollRaf = useRef(0)
 
   // Pinch/double-tap zoom only in pan mode -- while a drawing tool is active the
   // page is a fixed-size canvas so strokes land where you draw them.
@@ -435,11 +438,11 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
 
   // Commit a finished pen stroke: optimistic add, then persist (drop it back out
   // on failure).
-  async function commitStroke(page: number, points: Pt[], color: string, width: number) {
-    const temp: InkStroke = { id: `tmp-${Date.now()}`, material_id: materialId, user_id: "", page, color, width, points, created_at: "" }
+  async function commitStroke(pageNo: number, points: Pt[], color: string, width: number) {
+    const temp: InkStroke = { id: `tmp-${Date.now()}`, material_id: materialId, user_id: "", page: pageNo, color, width, points, created_at: "" }
     setInk((p) => [...p, temp])
     try {
-      const saved = await createInkStroke({ material_id: materialId, page, color, width, points })
+      const saved = await createInkStroke({ material_id: materialId, page: pageNo, color, width, points })
       setInk((p) => p.map((s) => (s.id === temp.id ? saved : s)))
     } catch {
       setInk((p) => p.filter((s) => s.id !== temp.id))
@@ -449,6 +452,32 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
   function eraseStrokes(ids: string[]) {
     setInk((p) => p.filter((s) => !ids.includes(s.id)))
     deleteInkStrokes(ids.filter((id) => !id.startsWith("tmp-"))).catch(() => {})
+  }
+
+  // Track which page is under the top of the viewport as you scroll (rAF-throttled).
+  function onScroll() {
+    if (scrollRaf.current) return
+    scrollRaf.current = requestAnimationFrame(() => {
+      scrollRaf.current = 0
+      const cont = scrollRef.current
+      if (!cont) return
+      const top = cont.getBoundingClientRect().top
+      let cp = 1
+      for (let n = 0; n < numPages; n++) {
+        const cv = canvasRefs.current[n]
+        if (!cv) continue
+        const r = cv.getBoundingClientRect()
+        if (r.top - top <= r.height * 0.5) cp = n + 1
+        else break
+      }
+      setPage(cp)
+    })
+  }
+
+  function goToPage(n: number) {
+    const target = Math.min(numPages, Math.max(1, n))
+    canvasRefs.current[target - 1]?.scrollIntoView({ block: "start", behavior: "smooth" })
+    setJumpOpen(false)
   }
 
   useEffect(() => {
@@ -506,7 +535,8 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
   const scale = renderZoom > 0 ? zoom / renderZoom : 1
 
   return (
-    <div ref={scrollRef} className="h-full w-full overflow-auto px-3 py-3" style={{ touchAction: "pan-x pan-y" }}>
+    <div className="relative h-full w-full">
+    <div ref={scrollRef} onScroll={onScroll} className="h-full w-full overflow-auto px-3 py-3" style={{ touchAction: "pan-x pan-y" }}>
       {status === "loading" && (
         <div className="flex h-full items-center justify-center"><Spinner /></div>
       )}
@@ -545,6 +575,30 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
           onDelete={() => removeAnno(editing)}
           onClose={() => setEditing(null)}
         />
+      )}
+    </div>
+
+      {/* page counter + jump-to-page (pan mode only, so it never overlaps the draw hint) */}
+      {tool === "pan" && numPages > 1 && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
+          {jumpOpen ? (
+            <form
+              onSubmit={(e) => { e.preventDefault(); const v = Number((e.currentTarget.elements.namedItem("pg") as HTMLInputElement).value); if (Number.isFinite(v)) goToPage(v) }}
+              className="pointer-events-auto flex items-center gap-1 rounded-full bg-neutral-900/90 px-2 py-1 text-sm text-neutral-100 shadow-lg ring-1 ring-white/10"
+            >
+              <input name="pg" type="number" min={1} max={numPages} defaultValue={page} autoFocus onBlur={() => setJumpOpen(false)} className="w-12 rounded bg-neutral-800 px-1.5 py-0.5 text-center outline-none" />
+              <span className="text-neutral-400">/ {numPages}</span>
+            </form>
+          ) : (
+            <button
+              onClick={() => setJumpOpen(true)}
+              className="pointer-events-auto rounded-full bg-neutral-900/85 px-3 py-1.5 text-xs font-medium tabular-nums text-neutral-100 shadow-lg ring-1 ring-white/10 hover:bg-neutral-900"
+              title="Jump to page"
+            >
+              {page} / {numPages}
+            </button>
+          )}
+        </div>
       )}
     </div>
   )
