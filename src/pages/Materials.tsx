@@ -66,6 +66,8 @@ export function Materials() {
   const [special, setSpecial] = useState<"starred" | "recent" | null>(null) // virtual root folders
   const [dragOver, setDragOver] = useState(false)
   const [layout, setLayout] = useState<"grid" | "list">("grid")
+  const [sort, setSort] = useState<"name" | "date" | "type">("name")
+  const [typeFilter, setTypeFilter] = useState<"all" | "pdf" | "image" | "doc" | "link">("all")
   const [query, setQuery] = useState("")
   const [urls, setUrls] = useState<Record<string, string>>({})
   const [openDocs, setOpenDocs] = useState<OpenDoc[]>([])
@@ -143,8 +145,19 @@ export function Materials() {
     } else {
       list = []
     }
-    return list.map(toEntry)
-  }, [materials, folder, subcat, special, query, searching])
+    let result = list.map(toEntry)
+    if (typeFilter !== "all") result = result.filter((e) => e.kind === typeFilter)
+    // "Recent" is intentionally kept in recency order; everything else honours
+    // the sort control.
+    if (special !== "recent") {
+      result = [...result].sort((a, b) => {
+        if (sort === "date") return (b.material.created_at ?? "").localeCompare(a.material.created_at ?? "")
+        if (sort === "type") return a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name)
+        return a.name.localeCompare(b.name)
+      })
+    }
+    return result
+  }, [materials, folder, subcat, special, query, searching, sort, typeFilter])
 
   // Batch-sign visible files so image tiles get thumbnails and the viewer opens
   // instantly.
@@ -354,6 +367,35 @@ export function Materials() {
           </div>
         )}
       </div>
+
+      {/* sort + type filter (only when a file list is showing) */}
+      {showFiles && (
+        <div className="mt-2 flex items-center gap-2">
+          <select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as typeof sort)}
+            className="rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-7 text-xs text-neutral-600 outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+            aria-label="Sort files"
+          >
+            <option value="name">Sort: Name</option>
+            <option value="date">Sort: Newest</option>
+            <option value="type">Sort: Type</option>
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value as typeof typeFilter)}
+            className="rounded-lg border border-neutral-200 bg-white py-1.5 pl-2.5 pr-7 text-xs text-neutral-600 outline-none focus:border-neutral-400 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-300"
+            aria-label="Filter by type"
+          >
+            <option value="all">All types</option>
+            <option value="pdf">PDFs</option>
+            <option value="image">Images</option>
+            <option value="doc">Docs</option>
+            <option value="link">Links</option>
+          </select>
+          <span className="ml-auto text-xs text-neutral-400">{entries.length} file{entries.length === 1 ? "" : "s"}</span>
+        </div>
+      )}
 
       {/* body */}
       {loading ? (
