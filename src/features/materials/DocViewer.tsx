@@ -29,10 +29,23 @@ const HL_COLORS = ["#fde047", "#86efac", "#93c5fd", "#f0abfc", "#fca5a5"].map((c
 const HL_WIDTH = 0.02
 const isHighlighter = (color: string) => color.length > 7
 type Pt = [number, number]
-// Palm-rejection: "any" = finger or stylus draws; "pen" = stylus only, so a
-// finger scrolls/zooms while the pen draws (rest-your-hand mode).
+// Palm-rejection: "any" = finger or stylus draws; "pen" = stylus only (rest your
+// hand and draw with the pen). Two fingers pan/zoom in both modes.
 type InputMode = "any" | "pen"
 type InkOp = { kind: "add"; stroke: InkStroke } | { kind: "erase"; strokes: InkStroke[] }
+
+// Some Android WebViews (notably MIUI on Xiaomi tablets) report an active
+// stylus as pointerType "touch" instead of "pen", which would make "Pen only"
+// ignore the pen. So once we've seen a real "pen" pointer we trust the type
+// strictly; until then we fall back to contact geometry -- a stylus tip is a
+// tiny contact, a finger/palm is large -- so the pen still draws.
+let sawRealPen = false
+function isStylusLike(e: React.PointerEvent): boolean {
+  if (e.pointerType === "pen" || e.pointerType === "mouse") return true
+  if (sawRealPen) return false // device distinguishes; this touch is a finger/palm
+  const contact = Math.max(e.width || 0, e.height || 0)
+  return contact === 0 || contact <= 14 // no geometry (can't tell) or small tip
+}
 
 // Non-passive two-finger pinch + ctrl/⌘-wheel zoom, plus double-tap to toggle
 // zoom, on an element. `enableDoubleTap` is off in annotate mode so quick taps
@@ -54,11 +67,17 @@ function usePinchZoom(
     let startZoom = 1
     let lastTap = 0
     let pinched = false
+    let lastCx = 0
+    let lastCy = 0
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
+    const cx = (t: TouchList) => (t[0].clientX + t[1].clientX) / 2
+    const cy = (t: TouchList) => (t[0].clientY + t[1].clientY) / 2
     const onStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         startDist = dist(e.touches)
         startZoom = zoomRef.current
+        lastCx = cx(e.touches)
+        lastCy = cy(e.touches)
         pinched = true
       }
     }
@@ -66,6 +85,14 @@ function usePinchZoom(
       if (e.touches.length === 2 && startDist > 0) {
         e.preventDefault()
         onZoom(clampZoom((startZoom * dist(e.touches)) / startDist))
+        // Two-finger drag also pans, so the page can be navigated even while a
+        // drawing tool is active (finger scroll is off then).
+        const ncx = cx(e.touches)
+        const ncy = cy(e.touches)
+        el.scrollLeft += lastCx - ncx
+        el.scrollTop += lastCy - ncy
+        lastCx = ncx
+        lastCy = ncy
       }
     }
     const onEnd = (e: TouchEvent) => {
@@ -914,10 +941,12 @@ function InkLayer({
   }
 
   function onPointerDown(e: React.PointerEvent) {
+    if (e.pointerType === "pen") sawRealPen = true
     if (!active || activePointer.current !== null) return
-    // Pen-only (palm rejection): ignore finger/mouse so it scrolls the page
-    // instead, leaving the stylus to draw.
-    if (inputMode === "pen" && e.pointerType !== "pen") return
+    // Pen-only (palm rejection): only a stylus draws; fingers/palm are ignored
+    // (two fingers still pan/zoom). Uses geometry when the WebView mislabels the
+    // pen as touch, so the Xiaomi pen works too.
+    if (inputMode === "pen" && !isStylusLike(e)) return
     e.preventDefault()
     activePointer.current = e.pointerId
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -957,9 +986,10 @@ function InkLayer({
     cv?.getContext("2d")?.clearRect(0, 0, cv.width, cv.height)
   }
 
-  // In pen-only mode the canvas still lets finger touches through (pan-y) so a
-  // finger scrolls while the stylus draws.
-  const touchAction = !active ? "auto" : inputMode === "pen" ? "pan-x pan-y" : "none"
+  // While a drawing tool is active the canvas owns single-finger gestures (so a
+  // mislabeled-as-touch stylus draws instead of scrolling); two-finger pan/zoom
+  // is handled by the pinch hook on the scroll container.
+  const touchAction = active ? "none" : "auto"
 
   return (
     <>
