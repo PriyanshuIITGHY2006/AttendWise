@@ -19,11 +19,20 @@ const clampZoom = (z: number) => Math.min(5, Math.max(0.4, z))
 const NOTE_COLORS = ["#fde047", "#fca5a5", "#86efac", "#93c5fd", "#f0abfc"]
 
 // Pen palette + widths (widths are fractions of page width, so a stroke keeps
-// the same visual thickness at any zoom).
-type Tool = "pan" | "pen" | "eraser" | "note"
-const PEN_COLORS = ["#ef4444", "#2563eb", "#111827", "#16a34a", "#eab308"]
+// the same visual thickness at any zoom). Highlighter colours carry an alpha
+// suffix (#RRGGBBAA) -- that alpha is also how a stroke is recognised as a
+// highlighter at render time (flat, wide, translucent) without a schema change.
+type Tool = "pan" | "pen" | "highlighter" | "eraser" | "note"
+const PEN_COLORS = ["#111827", "#ef4444", "#2563eb", "#16a34a", "#eab308"]
 const PEN_WIDTHS = [0.0022, 0.0042, 0.0075]
+const HL_COLORS = ["#fde047", "#86efac", "#93c5fd", "#f0abfc", "#fca5a5"].map((c) => `${c}66`)
+const HL_WIDTH = 0.02
+const isHighlighter = (color: string) => color.length > 7
 type Pt = [number, number]
+// Palm-rejection: "any" = finger or stylus draws; "pen" = stylus only, so a
+// finger scrolls/zooms while the pen draws (rest-your-hand mode).
+type InputMode = "any" | "pen"
+type InkOp = { kind: "add"; stroke: InkStroke } | { kind: "erase"; strokes: InkStroke[] }
 
 // Non-passive two-finger pinch + ctrl/⌘-wheel zoom, plus double-tap to toggle
 // zoom, on an element. `enableDoubleTap` is off in annotate mode so quick taps
@@ -124,6 +133,10 @@ export function DocViewer({
   const [tool, setTool] = useState<Tool>("pan")
   const [penColor, setPenColor] = useState(PEN_COLORS[0])
   const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1])
+  const [hlColor, setHlColor] = useState(HL_COLORS[0])
+  const [inputMode, setInputMode] = useState<InputMode>("any")
+  const drawApi = useRef<{ undo: () => void; redo: () => void }>({ undo() {}, redo() {} })
+  const [hist, setHist] = useState({ canUndo: false, canRedo: false })
 
   const active = docs.find((d) => d.id === activeId) ?? docs[0]
 
@@ -217,52 +230,6 @@ export function DocViewer({
         })}
       </div>
 
-      {/* drawing sub-toolbar */}
-      {tool !== "pan" && focused?.kind === "pdf" && (
-        <div className="flex items-center gap-2 overflow-x-auto px-2 pb-2">
-          <div className="flex shrink-0 items-center gap-1 rounded-lg bg-white/5 p-1">
-            <DrawToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
-              <path d="M12 20h9" strokeLinecap="round" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
-            </DrawToolBtn>
-            <DrawToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
-              <path d="M20 20H8.5L3.5 15a2 2 0 0 1 0-2.8l7-7a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L14 20" strokeLinecap="round" strokeLinejoin="round" /><path d="m9 11 4 4" strokeLinecap="round" />
-            </DrawToolBtn>
-            <DrawToolBtn active={tool === "note"} onClick={() => setTool("note")} label="Sticky note">
-              <path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z" /><path d="M15 21v-6a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" />
-            </DrawToolBtn>
-          </div>
-
-          {tool === "pen" && (
-            <>
-              <div className="flex shrink-0 items-center gap-1.5">
-                {PEN_COLORS.map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => setPenColor(c)}
-                    className={`h-6 w-6 rounded-full ${penColor === c ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-950" : ""}`}
-                    style={{ backgroundColor: c }}
-                    aria-label="Pen colour"
-                  />
-                ))}
-              </div>
-              <div className="flex shrink-0 items-center gap-1.5">
-                {PEN_WIDTHS.map((w, i) => (
-                  <button
-                    key={w}
-                    onClick={() => setPenWidth(w)}
-                    className={`flex h-7 w-7 items-center justify-center rounded-lg ${penWidth === w ? "bg-white/15" : "hover:bg-white/10"}`}
-                    aria-label={["Thin", "Medium", "Thick"][i]}
-                  >
-                    <span className="rounded-full bg-white" style={{ width: 4 + i * 4, height: 4 + i * 4 }} />
-                  </button>
-                ))}
-              </div>
-            </>
-          )}
-          <div className="min-w-0 flex-1" />
-          <button onClick={() => setTool("pan")} className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-white/10">Done</button>
-        </div>
-      )}
 
       {/* content + notes */}
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
@@ -301,8 +268,10 @@ export function DocViewer({
                     zoom={zoomOf(d.id)}
                     onZoom={(z) => setZoom(d.id, z)}
                     tool={d.id === focusId ? tool : "pan"}
-                    penColor={penColor}
-                    penWidth={penWidth}
+                    color={tool === "highlighter" ? hlColor : penColor}
+                    width={tool === "highlighter" ? HL_WIDTH : penWidth}
+                    inputMode={inputMode}
+                    registerDraw={d.id === focusId ? (api, canUndo, canRedo) => { drawApi.current = api; setHist({ canUndo, canRedo }) } : undefined}
                   />
                 )}
               </div>
@@ -316,11 +285,23 @@ export function DocViewer({
       </div>
 
       {tool !== "pan" && focused?.kind === "pdf" && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-          <span className="pointer-events-auto rounded-full bg-amber-400 px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-lg">
-            {tool === "pen" ? "Draw on the page with your finger" : tool === "eraser" ? "Swipe over strokes to erase" : "Tap the page to drop a note"}
-          </span>
-        </div>
+        <DrawBar
+          tool={tool}
+          setTool={setTool}
+          penColor={penColor}
+          setPenColor={setPenColor}
+          penWidth={penWidth}
+          setPenWidth={setPenWidth}
+          hlColor={hlColor}
+          setHlColor={setHlColor}
+          inputMode={inputMode}
+          setInputMode={setInputMode}
+          canUndo={hist.canUndo}
+          canRedo={hist.canRedo}
+          onUndo={() => drawApi.current.undo()}
+          onRedo={() => drawApi.current.redo()}
+          onClose={() => setTool("pan")}
+        />
       )}
     </div>
   )
@@ -328,9 +309,98 @@ export function DocViewer({
 
 function DrawToolBtn({ active, onClick, label, children }: { active: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
   return (
-    <button onClick={onClick} aria-label={label} title={label} className={`flex h-8 w-8 items-center justify-center rounded-md ${active ? "bg-amber-400 text-neutral-900" : "text-neutral-200 hover:bg-white/10"}`}>
+    <button onClick={onClick} aria-label={label} title={label} className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors active:scale-95 ${active ? "bg-amber-400 text-neutral-900" : "text-neutral-200 hover:bg-white/10"}`}>
       <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">{children}</svg>
     </button>
+  )
+}
+
+// Floating notepad toolbar: tools, colours/widths, undo/redo, and the palm-
+// rejection (input mode) toggle. Sits over the page like GoodNotes/Samsung Notes.
+function DrawBar({
+  tool, setTool, penColor, setPenColor, penWidth, setPenWidth, hlColor, setHlColor,
+  inputMode, setInputMode, canUndo, canRedo, onUndo, onRedo, onClose,
+}: {
+  tool: Tool; setTool: (t: Tool) => void
+  penColor: string; setPenColor: (c: string) => void
+  penWidth: number; setPenWidth: (w: number) => void
+  hlColor: string; setHlColor: (c: string) => void
+  inputMode: InputMode; setInputMode: (m: InputMode) => void
+  canUndo: boolean; canRedo: boolean
+  onUndo: () => void; onRedo: () => void; onClose: () => void
+}) {
+  const iconBtn = "flex h-9 w-9 items-center justify-center rounded-lg text-neutral-200 transition-colors hover:bg-white/10 disabled:opacity-30"
+  const showColors = tool === "pen" || tool === "highlighter"
+  const swatches = tool === "pen" ? PEN_COLORS : HL_COLORS
+  const activeColor = tool === "pen" ? penColor : hlColor
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-4 z-40 flex justify-center px-2" style={{ marginBottom: "env(safe-area-inset-bottom)" }}>
+      <div className="pointer-events-auto flex max-w-full flex-col items-center gap-1.5 rounded-2xl bg-neutral-900/95 p-1.5 shadow-elevated ring-1 ring-white/10 backdrop-blur-xl">
+        <div className="flex max-w-full items-center gap-1 overflow-x-auto">
+          <div className="flex items-center gap-0.5 rounded-xl bg-white/5 p-1">
+            <DrawToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
+              <path d="M12 20h9" strokeLinecap="round" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
+            </DrawToolBtn>
+            <DrawToolBtn active={tool === "highlighter"} onClick={() => setTool("highlighter")} label="Highlighter">
+              <path d="M4 20h5l9.5-9.5a2 2 0 0 0 0-2.8l-2.2-2.2a2 2 0 0 0-2.8 0L4 15v5Z" strokeLinecap="round" strokeLinejoin="round" /><path d="m13 6 5 5" strokeLinecap="round" />
+            </DrawToolBtn>
+            <DrawToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
+              <path d="M20 20H8.5L3.5 15a2 2 0 0 1 0-2.8l7-7a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L14 20" strokeLinecap="round" strokeLinejoin="round" /><path d="m9 11 4 4" strokeLinecap="round" />
+            </DrawToolBtn>
+            <DrawToolBtn active={tool === "note"} onClick={() => setTool("note")} label="Sticky note">
+              <path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z" /><path d="M15 21v-6a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" />
+            </DrawToolBtn>
+          </div>
+
+          <div className="mx-0.5 h-6 w-px bg-white/10" />
+          <button className={iconBtn} onClick={onUndo} disabled={!canUndo} aria-label="Undo">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 14 4 9l5-5" strokeLinecap="round" strokeLinejoin="round" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+          <button className={iconBtn} onClick={onRedo} disabled={!canRedo} aria-label="Redo">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 14 5-5-5-5" strokeLinecap="round" strokeLinejoin="round" /><path d="M20 9H9a5 5 0 0 0 0 10h3" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          </button>
+
+          <div className="mx-0.5 h-6 w-px bg-white/10" />
+          <button
+            onClick={() => setInputMode(inputMode === "any" ? "pen" : "any")}
+            className="flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 text-xs font-medium text-neutral-200 transition-colors hover:bg-white/10"
+            title="Choose who can draw"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" strokeLinecap="round" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            <span>{inputMode === "pen" ? "Pen only" : "Hand + Pen"}</span>
+          </button>
+          <button onClick={onClose} className="ml-0.5 rounded-lg px-2.5 py-2 text-xs font-medium text-neutral-300 transition-colors hover:bg-white/10">Done</button>
+        </div>
+
+        {showColors && (
+          <div className="flex w-full items-center gap-2 px-1 pb-0.5">
+            <div className="flex items-center gap-1.5">
+              {swatches.map((c) => {
+                const selected = activeColor === c
+                return (
+                  <button
+                    key={c}
+                    onClick={() => (tool === "pen" ? setPenColor(c) : setHlColor(c))}
+                    className={`h-6 w-6 rounded-full transition-transform active:scale-90 ${selected ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-900" : ""}`}
+                    style={{ backgroundColor: c.slice(0, 7) }}
+                    aria-label="Colour"
+                  />
+                )
+              })}
+            </div>
+            {tool === "pen" && (
+              <div className="ml-auto flex items-center gap-1">
+                {PEN_WIDTHS.map((w, i) => (
+                  <button key={w} onClick={() => setPenWidth(w)} className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${penWidth === w ? "bg-white/15" : "hover:bg-white/10"}`} aria-label={["Thin", "Medium", "Thick"][i]}>
+                    <span className="rounded-full bg-white" style={{ width: 4 + i * 4, height: 4 + i * 4 }} />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   )
 }
 
@@ -383,7 +453,7 @@ function ImagePane({ url, zoom, onZoom }: { url: string; zoom: number; onZoom: (
   )
 }
 
-function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { url: string; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; penColor: string; penWidth: number }) {
+function PdfPane({ url, materialId, zoom, onZoom, tool, color, width, inputMode, registerDraw }: { url: string; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; color: string; width: number; inputMode: InputMode; registerDraw?: (api: { undo: () => void; redo: () => void }, canUndo: boolean, canRedo: boolean) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -397,10 +467,14 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
   const [page, setPage] = useState(1)
   const [jumpOpen, setJumpOpen] = useState(false)
   const scrollRaf = useRef(0)
+  // Undo/redo history (this pane's ink). Each op is applied optimistically and
+  // synced to the DB best-effort; re-created strokes get fresh ids.
+  const undoStack = useRef<InkOp[]>([])
+  const redoStack = useRef<InkOp[]>([])
 
-  // Pinch/double-tap zoom only in pan mode -- while a drawing tool is active the
-  // page is a fixed-size canvas so strokes land where you draw them.
-  usePinchZoom(scrollRef, zoom, onZoom, tool === "pan")
+  // Pinch/double-tap zoom stays on in pan mode, and also in pen-only input mode
+  // (where a finger scrolls/zooms while the stylus draws).
+  usePinchZoom(scrollRef, zoom, onZoom, tool === "pan" || inputMode === "pen")
 
   // Live pinch feedback via CSS transform; commit to a crisp re-render when the
   // zoom settles (debounced) so panning also works at the new size.
@@ -437,22 +511,74 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
     listInk(materialId).then(setInk).catch(() => {})
   }, [materialId])
 
-  // Commit a finished pen stroke: optimistic add, then persist (drop it back out
-  // on failure).
-  async function commitStroke(pageNo: number, points: Pt[], color: string, width: number) {
-    const temp: InkStroke = { id: `tmp-${Date.now()}`, material_id: materialId, user_id: "", page: pageNo, color, width, points, created_at: "" }
+  const reportHistory = useCallback(() => {
+    registerDraw?.({ undo, redo }, undoStack.current.length > 0, redoStack.current.length > 0)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [registerDraw])
+
+  // Register this pane's undo/redo with the toolbar whenever it becomes focused.
+  useEffect(() => {
+    reportHistory()
+  }, [reportHistory])
+
+  // Persist a stroke and return the saved row (with its real id) so history can
+  // reference it. Falls back to the optimistic temp on failure.
+  async function persistStroke(s: { page: number; color: string; width: number; points: number[][] }): Promise<InkStroke> {
+    const temp: InkStroke = { id: `tmp-${Date.now()}-${Math.random().toString(36).slice(2)}`, material_id: materialId, user_id: "", page: s.page, color: s.color, width: s.width, points: s.points, created_at: "" }
     setInk((p) => [...p, temp])
     try {
-      const saved = await createInkStroke({ material_id: materialId, page: pageNo, color, width, points })
-      setInk((p) => p.map((s) => (s.id === temp.id ? saved : s)))
+      const saved = await createInkStroke({ material_id: materialId, ...s })
+      setInk((p) => p.map((x) => (x.id === temp.id ? saved : x)))
+      return saved
     } catch {
-      setInk((p) => p.filter((s) => s.id !== temp.id))
+      return temp
     }
   }
 
+  async function commitStroke(pageNo: number, points: Pt[], strokeColor: string, strokeWidth: number) {
+    const saved = await persistStroke({ page: pageNo, color: strokeColor, width: strokeWidth, points })
+    undoStack.current.push({ kind: "add", stroke: saved })
+    redoStack.current = []
+    reportHistory()
+  }
+
   function eraseStrokes(ids: string[]) {
+    const removed = ink.filter((s) => ids.includes(s.id))
+    if (removed.length === 0) return
     setInk((p) => p.filter((s) => !ids.includes(s.id)))
     deleteInkStrokes(ids.filter((id) => !id.startsWith("tmp-"))).catch(() => {})
+    undoStack.current.push({ kind: "erase", strokes: removed })
+    redoStack.current = []
+    reportHistory()
+  }
+
+  async function undo() {
+    const op = undoStack.current.pop()
+    if (!op) return
+    if (op.kind === "add") {
+      setInk((p) => p.filter((s) => s.id !== op.stroke.id))
+      deleteInkStrokes([op.stroke.id].filter((id) => !id.startsWith("tmp-"))).catch(() => {})
+      redoStack.current.push(op)
+    } else {
+      const recreated = await Promise.all(op.strokes.map((s) => persistStroke({ page: s.page, color: s.color, width: s.width, points: s.points })))
+      redoStack.current.push({ kind: "erase", strokes: recreated })
+    }
+    reportHistory()
+  }
+
+  async function redo() {
+    const op = redoStack.current.pop()
+    if (!op) return
+    if (op.kind === "add") {
+      const saved = await persistStroke({ page: op.stroke.page, color: op.stroke.color, width: op.stroke.width, points: op.stroke.points })
+      undoStack.current.push({ kind: "add", stroke: saved })
+    } else {
+      const ids = op.strokes.map((s) => s.id)
+      setInk((p) => p.filter((s) => !ids.includes(s.id)))
+      deleteInkStrokes(ids.filter((id) => !id.startsWith("tmp-"))).catch(() => {})
+      undoStack.current.push(op)
+    }
+    reportHistory()
   }
 
   // Track which page is under the top of the viewport as you scroll (rAF-throttled).
@@ -487,14 +613,14 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
     const container = scrollRef.current
     if (!container) return
     renderedRef.current = renderZoom
-    const width = Math.min(container.clientWidth - 24, 1000) * renderZoom
+    const renderWidth = Math.min(container.clientWidth - 24, 1000) * renderZoom
     let cancelled = false
     ;(async () => {
       for (let n = 1; n <= numPages; n++) {
         const canvas = canvasRefs.current[n - 1]
         if (!canvas || cancelled) continue
         try {
-          await pdfRef.current!.renderPage(n, canvas, width)
+          await pdfRef.current!.renderPage(n, canvas, renderWidth)
         } catch {
           /* skip */
         }
@@ -555,10 +681,11 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { 
             onOpen={setEditing}
             onDragEnd={(id, x, y) => { patchAnno(id, { x, y }); updateAnnotation(id, { x, y }).catch(() => {}) }}
             tool={tool}
-            penColor={penColor}
-            penWidth={penWidth}
+            color={color}
+            width={width}
+            inputMode={inputMode}
             ink={ink.filter((s) => s.page === i + 1)}
-            onInkCommit={(pts, color, width) => commitStroke(i + 1, pts, color, width)}
+            onInkCommit={(pts, c, w) => commitStroke(i + 1, pts, c, w)}
             onInkErase={eraseStrokes}
           >
             <canvas
@@ -612,8 +739,9 @@ function PdfPageWrap({
   onOpen,
   onDragEnd,
   tool,
-  penColor,
-  penWidth,
+  color,
+  width,
+  inputMode,
   ink,
   onInkCommit,
   onInkErase,
@@ -625,8 +753,9 @@ function PdfPageWrap({
   onOpen: (id: string) => void
   onDragEnd: (id: string, x: number, y: number) => void
   tool: Tool
-  penColor: string
-  penWidth: number
+  color: string
+  width: number
+  inputMode: InputMode
   ink: InkStroke[]
   onInkCommit: (points: Pt[], color: string, width: number) => void
   onInkErase: (ids: string[]) => void
@@ -652,7 +781,7 @@ function PdfPageWrap({
       }}
     >
       {children}
-      <InkLayer containerRef={ref} strokes={ink} tool={tool} color={penColor} width={penWidth} onCommit={onInkCommit} onErase={onInkErase} />
+      <InkLayer containerRef={ref} strokes={ink} tool={tool} color={color} width={width} inputMode={inputMode} onCommit={onInkCommit} onErase={onInkErase} />
       {annos.map((a) => (
         <NotePin key={a.id} anno={a} containerRef={ref} onOpen={() => onOpen(a.id)} onDragEnd={(x, y) => onDragEnd(a.id, x, y)} />
       ))}
@@ -662,15 +791,17 @@ function PdfPageWrap({
 
 // Turn fractional input points into a filled stroke outline (perfect-freehand:
 // the same ink engine tldraw uses) so strokes are smooth and velocity-tapered.
-function strokePath(pts: Pt[], W: number, H: number, sizePx: number, last: boolean): Path2D {
+// Highlighters render flat (no thinning, blunt ends) like a real marker.
+function strokePath(pts: Pt[], W: number, H: number, sizePx: number, last: boolean, flat: boolean): Path2D {
   const input = pts.map((p) => [p[0] * W, p[1] * H])
   const outline = getStroke(input, {
     size: sizePx,
-    thinning: 0.6,
+    thinning: flat ? 0 : 0.6,
     smoothing: 0.62,
     streamline: 0.5,
-    simulatePressure: true,
+    simulatePressure: !flat,
     last,
+    ...(flat ? { start: { cap: true }, end: { cap: true } } : {}),
   })
   const path = new Path2D()
   if (outline.length === 0) return path
@@ -690,6 +821,7 @@ function InkLayer({
   tool,
   color,
   width,
+  inputMode,
   onCommit,
   onErase,
 }: {
@@ -698,6 +830,7 @@ function InkLayer({
   tool: Tool
   color: string
   width: number
+  inputMode: InputMode
   onCommit: (points: Pt[], color: string, width: number) => void
   onErase: (ids: string[]) => void
 }) {
@@ -709,7 +842,7 @@ function InkLayer({
   const raf = useRef(0)
   const strokesRef = useRef(strokes)
   strokesRef.current = strokes
-  const active = tool === "pen" || tool === "eraser"
+  const active = tool === "pen" || tool === "highlighter" || tool === "eraser"
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
 
   const paintBase = useCallback(() => {
@@ -721,7 +854,7 @@ function InkLayer({
     const H = cv.height
     for (const s of strokesRef.current) {
       ctx.fillStyle = s.color
-      ctx.fill(strokePath(s.points as Pt[], W, H, s.width * W, true))
+      ctx.fill(strokePath(s.points as Pt[], W, H, s.width * W, true, isHighlighter(s.color)))
     }
   }, [])
 
@@ -733,8 +866,8 @@ function InkLayer({
     ctx.clearRect(0, 0, cv.width, cv.height)
     if (cur.current.length === 0) return
     ctx.fillStyle = color
-    ctx.fill(strokePath(cur.current, cv.width, cv.height, width * cv.width, false))
-  }, [color, width])
+    ctx.fill(strokePath(cur.current, cv.width, cv.height, width * cv.width, false, tool === "highlighter"))
+  }, [color, width, tool])
 
   const scheduleLive = useCallback(() => {
     if (!raf.current) raf.current = requestAnimationFrame(paintLive)
@@ -782,6 +915,9 @@ function InkLayer({
 
   function onPointerDown(e: React.PointerEvent) {
     if (!active || activePointer.current !== null) return
+    // Pen-only (palm rejection): ignore finger/mouse so it scrolls the page
+    // instead, leaving the stylus to draw.
+    if (inputMode === "pen" && e.pointerType !== "pen") return
     e.preventDefault()
     activePointer.current = e.pointerId
     ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
@@ -812,7 +948,7 @@ function InkLayer({
     if (e.pointerId !== activePointer.current) return
     activePointer.current = null
     if (raf.current) { cancelAnimationFrame(raf.current); raf.current = 0 }
-    if (tool === "pen" && cur.current.length > 0) {
+    if ((tool === "pen" || tool === "highlighter") && cur.current.length > 0) {
       onCommit(cur.current, color, width)
       cur.current = []
     }
@@ -820,6 +956,10 @@ function InkLayer({
     const cv = liveRef.current
     cv?.getContext("2d")?.clearRect(0, 0, cv.width, cv.height)
   }
+
+  // In pen-only mode the canvas still lets finger touches through (pan-y) so a
+  // finger scrolls while the stylus draws.
+  const touchAction = !active ? "auto" : inputMode === "pen" ? "pan-x pan-y" : "none"
 
   return (
     <>
@@ -831,7 +971,7 @@ function InkLayer({
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
         className="absolute inset-0 h-full w-full"
-        style={{ pointerEvents: active ? "auto" : "none", touchAction: active ? "none" : "auto", cursor: tool === "eraser" ? "cell" : "crosshair" }}
+        style={{ pointerEvents: active ? "auto" : "none", touchAction, cursor: tool === "eraser" ? "cell" : "crosshair" }}
       />
     </>
   )
