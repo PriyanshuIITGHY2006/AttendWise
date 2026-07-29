@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import type { FileKind } from "./fileKind"
 import type { LoadedPdf } from "./renderPdf"
-import { listAnnotations, createAnnotation, updateAnnotation, deleteAnnotation, type PdfAnnotation } from "./api"
+import {
+  listAnnotations, createAnnotation, updateAnnotation, deleteAnnotation, type PdfAnnotation,
+  listInk, createInkStroke, deleteInkStrokes, type InkStroke,
+} from "./api"
 
 export type OpenDoc = {
   id: string
@@ -13,6 +16,13 @@ export type OpenDoc = {
 
 const clampZoom = (z: number) => Math.min(5, Math.max(0.4, z))
 const NOTE_COLORS = ["#fde047", "#fca5a5", "#86efac", "#93c5fd", "#f0abfc"]
+
+// Pen palette + widths (widths are fractions of page width, so a stroke keeps
+// the same visual thickness at any zoom).
+type Tool = "pan" | "pen" | "eraser" | "note"
+const PEN_COLORS = ["#ef4444", "#2563eb", "#111827", "#16a34a", "#eab308"]
+const PEN_WIDTHS = [0.0022, 0.0042, 0.0075]
+type Pt = [number, number]
 
 // Non-passive two-finger pinch + ctrl/⌘-wheel zoom, plus double-tap to toggle
 // zoom, on an element. `enableDoubleTap` is off in annotate mode so quick taps
@@ -110,7 +120,9 @@ export function DocViewer({
   const [split, setSplit] = useState(false)
   const [laneBId, setLaneBId] = useState<string | null>(null)
   const [focusedId, setFocusedId] = useState<string | null>(null)
-  const [annotate, setAnnotate] = useState(false)
+  const [tool, setTool] = useState<Tool>("pan")
+  const [penColor, setPenColor] = useState(PEN_COLORS[0])
+  const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1])
 
   const active = docs.find((d) => d.id === activeId) ?? docs[0]
 
@@ -168,8 +180,13 @@ export function DocViewer({
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
         </button>
         {focused?.kind === "pdf" && (
-          <button onClick={() => setAnnotate((v) => !v)} className={`${iconBtn} ${annotate ? "bg-amber-400 text-neutral-900" : "hover:bg-white/10"}`} aria-label="Sticky notes" title="Tap the page to drop a sticky note">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z" /><path d="M15 21v-6a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+          <button
+            onClick={() => setTool((t) => (t === "pan" ? "pen" : "pan"))}
+            className={`${iconBtn} ${tool !== "pan" ? "bg-amber-400 text-neutral-900" : "hover:bg-white/10"}`}
+            aria-label="Draw & annotate"
+            title="Draw, erase, sticky notes"
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" strokeLinecap="round" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         )}
         <button onClick={() => { setSplit((v) => !v); setFocusedId(activeId) }} disabled={docs.length < 2} className={`${iconBtn} disabled:opacity-30 ${split ? "bg-white/15 text-white" : "hover:bg-white/10"}`} aria-label="Split view" title="Split view">
@@ -198,6 +215,53 @@ export function DocViewer({
           )
         })}
       </div>
+
+      {/* drawing sub-toolbar */}
+      {tool !== "pan" && focused?.kind === "pdf" && (
+        <div className="flex items-center gap-2 overflow-x-auto px-2 pb-2">
+          <div className="flex shrink-0 items-center gap-1 rounded-lg bg-white/5 p-1">
+            <DrawToolBtn active={tool === "pen"} onClick={() => setTool("pen")} label="Pen">
+              <path d="M12 20h9" strokeLinecap="round" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" />
+            </DrawToolBtn>
+            <DrawToolBtn active={tool === "eraser"} onClick={() => setTool("eraser")} label="Eraser">
+              <path d="M20 20H8.5L3.5 15a2 2 0 0 1 0-2.8l7-7a2 2 0 0 1 2.8 0l5 5a2 2 0 0 1 0 2.8L14 20" strokeLinecap="round" strokeLinejoin="round" /><path d="m9 11 4 4" strokeLinecap="round" />
+            </DrawToolBtn>
+            <DrawToolBtn active={tool === "note"} onClick={() => setTool("note")} label="Sticky note">
+              <path d="M15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9l7-7V5a2 2 0 0 0-2-2Z" /><path d="M15 21v-6a1 1 0 0 1 1-1h5" strokeLinecap="round" strokeLinejoin="round" />
+            </DrawToolBtn>
+          </div>
+
+          {tool === "pen" && (
+            <>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {PEN_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => setPenColor(c)}
+                    className={`h-6 w-6 rounded-full ${penColor === c ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-950" : ""}`}
+                    style={{ backgroundColor: c }}
+                    aria-label="Pen colour"
+                  />
+                ))}
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5">
+                {PEN_WIDTHS.map((w, i) => (
+                  <button
+                    key={w}
+                    onClick={() => setPenWidth(w)}
+                    className={`flex h-7 w-7 items-center justify-center rounded-lg ${penWidth === w ? "bg-white/15" : "hover:bg-white/10"}`}
+                    aria-label={["Thin", "Medium", "Thick"][i]}
+                  >
+                    <span className="rounded-full bg-white" style={{ width: 4 + i * 4, height: 4 + i * 4 }} />
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+          <div className="min-w-0 flex-1" />
+          <button onClick={() => setTool("pan")} className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium text-neutral-300 hover:bg-white/10">Done</button>
+        </div>
+      )}
 
       {/* content + notes */}
       <div className="flex min-h-0 flex-1 flex-col sm:flex-row">
@@ -229,7 +293,16 @@ export function DocViewer({
                 {d.kind === "image" ? (
                   <ImagePane url={d.url} zoom={zoomOf(d.id)} onZoom={(z) => setZoom(d.id, z)} />
                 ) : (
-                  <PdfPane key={d.id} url={d.url} materialId={d.id} zoom={zoomOf(d.id)} onZoom={(z) => setZoom(d.id, z)} annotate={annotate && d.id === focusId} />
+                  <PdfPane
+                    key={d.id}
+                    url={d.url}
+                    materialId={d.id}
+                    zoom={zoomOf(d.id)}
+                    onZoom={(z) => setZoom(d.id, z)}
+                    tool={d.id === focusId ? tool : "pan"}
+                    penColor={penColor}
+                    penWidth={penWidth}
+                  />
                 )}
               </div>
             </div>
@@ -241,12 +314,22 @@ export function DocViewer({
         )}
       </div>
 
-      {annotate && focused?.kind === "pdf" && (
+      {tool !== "pan" && focused?.kind === "pdf" && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
-          <span className="pointer-events-auto rounded-full bg-amber-400 px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-lg">Tap the page to drop a note</span>
+          <span className="pointer-events-auto rounded-full bg-amber-400 px-3 py-1.5 text-xs font-medium text-neutral-900 shadow-lg">
+            {tool === "pen" ? "Draw on the page with your finger" : tool === "eraser" ? "Swipe over strokes to erase" : "Tap the page to drop a note"}
+          </span>
         </div>
       )}
     </div>
+  )
+}
+
+function DrawToolBtn({ active, onClick, label, children }: { active: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
+  return (
+    <button onClick={onClick} aria-label={label} title={label} className={`flex h-8 w-8 items-center justify-center rounded-md ${active ? "bg-amber-400 text-neutral-900" : "text-neutral-200 hover:bg-white/10"}`}>
+      <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">{children}</svg>
+    </button>
   )
 }
 
@@ -299,7 +382,7 @@ function ImagePane({ url, zoom, onZoom }: { url: string; zoom: number; onZoom: (
   )
 }
 
-function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; materialId: string; zoom: number; onZoom: (z: number) => void; annotate: boolean }) {
+function PdfPane({ url, materialId, zoom, onZoom, tool, penColor, penWidth }: { url: string; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; penColor: string; penWidth: number }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -309,8 +392,11 @@ function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; mat
   const renderedRef = useRef<number | null>(null)
   const [annos, setAnnos] = useState<PdfAnnotation[]>([])
   const [editing, setEditing] = useState<string | null>(null)
+  const [ink, setInk] = useState<InkStroke[]>([])
 
-  usePinchZoom(scrollRef, zoom, onZoom, !annotate)
+  // Pinch/double-tap zoom only in pan mode -- while a drawing tool is active the
+  // page is a fixed-size canvas so strokes land where you draw them.
+  usePinchZoom(scrollRef, zoom, onZoom, tool === "pan")
 
   // Live pinch feedback via CSS transform; commit to a crisp re-render when the
   // zoom settles (debounced) so panning also works at the new size.
@@ -344,7 +430,26 @@ function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; mat
 
   useEffect(() => {
     listAnnotations(materialId).then(setAnnos).catch(() => {})
+    listInk(materialId).then(setInk).catch(() => {})
   }, [materialId])
+
+  // Commit a finished pen stroke: optimistic add, then persist (drop it back out
+  // on failure).
+  async function commitStroke(page: number, points: Pt[], color: string, width: number) {
+    const temp: InkStroke = { id: `tmp-${Date.now()}`, material_id: materialId, user_id: "", page, color, width, points, created_at: "" }
+    setInk((p) => [...p, temp])
+    try {
+      const saved = await createInkStroke({ material_id: materialId, page, color, width, points })
+      setInk((p) => p.map((s) => (s.id === temp.id ? saved : s)))
+    } catch {
+      setInk((p) => p.filter((s) => s.id !== temp.id))
+    }
+  }
+
+  function eraseStrokes(ids: string[]) {
+    setInk((p) => p.filter((s) => !ids.includes(s.id)))
+    deleteInkStrokes(ids.filter((id) => !id.startsWith("tmp-"))).catch(() => {})
+  }
 
   useEffect(() => {
     if (status !== "ready" || !pdfRef.current) return
@@ -413,11 +518,17 @@ function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; mat
         {Array.from({ length: numPages }, (_, i) => (
           <PdfPageWrap
             key={i}
-            annotate={annotate}
+            annotate={tool === "note"}
             annos={annos.filter((a) => a.page === i + 1)}
             onPlace={(x, y) => placeNote(i + 1, x, y)}
             onOpen={setEditing}
             onDragEnd={(id, x, y) => { patchAnno(id, { x, y }); updateAnnotation(id, { x, y }).catch(() => {}) }}
+            tool={tool}
+            penColor={penColor}
+            penWidth={penWidth}
+            ink={ink.filter((s) => s.page === i + 1)}
+            onInkCommit={(pts, color, width) => commitStroke(i + 1, pts, color, width)}
+            onInkErase={eraseStrokes}
           >
             <canvas
               ref={(el) => { canvasRefs.current[i] = el }}
@@ -445,6 +556,12 @@ function PdfPageWrap({
   onPlace,
   onOpen,
   onDragEnd,
+  tool,
+  penColor,
+  penWidth,
+  ink,
+  onInkCommit,
+  onInkErase,
   children,
 }: {
   annotate: boolean
@@ -452,6 +569,12 @@ function PdfPageWrap({
   onPlace: (x: number, y: number) => void
   onOpen: (id: string) => void
   onDragEnd: (id: string, x: number, y: number) => void
+  tool: Tool
+  penColor: string
+  penWidth: number
+  ink: InkStroke[]
+  onInkCommit: (points: Pt[], color: string, width: number) => void
+  onInkErase: (ids: string[]) => void
   children: React.ReactNode
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -474,10 +597,175 @@ function PdfPageWrap({
       }}
     >
       {children}
+      <InkLayer containerRef={ref} strokes={ink} tool={tool} color={penColor} width={penWidth} onCommit={onInkCommit} onErase={onInkErase} />
       {annos.map((a) => (
         <NotePin key={a.id} anno={a} containerRef={ref} onOpen={() => onOpen(a.id)} onDragEnd={(x, y) => onDragEnd(a.id, x, y)} />
       ))}
     </div>
+  )
+}
+
+// Draws a smooth quadratic path through fractional points onto a canvas context.
+function drawPath(ctx: CanvasRenderingContext2D, pts: Pt[], color: string, lineWidth: number, W: number, H: number) {
+  if (pts.length === 0) return
+  ctx.strokeStyle = color
+  ctx.lineWidth = lineWidth
+  ctx.lineJoin = "round"
+  ctx.lineCap = "round"
+  ctx.beginPath()
+  ctx.moveTo(pts[0][0] * W, pts[0][1] * H)
+  if (pts.length === 1) {
+    ctx.lineTo(pts[0][0] * W + 0.1, pts[0][1] * H)
+  } else {
+    for (let i = 1; i < pts.length - 1; i++) {
+      const x = pts[i][0] * W
+      const y = pts[i][1] * H
+      const nx = pts[i + 1][0] * W
+      const ny = pts[i + 1][1] * H
+      ctx.quadraticCurveTo(x, y, (x + nx) / 2, (y + ny) / 2)
+    }
+    const last = pts[pts.length - 1]
+    ctx.lineTo(last[0] * W, last[1] * H)
+  }
+  ctx.stroke()
+}
+
+// A transparent canvas over one PDF page. Renders saved pen strokes and handles
+// live drawing / erasing. Fractional coords keep everything aligned at any zoom.
+function InkLayer({
+  containerRef,
+  strokes,
+  tool,
+  color,
+  width,
+  onCommit,
+  onErase,
+}: {
+  containerRef: React.RefObject<HTMLDivElement | null>
+  strokes: InkStroke[]
+  tool: Tool
+  color: string
+  width: number
+  onCommit: (points: Pt[], color: string, width: number) => void
+  onErase: (ids: string[]) => void
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const size = useRef({ w: 0, h: 0 })
+  const drawing = useRef(false)
+  const cur = useRef<Pt[]>([])
+  const activePointer = useRef<number | null>(null)
+  const strokesRef = useRef(strokes)
+  strokesRef.current = strokes
+  const active = tool === "pen" || tool === "eraser"
+  const dpr = Math.min(window.devicePixelRatio || 1, 2)
+
+  const redraw = useCallback(() => {
+    const cv = canvasRef.current
+    const ctx = cv?.getContext("2d")
+    if (!cv || !ctx) return
+    ctx.clearRect(0, 0, cv.width, cv.height)
+    const W = cv.width
+    const H = cv.height
+    for (const s of strokesRef.current) drawPath(ctx, s.points, s.color, s.width * W, W, H)
+  }, [])
+
+  // Keep the bitmap matched to the page's layout size (unaffected by the live
+  // pinch transform), redrawing on any resize.
+  useEffect(() => {
+    const el = containerRef.current
+    const cv = canvasRef.current
+    if (!el || !cv) return
+    const apply = () => {
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      if (w === 0 || h === 0) return
+      size.current = { w, h }
+      cv.width = Math.round(w * dpr)
+      cv.height = Math.round(h * dpr)
+      redraw()
+    }
+    apply()
+    const ro = new ResizeObserver(apply)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [containerRef, dpr, redraw])
+
+  useEffect(() => {
+    redraw()
+  }, [strokes, redraw])
+
+  function toFrac(e: React.PointerEvent): Pt {
+    const r = containerRef.current!.getBoundingClientRect()
+    return [Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), Math.min(1, Math.max(0, (e.clientY - r.top) / r.height))]
+  }
+
+  function eraseAt(p: Pt) {
+    const hit: string[] = []
+    for (const s of strokesRef.current) {
+      if (s.points.some(([x, y]) => Math.hypot(x - p[0], y - p[1]) < 0.02)) hit.push(s.id)
+    }
+    if (hit.length) onErase(hit)
+  }
+
+  function onPointerDown(e: React.PointerEvent) {
+    if (!active || activePointer.current !== null) return
+    e.preventDefault()
+    activePointer.current = e.pointerId
+    ;(e.currentTarget as HTMLElement).setPointerCapture(e.pointerId)
+    drawing.current = true
+    const p = toFrac(e)
+    if (tool === "eraser") {
+      eraseAt(p)
+      return
+    }
+    cur.current = [p]
+    const cv = canvasRef.current!
+    const ctx = cv.getContext("2d")!
+    drawPath(ctx, cur.current, color, width * cv.width, cv.width, cv.height)
+  }
+
+  function onPointerMove(e: React.PointerEvent) {
+    if (!drawing.current || e.pointerId !== activePointer.current) return
+    e.preventDefault()
+    const p = toFrac(e)
+    if (tool === "eraser") {
+      eraseAt(p)
+      return
+    }
+    const prev = cur.current[cur.current.length - 1]
+    cur.current.push(p)
+    const cv = canvasRef.current!
+    const ctx = cv.getContext("2d")!
+    ctx.strokeStyle = color
+    ctx.lineWidth = width * cv.width
+    ctx.lineJoin = "round"
+    ctx.lineCap = "round"
+    ctx.beginPath()
+    ctx.moveTo(prev[0] * cv.width, prev[1] * cv.height)
+    ctx.lineTo(p[0] * cv.width, p[1] * cv.height)
+    ctx.stroke()
+  }
+
+  function onPointerUp(e: React.PointerEvent) {
+    if (e.pointerId !== activePointer.current) return
+    activePointer.current = null
+    drawing.current = false
+    if (tool === "pen" && cur.current.length > 0) {
+      onCommit(cur.current, color, width)
+      cur.current = []
+    }
+  }
+
+  return (
+    <canvas
+      ref={canvasRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      className="absolute inset-0 h-full w-full"
+      style={{ pointerEvents: active ? "auto" : "none", touchAction: active ? "none" : "auto", cursor: tool === "eraser" ? "cell" : "crosshair" }}
+    />
   )
 }
 

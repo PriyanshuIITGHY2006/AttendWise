@@ -159,6 +159,34 @@ export async function deleteAnnotation(id: string) {
   if (error) throw error
 }
 
+export type InkStroke = Tables<"pdf_ink">
+
+// Freehand pen strokes on a PDF. Points are fractional (0..1) page coordinates
+// so they track the page at any zoom. Personal to the account (RLS).
+export async function listInk(materialId: string): Promise<InkStroke[]> {
+  const { data, error } = await supabase.from("pdf_ink").select("*").eq("material_id", materialId)
+  if (error) throw error
+  return data
+}
+
+export async function createInkStroke(s: {
+  material_id: string
+  page: number
+  color: string
+  width: number
+  points: [number, number][]
+}): Promise<InkStroke> {
+  const { data, error } = await supabase.from("pdf_ink").insert(s).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteInkStrokes(ids: string[]) {
+  if (ids.length === 0) return
+  const { error } = await supabase.from("pdf_ink").delete().in("id", ids)
+  if (error) throw error
+}
+
 export async function deleteMaterial(material: Material) {
   if (material.file_path) {
     // Storage removal only succeeds for your own uploads (folder = your uid); on
