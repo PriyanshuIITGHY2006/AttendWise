@@ -14,20 +14,32 @@ export type OpenDoc = {
 const clampZoom = (z: number) => Math.min(5, Math.max(0.4, z))
 const NOTE_COLORS = ["#fde047", "#fca5a5", "#86efac", "#93c5fd", "#f0abfc"]
 
-// Non-passive two-finger pinch + ctrl/⌘-wheel zoom on an element.
-function usePinchZoom(ref: React.RefObject<HTMLElement | null>, zoom: number, onZoom: (z: number) => void) {
+// Non-passive two-finger pinch + ctrl/⌘-wheel zoom, plus double-tap to toggle
+// zoom, on an element. `enableDoubleTap` is off in annotate mode so quick taps
+// there place notes instead of zooming.
+function usePinchZoom(
+  ref: React.RefObject<HTMLElement | null>,
+  zoom: number,
+  onZoom: (z: number) => void,
+  enableDoubleTap = true,
+) {
   const zoomRef = useRef(zoom)
   zoomRef.current = zoom
+  const dtRef = useRef(enableDoubleTap)
+  dtRef.current = enableDoubleTap
   useEffect(() => {
     const el = ref.current
     if (!el) return
     let startDist = 0
     let startZoom = 1
+    let lastTap = 0
+    let pinched = false
     const dist = (t: TouchList) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY)
     const onStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
         startDist = dist(e.touches)
         startZoom = zoomRef.current
+        pinched = true
       }
     }
     const onMove = (e: TouchEvent) => {
@@ -38,6 +50,22 @@ function usePinchZoom(ref: React.RefObject<HTMLElement | null>, zoom: number, on
     }
     const onEnd = (e: TouchEvent) => {
       if (e.touches.length < 2) startDist = 0
+      // Double-tap toggles between fit (1x) and 2.2x, but not right after a
+      // pinch and not while placing notes.
+      if (e.touches.length === 0 && e.changedTouches.length === 1) {
+        if (pinched) {
+          pinched = false
+          lastTap = 0
+          return
+        }
+        const now = Date.now()
+        if (dtRef.current && now - lastTap < 300) {
+          onZoom(zoomRef.current > 1.15 ? 1 : 2.2)
+          lastTap = 0
+        } else {
+          lastTap = now
+        }
+      }
     }
     const onWheel = (e: WheelEvent) => {
       if (e.ctrlKey || e.metaKey) {
@@ -127,6 +155,14 @@ export function DocViewer({
         <div className="min-w-0 flex-1" />
         <button onClick={() => setZoom(focusId, zoomOf(focusId) * 0.8)} className={`${iconBtn} hover:bg-white/10`} aria-label="Zoom out">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M5 12h14" strokeLinecap="round" /></svg>
+        </button>
+        <button
+          onClick={() => setZoom(focusId, 1)}
+          className="h-9 shrink-0 rounded-lg px-1.5 text-xs font-medium tabular-nums text-neutral-300 hover:bg-white/10"
+          aria-label="Reset zoom to 100%"
+          title="Reset zoom"
+        >
+          {Math.round(zoomOf(focusId) * 100)}%
         </button>
         <button onClick={() => setZoom(focusId, zoomOf(focusId) * 1.25)} className={`${iconBtn} hover:bg-white/10`} aria-label="Zoom in">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
@@ -274,7 +310,7 @@ function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; mat
   const [annos, setAnnos] = useState<PdfAnnotation[]>([])
   const [editing, setEditing] = useState<string | null>(null)
 
-  usePinchZoom(scrollRef, zoom, onZoom)
+  usePinchZoom(scrollRef, zoom, onZoom, !annotate)
 
   // Live pinch feedback via CSS transform; commit to a crisp re-render when the
   // zoom settles (debounced) so panning also works at the new size.
@@ -369,7 +405,11 @@ function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; mat
       {status === "loading" && (
         <div className="flex h-full items-center justify-center"><Spinner /></div>
       )}
-      <div className="mx-auto flex w-fit flex-col items-center gap-3" style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
+      {/* w-max (not w-fit): the pages keep their true width and the container
+          scrolls when zoomed in, instead of fit-content squashing them to the
+          pane width. The canvas carries explicit style width/height from the
+          renderer, so no max-width clamp here (that was distorting the aspect). */}
+      <div className="mx-auto flex w-max flex-col items-center gap-3" style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
         {Array.from({ length: numPages }, (_, i) => (
           <PdfPageWrap
             key={i}
@@ -381,7 +421,7 @@ function PdfPane({ url, materialId, zoom, onZoom, annotate }: { url: string; mat
           >
             <canvas
               ref={(el) => { canvasRefs.current[i] = el }}
-              className="block max-w-full rounded bg-white shadow-lg"
+              className="block rounded bg-white shadow-lg"
             />
           </PdfPageWrap>
         ))}
