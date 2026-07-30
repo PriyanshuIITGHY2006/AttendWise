@@ -103,11 +103,12 @@ export function Materials() {
   const starredCount = useMemo(() => materials.filter((m) => m.starred).length, [materials])
   const recentCount = useMemo(() => materials.filter((m) => m.last_opened_at).length, [materials])
 
-  // Level 1: course folders (courses with at least one material), with counts.
+  // Level 1: a folder for every course, shown by default (even before any file
+  // is uploaded). Course folders are permanent -- they can't be deleted here.
   const folders = useMemo(() => {
     const counts = new Map<string, number>()
     for (const m of materials) counts.set(m.course_id, (counts.get(m.course_id) ?? 0) + 1)
-    return courses.filter((c) => counts.has(c.id)).map((c) => ({ course: c, count: counts.get(c.id) ?? 0 }))
+    return courses.map((c) => ({ course: c, count: counts.get(c.id) ?? 0 }))
   }, [courses, materials])
 
   // Level 2: the four category folders inside the open course, always shown.
