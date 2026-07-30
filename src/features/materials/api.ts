@@ -101,7 +101,39 @@ export async function createMaterial(material: TablesInsert<"materials">) {
 }
 
 export async function moveMaterial(id: string, category: string) {
-  const { error } = await supabase.from("materials").update({ category }).eq("id", id)
+  // Moving to a default category also clears any custom-folder membership.
+  const { error } = await supabase.from("materials").update({ category, folder_id: null }).eq("id", id)
+  if (error) throw error
+}
+
+export type MaterialFolder = Tables<"material_folders">
+
+export async function listFolders(): Promise<MaterialFolder[]> {
+  const { data, error } = await supabase.from("material_folders").select("*").order("name", { ascending: true })
+  if (error) throw error
+  return data
+}
+
+export async function createFolder(courseId: string, name: string): Promise<MaterialFolder> {
+  const { data, error } = await supabase.from("material_folders").insert({ course_id: courseId, name: name.trim() }).select().single()
+  if (error) throw error
+  return data
+}
+
+export async function renameFolder(id: string, name: string) {
+  const { error } = await supabase.from("material_folders").update({ name: name.trim() }).eq("id", id)
+  if (error) throw error
+}
+
+export async function deleteFolder(id: string) {
+  // Files inside fall back to their category (folder_id -> null via FK on delete).
+  const { error } = await supabase.from("material_folders").delete().eq("id", id)
+  if (error) throw error
+}
+
+// Move a material into a custom folder (or back out with folderId = null).
+export async function setMaterialFolder(id: string, folderId: string | null) {
+  const { error } = await supabase.from("materials").update({ folder_id: folderId }).eq("id", id)
   if (error) throw error
 }
 

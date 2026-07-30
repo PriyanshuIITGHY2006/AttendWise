@@ -359,6 +359,7 @@ export type Database = {
           created_at: string
           external_link: string | null
           file_path: string | null
+          folder_id: string | null
           id: string
           last_opened_at: string | null
           linked_session_id: string | null
@@ -374,6 +375,7 @@ export type Database = {
           created_at?: string
           external_link?: string | null
           file_path?: string | null
+          folder_id?: string | null
           id?: string
           last_opened_at?: string | null
           linked_session_id?: string | null
@@ -389,6 +391,7 @@ export type Database = {
           created_at?: string
           external_link?: string | null
           file_path?: string | null
+          folder_id?: string | null
           id?: string
           last_opened_at?: string | null
           linked_session_id?: string | null
@@ -458,6 +461,30 @@ export type Database = {
           color?: string
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      material_folders: {
+        Row: {
+          id: string
+          user_id: string
+          course_id: string
+          name: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string
+          course_id: string
+          name: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          course_id?: string
+          name?: string
+          created_at?: string
         }
         Relationships: []
       }
