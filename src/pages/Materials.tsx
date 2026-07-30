@@ -16,6 +16,7 @@ import {
   type Material,
 } from "../features/materials/api"
 import { fileKind, isViewable, displayName, kindMeta, type FileKind } from "../features/materials/fileKind"
+import { driveFileId, drivePdfSource } from "../features/materials/drive"
 import { maybeCompressImage, formatBytes } from "../features/materials/compressImage"
 import { DocViewer, type OpenDoc } from "../features/materials/DocViewer"
 
@@ -172,6 +173,23 @@ export function Materials() {
   const openEntry = useCallback(
     async (entry: Entry) => {
       if (entry.isLink && entry.material.external_link) {
+        // A shared Google Drive PDF opens in our own viewer (proxied so pdf.js
+        // can fetch it) with full annotation support; anything else opens out.
+        const fid = driveFileId(entry.material.external_link)
+        if (fid) {
+          touchMaterialOpened(entry.material.id)
+          const nowIso = new Date().toISOString()
+          setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, last_opened_at: nowIso } : m)))
+          const { url, httpHeaders } = drivePdfSource(fid)
+          setOpenDocs((prev) => {
+            if (prev.some((d) => d.id === entry.material.id)) return prev
+            const doc: OpenDoc = { id: entry.material.id, name: entry.name, kind: "pdf", url, notes: entry.material.notes ?? "", httpHeaders, drive: true }
+            return [...prev, doc]
+          })
+          setActiveDocId(entry.material.id)
+          setViewerVisible(true)
+          return
+        }
         window.open(entry.material.external_link, "_blank", "noopener,noreferrer")
         return
       }
@@ -919,6 +937,7 @@ function AddModal({
           <div>
             <Label htmlFor="m-link">Or external link</Label>
             <Input id="m-link" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://drive.google.com/…" />
+            <p className="mt-1 text-xs text-neutral-500">A Google Drive PDF shared as “Anyone with the link” opens right here — with annotations.</p>
           </div>
           {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
           <Button type="submit" disabled={submitting} className="w-full">

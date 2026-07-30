@@ -16,8 +16,8 @@ export type LoadedPdf = {
   destroy: () => void
 }
 
-export async function loadPdf(url: string): Promise<LoadedPdf> {
-  const loadingTask = pdfjsLib.getDocument({ url })
+export async function loadPdf(url: string, httpHeaders?: Record<string, string>): Promise<LoadedPdf> {
+  const loadingTask = pdfjsLib.getDocument({ url, httpHeaders, withCredentials: false })
   const doc = await loadingTask.promise
   return {
     numPages: doc.numPages,
