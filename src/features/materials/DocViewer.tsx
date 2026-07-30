@@ -13,6 +13,10 @@ export type OpenDoc = {
   kind: FileKind // "image" | "pdf"
   url: string
   notes: string
+  // Set for proxied Google Drive PDFs: extra fetch headers, and a flag so a
+  // load failure can suggest the file needs public sharing.
+  httpHeaders?: Record<string, string>
+  drive?: boolean
 }
 
 const clampZoom = (z: number) => Math.min(5, Math.max(0.4, z))
@@ -291,6 +295,8 @@ export function DocViewer({
                   <PdfPane
                     key={d.id}
                     url={d.url}
+                    httpHeaders={d.httpHeaders}
+                    drive={d.drive}
                     materialId={d.id}
                     zoom={zoomOf(d.id)}
                     onZoom={(z) => setZoom(d.id, z)}
@@ -480,7 +486,7 @@ function ImagePane({ url, zoom, onZoom }: { url: string; zoom: number; onZoom: (
   )
 }
 
-function PdfPane({ url, materialId, zoom, onZoom, tool, color, width, inputMode, registerDraw }: { url: string; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; color: string; width: number; inputMode: InputMode; registerDraw?: (api: { undo: () => void; redo: () => void }, canUndo: boolean, canRedo: boolean) => void }) {
+function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, color, width, inputMode, registerDraw }: { url: string; httpHeaders?: Record<string, string>; drive?: boolean; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; color: string; width: number; inputMode: InputMode; registerDraw?: (api: { undo: () => void; redo: () => void }, canUndo: boolean, canRedo: boolean) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -516,7 +522,7 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, color, width, inputMode,
     ;(async () => {
       try {
         const { loadPdf } = await import("./renderPdf")
-        const pdf = await loadPdf(url)
+        const pdf = await loadPdf(url, httpHeaders)
         if (cancelled) return pdf.destroy()
         pdfRef.current = pdf
         setNumPages(pdf.numPages)
@@ -681,7 +687,11 @@ function PdfPane({ url, materialId, zoom, onZoom, tool, color, width, inputMode,
   if (status === "error") {
     return (
       <div className="flex h-full items-center justify-center px-6 text-center">
-        <p className="text-sm text-neutral-400">Couldn't open this PDF. Try downloading it instead.</p>
+        <p className="max-w-xs text-sm text-neutral-400">
+          {drive
+            ? "Couldn't open this Drive file. Make sure it's shared as “Anyone with the link” — private files can't be shown."
+            : "Couldn't open this PDF. Try downloading it instead."}
+        </p>
       </div>
     )
   }
