@@ -493,7 +493,10 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   const pdfRef = useRef<LoadedPdf | null>(null)
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
   const [renderZoom, setRenderZoom] = useState(zoom)
-  const renderedRef = useRef<number | null>(null)
+  // Which page:zoom pairs have been drawn (lazy rendering), and the first page's
+  // aspect ratio for sizing not-yet-rendered placeholders.
+  const renderedRef = useRef<Set<string>>(new Set())
+  const aspectRef = useRef(1.414)
   const [annos, setAnnos] = useState<PdfAnnotation[]>([])
   const [editing, setEditing] = useState<string | null>(null)
   const [ink, setInk] = useState<InkStroke[]>([])
@@ -525,6 +528,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
         const pdf = await loadPdf(url, httpHeaders)
         if (cancelled) return pdf.destroy()
         pdfRef.current = pdf
+        aspectRef.current = pdf.firstPageAspect || 1.414
         setNumPages(pdf.numPages)
         setStatus("ready")
       } catch {
@@ -535,7 +539,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
       cancelled = true
       pdfRef.current?.destroy()
       pdfRef.current = null
-      renderedRef.current = null
+      renderedRef.current = new Set()
     }
   }, [url])
 
@@ -640,27 +644,59 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
     setJumpOpen(false)
   }
 
+  // Lazy rendering: only draw pages that scroll near the viewport, and size the
+  // rest with placeholders. Big PDFs then open in one page's worth of work
+  // instead of rendering every page up front.
   useEffect(() => {
-    if (status !== "ready" || !pdfRef.current) return
-    if (renderedRef.current === renderZoom) return
+    if (status !== "ready" || !pdfRef.current || numPages === 0) return
     const container = scrollRef.current
     if (!container) return
-    renderedRef.current = renderZoom
     const renderWidth = Math.min(container.clientWidth - 24, 1000) * renderZoom
+    const placeholderH = Math.round(renderWidth * aspectRef.current)
+
+    // New zoom -> forget what was drawn, and give every canvas a placeholder
+    // size so scroll offsets (and the observer) are correct before rendering.
+    renderedRef.current = new Set()
+    for (let i = 0; i < numPages; i++) {
+      const cv = canvasRefs.current[i]
+      if (!cv) continue
+      cv.style.width = `${renderWidth}px`
+      cv.style.height = `${placeholderH}px`
+    }
+
     let cancelled = false
-    ;(async () => {
-      for (let n = 1; n <= numPages; n++) {
-        const canvas = canvasRefs.current[n - 1]
-        if (!canvas || cancelled) continue
-        try {
-          await pdfRef.current!.renderPage(n, canvas, renderWidth)
-        } catch {
-          /* skip */
-        }
+    const renderOne = async (n: number) => {
+      const key = `${n}:${renderZoom}`
+      if (cancelled || renderedRef.current.has(key)) return
+      const cv = canvasRefs.current[n - 1]
+      if (!cv || !pdfRef.current) return
+      renderedRef.current.add(key)
+      try {
+        await pdfRef.current.renderPage(n, cv, renderWidth)
+      } catch {
+        renderedRef.current.delete(key)
       }
-    })()
+    }
+
+    // rootMargin pre-renders a screen above/below so scrolling stays ahead.
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting) {
+            const n = Number((e.target as HTMLElement).dataset.page)
+            if (n) renderOne(n)
+          }
+        }
+      },
+      { root: container, rootMargin: "800px 0px" },
+    )
+    canvasRefs.current.forEach((cv) => cv && io.observe(cv))
+    // Render the first pages right away so nothing waits on the observer.
+    renderOne(1)
+    renderOne(2)
     return () => {
       cancelled = true
+      io.disconnect()
     }
   }, [status, renderZoom, numPages])
 
@@ -727,6 +763,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
           >
             <canvas
               ref={(el) => { canvasRefs.current[i] = el }}
+              data-page={i + 1}
               className="block rounded bg-white shadow-lg"
             />
           </PdfPageWrap>

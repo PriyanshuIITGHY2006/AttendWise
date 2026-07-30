@@ -11,7 +11,7 @@ const CORS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, range",
   "Access-Control-Allow-Methods": "GET, OPTIONS",
-  "Access-Control-Expose-Headers": "content-length, content-type",
+  "Access-Control-Expose-Headers": "content-length, content-type, content-range, accept-ranges",
 }
 
 const blocked = () =>
@@ -48,14 +48,19 @@ Deno.serve(async (req) => {
   const id = new URL(req.url).searchParams.get("id") || ""
   if (!/^[a-zA-Z0-9_-]{10,}$/.test(id)) return new Response("bad id", { status: 400, headers: CORS })
 
+  // Forward the browser's Range header so pdf.js can render the first page from
+  // a small byte range instead of downloading the whole PDF first.
+  const range = req.headers.get("range") || undefined
+  const upstreamHeaders: HeadersInit = range ? { range } : {}
+
   try {
-    let resp = await fetch(`https://drive.google.com/uc?export=download&id=${id}`, { redirect: "follow" })
+    let resp = await fetch(`https://drive.google.com/uc?export=download&id=${id}`, { redirect: "follow", headers: upstreamHeaders })
     let ct = resp.headers.get("content-type") || ""
 
     if (ct.includes("text/html")) {
       const next = parseInterstitial(await resp.text(), id)
       if (!next) return blocked()
-      resp = await fetch(next, { redirect: "follow" })
+      resp = await fetch(next, { redirect: "follow", headers: upstreamHeaders })
       ct = resp.headers.get("content-type") || ""
     }
 
@@ -64,10 +69,14 @@ Deno.serve(async (req) => {
 
     const headers = new Headers(CORS)
     headers.set("content-type", "application/pdf")
-    const cl = resp.headers.get("content-length")
-    if (cl) headers.set("content-length", cl)
+    headers.set("accept-ranges", "bytes")
+    for (const h of ["content-length", "content-range"]) {
+      const v = resp.headers.get(h)
+      if (v) headers.set(h, v)
+    }
     headers.set("cache-control", "private, max-age=300")
-    return new Response(resp.body, { status: 200, headers })
+    // Relay upstream status (206 when the range was honoured, else 200).
+    return new Response(resp.body, { status: resp.status, headers })
   } catch {
     return blocked()
   }

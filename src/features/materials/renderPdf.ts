@@ -11,6 +11,8 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl
 
 export type LoadedPdf = {
   numPages: number
+  /** height / width of the first page -- used to size placeholders before a page renders. */
+  firstPageAspect: number
   /** Render page `n` (1-based) into `canvas` at the given CSS width in px. */
   renderPage: (n: number, canvas: HTMLCanvasElement, cssWidth: number) => Promise<void>
   destroy: () => void
@@ -19,8 +21,10 @@ export type LoadedPdf = {
 export async function loadPdf(url: string, httpHeaders?: Record<string, string>): Promise<LoadedPdf> {
   const loadingTask = pdfjsLib.getDocument({ url, httpHeaders, withCredentials: false })
   const doc = await loadingTask.promise
+  const firstViewport = (await doc.getPage(1)).getViewport({ scale: 1 })
   return {
     numPages: doc.numPages,
+    firstPageAspect: firstViewport.height / firstViewport.width,
     async renderPage(n, canvas, cssWidth) {
       const page = await doc.getPage(n)
       const unscaled = page.getViewport({ scale: 1 })
