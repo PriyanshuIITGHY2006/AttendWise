@@ -13,7 +13,11 @@ import {
   renameMaterial,
   touchMaterialOpened,
   deleteMaterial,
+  listFolders,
+  createFolder,
+  deleteFolder,
   type Material,
+  type MaterialFolder,
 } from "../features/materials/api"
 import { fileKind, isViewable, displayName, kindMeta, type FileKind } from "../features/materials/fileKind"
 import { driveFileId, drivePdfSource } from "../features/materials/drive"
@@ -63,8 +67,11 @@ export function Materials() {
   const [loading, setLoading] = useState(true)
 
   const [folder, setFolder] = useState<string | null>(null) // course_id, or null = root
-  const [subcat, setSubcat] = useState<CategoryId | null>(null) // category within a course
+  const [subcat, setSubcat] = useState<CategoryId | null>(null) // default category within a course
+  const [subfolder, setSubfolder] = useState<string | null>(null) // custom folder id within a course
   const [special, setSpecial] = useState<"starred" | "recent" | null>(null) // virtual root folders
+  const [customFolders, setCustomFolders] = useState<MaterialFolder[]>([])
+  const [folderModalCourse, setFolderModalCourse] = useState<string | null>(null) // "new folder" modal target
   const [dragOver, setDragOver] = useState(false)
   const [layout, setLayout] = useState<"grid" | "list">("grid")
   const [sort, setSort] = useState<"name" | "date" | "type">("name")
@@ -81,9 +88,10 @@ export function Materials() {
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [c, m] = await Promise.all([listAccessibleCourses(), listMaterials(user.id)])
+    const [c, m, f] = await Promise.all([listAccessibleCourses(), listMaterials(user.id), listFolders()])
     setCourses(c)
     setMaterials(m as MaterialWithCourse[])
+    setCustomFolders(f)
     setLoading(false)
   }, [user])
 
@@ -96,9 +104,18 @@ export function Materials() {
   const goRoot = () => {
     setFolder(null)
     setSubcat(null)
+    setSubfolder(null)
     setSpecial(null)
     setQuery("")
   }
+  const openCourse = (courseId: string) => { setFolder(courseId); setSubcat(null); setSubfolder(null) }
+  const openCategory = (cat: CategoryId) => { setSubcat(cat); setSubfolder(null) }
+  const openSubfolder = (id: string) => { setSubfolder(id); setSubcat(null) }
+  const backToCourse = () => { setSubcat(null); setSubfolder(null) }
+
+  // Custom folders for the open course.
+  const courseFolders = useMemo(() => customFolders.filter((f) => f.course_id === folder), [customFolders, folder])
+  const openFolderName = subfolder ? customFolders.find((f) => f.id === subfolder)?.name ?? null : null
 
   const starredCount = useMemo(() => materials.filter((m) => m.starred).length, [materials])
   const recentCount = useMemo(() => materials.filter((m) => m.last_opened_at).length, [materials])
@@ -116,7 +133,7 @@ export function Materials() {
     if (!folder) return []
     const counts = new Map<string, number>()
     for (const m of materials) {
-      if (m.course_id !== folder) continue
+      if (m.course_id !== folder || m.folder_id) continue // foldered files count under their folder
       const cat = (m.category as CategoryId) ?? "extras"
       counts.set(cat, (counts.get(cat) ?? 0) + 1)
     }
@@ -142,8 +159,11 @@ export function Materials() {
         .slice()
         .sort((a, b) => (b.last_opened_at ?? "").localeCompare(a.last_opened_at ?? ""))
         .slice(0, 30)
+    } else if (folder && subfolder) {
+      list = list.filter((m) => m.course_id === folder && m.folder_id === subfolder)
     } else if (folder && subcat) {
-      list = list.filter((m) => m.course_id === folder && ((m.category as CategoryId) ?? "extras") === subcat)
+      // Files in a custom folder don't also show under a category.
+      list = list.filter((m) => m.course_id === folder && !m.folder_id && ((m.category as CategoryId) ?? "extras") === subcat)
     } else {
       list = []
     }
@@ -159,7 +179,7 @@ export function Materials() {
       })
     }
     return result
-  }, [materials, folder, subcat, special, query, searching, sort, typeFilter])
+  }, [materials, folder, subcat, subfolder, special, query, searching, sort, typeFilter])
 
   // Batch-sign visible files so image tiles get thumbnails and the viewer opens
   // instantly.
@@ -263,6 +283,18 @@ export function Materials() {
     setMaterialStarred(entry.material.id, starred).catch(() => load())
   }
 
+  async function handleDeleteFolder(f: MaterialFolder) {
+    if (!confirm(`Delete the folder “${f.name}”? Files inside move back to their category.`)) return
+    setCustomFolders((prev) => prev.filter((x) => x.id !== f.id))
+    setMaterials((prev) => prev.map((m) => (m.folder_id === f.id ? { ...m, folder_id: null } : m)))
+    if (subfolder === f.id) backToCourse()
+    try {
+      await deleteFolder(f.id)
+    } catch {
+      load()
+    }
+  }
+
   async function handleRename(entry: Entry) {
     const next = prompt("Rename file", entry.name)?.trim()
     setActionsFor(null)
@@ -277,14 +309,14 @@ export function Materials() {
 
   // Upload dropped files into the folder currently being viewed.
   const uploadInto = useCallback(
-    async (files: FileList | File[], courseId: string, category: CategoryId) => {
+    async (files: FileList | File[], courseId: string, category: CategoryId, folderId: string | null = null) => {
       if (!user) return
       for (const file of Array.from(files)) {
         try {
           const toUpload = await maybeCompressImage(file)
           if (toUpload.size > MAX_UPLOAD_BYTES) continue
           const filePath = await uploadMaterialFile(user.id, courseId, toUpload)
-          await createMaterial({ course_id: courseId, user_id: user.id, title: file.name, file_path: filePath, external_link: null, category })
+          await createMaterial({ course_id: courseId, user_id: user.id, title: file.name, file_path: filePath, external_link: null, category, folder_id: folderId })
         } catch {
           /* skip a failed file, keep going */
         }
@@ -307,8 +339,8 @@ export function Materials() {
 
   // Which level are we rendering?
   const showCourseFolders = !searching && !folder && !special
-  const showCategoryFolders = !searching && !!folder && !subcat
-  const showFiles = searching || !!special || (!!folder && !!subcat)
+  const showCategoryFolders = !searching && !!folder && !subcat && !subfolder
+  const showFiles = searching || !!special || (!!folder && (!!subcat || !!subfolder))
   const specialLabel = special === "starred" ? "Starred" : special === "recent" ? "Recent" : null
 
   return (
@@ -322,7 +354,7 @@ export function Materials() {
           {!searching && !special && currentCourseName && (
             <>
               <Sep />
-              <Crumb active={!subcat} onClick={() => setSubcat(null)}>
+              <Crumb active={!subcat && !subfolder} onClick={backToCourse}>
                 <span className="max-w-[9rem] truncate sm:max-w-none">{currentCourseName}</span>
               </Crumb>
             </>
@@ -331,6 +363,12 @@ export function Materials() {
             <>
               <Sep />
               <Crumb active>{categoryLabel(subcat)}</Crumb>
+            </>
+          )}
+          {!searching && !special && openFolderName && (
+            <>
+              <Sep />
+              <Crumb active>{openFolderName}</Crumb>
             </>
           )}
           {specialLabel && (
@@ -443,7 +481,7 @@ export function Materials() {
                   title={course.name}
                   subtitle={`${count} item${count === 1 ? "" : "s"}`}
                   shared={course.user_id !== user?.id}
-                  onClick={() => setFolder(course.id)}
+                  onClick={() => openCourse(course.id)}
                 />
               ))}
             </div>
@@ -452,19 +490,41 @@ export function Materials() {
       ) : showCategoryFolders ? (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {categoryFolders.map((c) => (
-            <FolderCard key={c.id} color={c.color} title={c.label} subtitle={`${c.count} item${c.count === 1 ? "" : "s"}`} onClick={() => setSubcat(c.id)} />
+            <FolderCard key={c.id} color={c.color} title={c.label} subtitle={`${c.count} item${c.count === 1 ? "" : "s"}`} onClick={() => openCategory(c.id)} />
           ))}
+          {courseFolders.map((f) => {
+            const count = materials.filter((m) => m.folder_id === f.id).length
+            return (
+              <FolderCard
+                key={f.id}
+                color="#64748b"
+                title={f.name}
+                subtitle={`${count} item${count === 1 ? "" : "s"}`}
+                onClick={() => openSubfolder(f.id)}
+                onDelete={courses.find((c) => c.id === folder)?.user_id === user?.id ? () => handleDeleteFolder(f) : undefined}
+              />
+            )
+          })}
+          {courses.find((c) => c.id === folder)?.user_id === user?.id && (
+            <button
+              onClick={() => setFolderModalCourse(folder)}
+              className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-neutral-300 text-sm font-medium text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:hover:text-neutral-300"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
+              New folder
+            </button>
+          )}
         </div>
       ) : (
         <div
-          onDragOver={folder && subcat ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
-          onDragLeave={folder && subcat ? () => setDragOver(false) : undefined}
+          onDragOver={folder && (subcat || subfolder) ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
+          onDragLeave={folder && (subcat || subfolder) ? () => setDragOver(false) : undefined}
           onDrop={
-            folder && subcat
+            folder && (subcat || subfolder)
               ? (e) => {
                   e.preventDefault()
                   setDragOver(false)
-                  if (e.dataTransfer.files.length) uploadInto(e.dataTransfer.files, folder, subcat)
+                  if (e.dataTransfer.files.length) uploadInto(e.dataTransfer.files, folder, subcat ?? "extras", subfolder)
                 }
               : undefined
           }
@@ -500,11 +560,24 @@ export function Materials() {
           courses={courses}
           defaultCourseId={folder ?? courses[0]?.id ?? ""}
           defaultCategory={subcat ?? "extras"}
+          folderId={subfolder}
           userId={user!.id}
           onClose={() => setAddOpen(false)}
           onAdded={() => {
             setAddOpen(false)
             load()
+          }}
+        />
+      )}
+
+      {folderModalCourse && (
+        <NewFolderModal
+          existing={customFolders.filter((f) => f.course_id === folderModalCourse).map((f) => f.name.toLowerCase())}
+          onClose={() => setFolderModalCourse(null)}
+          onCreate={async (name) => {
+            const f = await createFolder(folderModalCourse, name)
+            setCustomFolders((prev) => [...prev, f])
+            setFolderModalCourse(null)
           }}
         />
       )}
@@ -729,28 +802,39 @@ function EmptyState({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean }) {
   )
 }
 
-function FolderCard({ color, title, subtitle, shared, onClick }: { color: string; title: string; subtitle: string; shared?: boolean; onClick: () => void }) {
+function FolderCard({ color, title, subtitle, shared, onClick, onDelete }: { color: string; title: string; subtitle: string; shared?: boolean; onClick: () => void; onDelete?: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className="group flex items-center gap-3 rounded-xl border border-neutral-200/70 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-card-hover dark:border-neutral-800 dark:bg-neutral-900"
-    >
-      <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0" fill="none">
-        <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill={color} opacity="0.9" />
-        <path d="M3 9h18" stroke="white" strokeOpacity="0.5" strokeWidth="1" />
-      </svg>
-      <div className="min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className="truncate text-sm font-medium">{title}</p>
-          {shared && (
-            <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
-              Shared
-            </span>
-          )}
+    <div className="group relative">
+      <button
+        onClick={onClick}
+        className="flex w-full items-center gap-3 rounded-xl border border-neutral-200/70 bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:shadow-card-hover dark:border-neutral-800 dark:bg-neutral-900"
+      >
+        <svg viewBox="0 0 24 24" className="h-9 w-9 shrink-0" fill="none">
+          <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill={color} opacity="0.9" />
+          <path d="M3 9h18" stroke="white" strokeOpacity="0.5" strokeWidth="1" />
+        </svg>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <p className="truncate text-sm font-medium">{title}</p>
+            {shared && (
+              <span className="shrink-0 rounded bg-indigo-50 px-1.5 py-0.5 text-[10px] font-medium text-indigo-600 dark:bg-indigo-500/15 dark:text-indigo-400">
+                Shared
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-neutral-500">{subtitle}</p>
         </div>
-        <p className="text-xs text-neutral-500">{subtitle}</p>
-      </div>
-    </button>
+      </button>
+      {onDelete && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete() }}
+          className="absolute right-1.5 top-1.5 hidden h-6 w-6 items-center justify-center rounded-md text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-red-600 group-hover:flex dark:hover:bg-neutral-800"
+          aria-label="Delete folder"
+        >
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      )}
+    </div>
   )
 }
 
@@ -837,10 +921,47 @@ function FileRow({ entry, onOpen, onMenu, showCourse }: { entry: Entry; onOpen: 
   )
 }
 
+function NewFolderModal({ existing, onClose, onCreate }: { existing: string[]; onClose: () => void; onCreate: (name: string) => Promise<void> }) {
+  const [name, setName] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  async function submit(e: FormEvent) {
+    e.preventDefault()
+    const n = name.trim()
+    if (!n) { setError("Enter a folder name."); return }
+    if (existing.includes(n.toLowerCase())) { setError("A folder with that name already exists."); return }
+    setSubmitting(true)
+    setError(null)
+    try {
+      await onCreate(n)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : ""
+      setError(/duplicate|unique/i.test(msg) ? "A folder with that name already exists." : "Couldn't create the folder.")
+      setSubmitting(false)
+    }
+  }
+  return (
+    <div className="aw-overlay fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div className="aw-sheet w-full max-w-sm rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl" style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }} onClick={(e) => e.stopPropagation()}>
+        <h2 className="text-base font-semibold">New folder</h2>
+        <form onSubmit={submit} className="mt-3 space-y-3">
+          <Input autoFocus value={name} onChange={(e) => setName(e.target.value)} placeholder="Folder name" maxLength={60} />
+          {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+          <div className="flex gap-2">
+            <Button type="submit" disabled={submitting} className="flex-1">{submitting ? "Creating…" : "Create"}</Button>
+            <Button type="button" variant="ghost" onClick={onClose}>Cancel</Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function AddModal({
   courses,
   defaultCourseId,
   defaultCategory,
+  folderId = null,
   userId,
   onClose,
   onAdded,
@@ -848,6 +969,7 @@ function AddModal({
   courses: Course[]
   defaultCourseId: string
   defaultCategory: CategoryId
+  folderId?: string | null
   userId: string
   onClose: () => void
   onAdded: () => void
@@ -884,6 +1006,8 @@ function AddModal({
         file_path: filePath,
         external_link: link || null,
         category,
+        // Only file into the custom folder when the course wasn't changed.
+        folder_id: courseId === defaultCourseId ? folderId : null,
       })
       onAdded()
     } catch (err) {
