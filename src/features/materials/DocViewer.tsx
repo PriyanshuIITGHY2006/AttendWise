@@ -161,8 +161,9 @@ export function DocViewer({
 }) {
   const [zoomById, setZoomById] = useState<Record<string, number>>({})
   const [notesOpen, setNotesOpen] = useState(false)
-  const [split, setSplit] = useState(false)
-  const [laneBId, setLaneBId] = useState<string | null>(null)
+  // Secondary panes (doc ids) shown alongside the active doc. Up to 2, so the
+  // split view goes to 3 panes total -- handy on a wide laptop screen.
+  const [lanes, setLanes] = useState<string[]>([])
   const [focusedId, setFocusedId] = useState<string | null>(null)
   const [tool, setTool] = useState<Tool>("pan")
   const [penColor, setPenColor] = useState(PEN_COLORS[0])
@@ -174,16 +175,27 @@ export function DocViewer({
 
   const active = docs.find((d) => d.id === activeId) ?? docs[0]
 
+  // Drop lanes that were closed or that became the active doc.
   useEffect(() => {
-    if (docs.length < 2 && split) setSplit(false)
-    if (split && (!laneBId || !docs.some((d) => d.id === laneBId) || laneBId === activeId)) {
-      setLaneBId(docs.find((d) => d.id !== activeId)?.id ?? null)
-    }
-  }, [docs, split, laneBId, activeId])
+    setLanes((prev) => {
+      const next = prev.filter((id) => id !== activeId && docs.some((d) => d.id === id))
+      return next.length === prev.length ? prev : next
+    })
+  }, [docs, activeId])
 
-  const laneB = split ? docs.find((d) => d.id === laneBId) ?? null : null
-  const focused = docs.find((d) => d.id === focusedId) ?? active
-  const panes = split && laneB ? [active, laneB] : [active]
+  const panes = [active, ...lanes.map((id) => docs.find((d) => d.id === id)).filter((d): d is OpenDoc => !!d)]
+  const split = panes.length > 1
+  const maxPanes = Math.min(3, docs.length)
+  const focused = panes.find((d) => d.id === focusedId) ?? active
+
+  // Cycle 1 → 2 → 3 → 1 panes (capped by how many docs are open).
+  function cycleSplit() {
+    const target = panes.length >= maxPanes ? 1 : panes.length + 1
+    setLanes(docs.filter((d) => d.id !== activeId).map((d) => d.id).slice(0, target - 1))
+    setFocusedId(activeId)
+  }
+  const setLaneDoc = (i: number, id: string) => setLanes((prev) => prev.map((v, k) => (k === i ? id : v)))
+  const closeLane = (i: number) => setLanes((prev) => prev.filter((_, k) => k !== i))
 
   const zoomOf = (id: string) => zoomById[id] ?? 1
   const setZoom = (id: string, z: number) => setZoomById((p) => ({ ...p, [id]: clampZoom(z) }))
@@ -237,8 +249,9 @@ export function DocViewer({
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 20h9" strokeLinecap="round" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         )}
-        <button onClick={() => { setSplit((v) => !v); setFocusedId(activeId) }} disabled={docs.length < 2} className={`${iconBtn} disabled:opacity-30 ${split ? "bg-white/15 text-white" : "hover:bg-white/10"}`} aria-label="Split view" title="Split view">
-          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M12 4v16" /></svg>
+        <button onClick={cycleSplit} disabled={docs.length < 2} className={`relative ${iconBtn} disabled:opacity-30 ${split ? "bg-white/15 text-white" : "hover:bg-white/10"}`} aria-label="Split view" title={`Split view — ${panes.length} of ${maxPanes} panes`}>
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" />{panes.length >= 2 && <path d="M10 4v16" />}{panes.length >= 3 && <path d="M15.5 4v16" />}</svg>
+          {split && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-indigo-500 px-1 text-[9px] font-semibold leading-4 text-white">{panes.length}</span>}
         </button>
         <button onClick={() => setNotesOpen((v) => !v)} className={`relative ${iconBtn} ${notesOpen ? "bg-white/15 text-white" : "hover:bg-white/10"}`} aria-label="Notes">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" /><path d="M8 12h8M8 16h5" strokeLinecap="round" /></svg>
@@ -273,19 +286,19 @@ export function DocViewer({
               key={`${i}-${d.id}`}
               onMouseDown={() => setFocusedId(d.id)}
               onTouchStart={() => setFocusedId(d.id)}
-              className={`relative flex min-h-0 min-w-0 flex-1 flex-col ${split && i === 1 ? "border-t border-white/10 sm:border-l sm:border-t-0" : ""} ${split && d.id === focusId ? "ring-1 ring-inset ring-indigo-400/60" : ""}`}
+              className={`relative flex min-h-0 min-w-0 flex-1 flex-col ${split && i >= 1 ? "border-t border-white/10 sm:border-l sm:border-t-0" : ""} ${split && d.id === focusId ? "ring-1 ring-inset ring-indigo-400/60" : ""}`}
             >
               {split && (
                 <div className="flex h-8 shrink-0 items-center gap-2 bg-neutral-900/80 px-2 text-xs text-neutral-300">
                   {i === 0 ? (
                     <span className="min-w-0 flex-1 truncate">{d.name}</span>
                   ) : (
-                    <select value={d.id} onChange={(e) => setLaneBId(e.target.value)} className="min-w-0 flex-1 truncate bg-transparent text-neutral-200 outline-none">
-                      {docs.filter((o) => o.id !== active.id).map((o) => (<option key={o.id} value={o.id} className="bg-neutral-900">{o.name}</option>))}
+                    <select value={d.id} onChange={(e) => setLaneDoc(i - 1, e.target.value)} className="min-w-0 flex-1 truncate bg-transparent text-neutral-200 outline-none">
+                      {docs.filter((o) => o.id !== active.id && (o.id === d.id || !lanes.includes(o.id))).map((o) => (<option key={o.id} value={o.id} className="bg-neutral-900">{o.name}</option>))}
                     </select>
                   )}
-                  {i === 1 && (
-                    <button onClick={() => setSplit(false)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-white/10" aria-label="Close split">
+                  {i >= 1 && (
+                    <button onClick={() => closeLane(i - 1)} className="flex h-5 w-5 shrink-0 items-center justify-center rounded hover:bg-white/10" aria-label="Close pane">
                       <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
                     </button>
                   )}
