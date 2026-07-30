@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getStroke } from "perfect-freehand"
 import type { FileKind } from "./fileKind"
 import type { LoadedPdf } from "./renderPdf"
@@ -37,6 +37,9 @@ type Pt = [number, number]
 // hand and draw with the pen). Two fingers pan/zoom in both modes.
 type InputMode = "any" | "pen"
 type InkOp = { kind: "add"; stroke: InkStroke } | { kind: "erase"; strokes: InkStroke[] }
+const NO_INK: InkStroke[] = []
+const NO_ANNOS: PdfAnnotation[] = []
+const OVERSCAN = 3 // pages kept mounted above/below the viewport
 
 // Some Android WebViews (notably MIUI on Xiaomi tablets) report an active
 // stylus as pointerType "touch" instead of "pen", which would make "Pen only"
@@ -493,9 +496,9 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   const pdfRef = useRef<LoadedPdf | null>(null)
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
   const [renderZoom, setRenderZoom] = useState(zoom)
-  // Which page:zoom pairs have been drawn (lazy rendering), and the first page's
-  // aspect ratio for sizing not-yet-rendered placeholders.
-  const renderedRef = useRef<Set<string>>(new Set())
+  // First page's aspect ratio, for sizing not-yet-rendered placeholders. Whether
+  // a page canvas is drawn at the current zoom is tracked on the element itself
+  // (data-rendered-zoom) so a remounted page re-renders instead of staying blank.
   const aspectRef = useRef(1.414)
   const [annos, setAnnos] = useState<PdfAnnotation[]>([])
   const [editing, setEditing] = useState<string | null>(null)
@@ -503,10 +506,15 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   const [page, setPage] = useState(1)
   const [jumpOpen, setJumpOpen] = useState(false)
   const scrollRaf = useRef(0)
+  // Virtualization: only the pages in [win.start, win.end) are mounted, so an
+  // 800-page PDF keeps ~15 page components alive instead of 800.
+  const [win, setWin] = useState({ start: 0, end: 0 })
   // Undo/redo history (this pane's ink). Each op is applied optimistically and
   // synced to the DB best-effort; re-created strokes get fresh ids.
   const undoStack = useRef<InkOp[]>([])
   const redoStack = useRef<InkOp[]>([])
+  const inkRef = useRef(ink)
+  inkRef.current = ink
 
   // Pinch/double-tap zoom stays on in pan mode, and also in pen-only input mode
   // (where a finger scrolls/zooms while the stylus draws).
@@ -539,7 +547,6 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
       cancelled = true
       pdfRef.current?.destroy()
       pdfRef.current = null
-      renderedRef.current = new Set()
     }
   }, [url])
 
@@ -580,7 +587,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   }
 
   function eraseStrokes(ids: string[]) {
-    const removed = ink.filter((s) => ids.includes(s.id))
+    const removed = inkRef.current.filter((s) => ids.includes(s.id))
     if (removed.length === 0) return
     setInk((p) => p.filter((s) => !ids.includes(s.id)))
     deleteInkStrokes(ids.filter((id) => !id.startsWith("tmp-"))).catch(() => {})
@@ -618,87 +625,68 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
     reportHistory()
   }
 
-  // Track which page is under the top of the viewport as you scroll (rAF-throttled).
+  // On scroll, update the mounted window + the page indicator from scrollTop and
+  // the (uniform) row height, so we never touch 800 DOM nodes.
   function onScroll() {
     if (scrollRaf.current) return
     scrollRaf.current = requestAnimationFrame(() => {
       scrollRaf.current = 0
-      const cont = scrollRef.current
-      if (!cont) return
-      const top = cont.getBoundingClientRect().top
-      let cp = 1
-      for (let n = 0; n < numPages; n++) {
-        const cv = canvasRefs.current[n]
-        if (!cv) continue
-        const r = cv.getBoundingClientRect()
-        if (r.top - top <= r.height * 0.5) cp = n + 1
-        else break
-      }
-      setPage(cp)
+      const c = scrollRef.current
+      if (!c || numPages === 0) return
+      const sc = scale || 1
+      const top = c.scrollTop / sc
+      const first = Math.floor(top / rowH)
+      const perScreen = Math.ceil(c.clientHeight / sc / rowH)
+      const start = Math.max(0, first - OVERSCAN)
+      const end = Math.min(numPages, first + perScreen + OVERSCAN)
+      setWin((w) => (w.start === start && w.end === end ? w : { start, end }))
+      setPage(Math.min(numPages, Math.max(1, first + 1)))
     })
   }
 
   function goToPage(n: number) {
     const target = Math.min(numPages, Math.max(1, n))
-    canvasRefs.current[target - 1]?.scrollIntoView({ block: "start", behavior: "smooth" })
+    scrollRef.current?.scrollTo({ top: (target - 1) * rowH * (scale || 1), behavior: "smooth" })
     setJumpOpen(false)
   }
 
-  // Lazy rendering: only draw pages that scroll near the viewport, and size the
-  // rest with placeholders. Big PDFs then open in one page's worth of work
-  // instead of rendering every page up front.
+  // Seed the mounted window once the PDF is ready.
   useEffect(() => {
-    if (status !== "ready" || !pdfRef.current || numPages === 0) return
-    const container = scrollRef.current
-    if (!container) return
-    const renderWidth = Math.min(container.clientWidth - 24, 1000) * renderZoom
-    const placeholderH = Math.round(renderWidth * aspectRef.current)
+    if (status !== "ready" || numPages === 0) return
+    const c = scrollRef.current
+    if (!c) return
+    const rh = Math.round(Math.min(c.clientWidth - 24, 1000) * (zoom || 1) * aspectRef.current) + 12
+    const perScreen = Math.ceil(c.clientHeight / rh)
+    setWin({ start: 0, end: Math.min(numPages, perScreen + OVERSCAN + 1) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, numPages])
 
-    // New zoom -> forget what was drawn, and give every canvas a placeholder
-    // size so scroll offsets (and the observer) are correct before rendering.
-    renderedRef.current = new Set()
-    for (let i = 0; i < numPages; i++) {
-      const cv = canvasRefs.current[i]
-      if (!cv) continue
-      cv.style.width = `${renderWidth}px`
-      cv.style.height = `${placeholderH}px`
-    }
-
+  // Render only the mounted pages, into their own canvas, at the current zoom.
+  // Render state lives on the canvas element (data-rendered-zoom), so pages that
+  // scroll out and back re-render instead of showing blank.
+  useEffect(() => {
+    if (status !== "ready" || !pdfRef.current) return
+    const c = scrollRef.current
+    if (!c) return
+    const rw = Math.min(c.clientWidth - 24, 1000) * renderZoom
     let cancelled = false
-    const renderOne = async (n: number) => {
-      const key = `${n}:${renderZoom}`
-      if (cancelled || renderedRef.current.has(key)) return
-      const cv = canvasRefs.current[n - 1]
-      if (!cv || !pdfRef.current) return
-      renderedRef.current.add(key)
-      try {
-        await pdfRef.current.renderPage(n, cv, renderWidth)
-      } catch {
-        renderedRef.current.delete(key)
-      }
-    }
-
-    // rootMargin pre-renders a screen above/below so scrolling stays ahead.
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting) {
-            const n = Number((e.target as HTMLElement).dataset.page)
-            if (n) renderOne(n)
-          }
+    ;(async () => {
+      for (let n = win.start + 1; n <= win.end; n++) {
+        if (cancelled) break
+        const cv = canvasRefs.current[n - 1]
+        if (!cv || cv.dataset.renderedZoom === String(renderZoom)) continue
+        try {
+          await pdfRef.current!.renderPage(n, cv, rw)
+          cv.dataset.renderedZoom = String(renderZoom)
+        } catch {
+          /* leave unmarked so it retries */
         }
-      },
-      { root: container, rootMargin: "800px 0px" },
-    )
-    canvasRefs.current.forEach((cv) => cv && io.observe(cv))
-    // Render the first pages right away so nothing waits on the observer.
-    renderOne(1)
-    renderOne(2)
+      }
+    })()
     return () => {
       cancelled = true
-      io.disconnect()
     }
-  }, [status, renderZoom, numPages])
+  }, [status, win, renderZoom])
 
   async function placeNote(page: number, x: number, y: number) {
     try {
@@ -720,6 +708,26 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
     await deleteAnnotation(id).catch(() => {})
   }
 
+  // Stable callbacks + per-page groupings so memoized pages only re-render when
+  // their own ink/notes change -- essential with hundreds of pages.
+  const impl = useRef({ placeNote, commitStroke, eraseStrokes, patchAnno })
+  impl.current = { placeNote, commitStroke, eraseStrokes, patchAnno }
+  const onPlaceCb = useCallback((p: number, x: number, y: number) => impl.current.placeNote(p, x, y), [])
+  const onInkCommitCb = useCallback((p: number, pts: Pt[], c: string, w: number) => impl.current.commitStroke(p, pts, c, w), [])
+  const onInkEraseCb = useCallback((ids: string[]) => impl.current.eraseStrokes(ids), [])
+  const onDragEndCb = useCallback((id: string, x: number, y: number) => { impl.current.patchAnno(id, { x, y }); updateAnnotation(id, { x, y }).catch(() => {}) }, [])
+  const registerCanvas = useCallback((p: number, el: HTMLCanvasElement | null) => { canvasRefs.current[p - 1] = el }, [])
+  const inkByPage = useMemo(() => {
+    const m = new Map<number, InkStroke[]>()
+    for (const s of ink) { const a = m.get(s.page); if (a) a.push(s); else m.set(s.page, [s]) }
+    return m
+  }, [ink])
+  const annosByPage = useMemo(() => {
+    const m = new Map<number, PdfAnnotation[]>()
+    for (const a of annos) { const x = m.get(a.page); if (x) x.push(a); else m.set(a.page, [a]) }
+    return m
+  }, [annos])
+
   if (status === "error") {
     return (
       <div className="flex h-full items-center justify-center px-6 text-center">
@@ -733,6 +741,9 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   }
 
   const scale = renderZoom > 0 ? zoom / renderZoom : 1
+  const renderWidth = Math.min((scrollRef.current?.clientWidth ?? 820) - 24, 1000) * renderZoom
+  const placeholderH = Math.round(renderWidth * aspectRef.current)
+  const rowH = placeholderH + 12 // page + gap; used for virtual spacers
 
   return (
     <div className="relative h-full w-full">
@@ -740,34 +751,37 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
       {status === "loading" && (
         <div className="flex h-full items-center justify-center"><Spinner /></div>
       )}
-      {/* w-max (not w-fit): the pages keep their true width and the container
-          scrolls when zoomed in, instead of fit-content squashing them to the
-          pane width. The canvas carries explicit style width/height from the
-          renderer, so no max-width clamp here (that was distorting the aspect). */}
-      <div className="mx-auto flex w-max flex-col items-center gap-3" style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
-        {Array.from({ length: numPages }, (_, i) => (
-          <PdfPageWrap
-            key={i}
-            annotate={tool === "note"}
-            annos={annos.filter((a) => a.page === i + 1)}
-            onPlace={(x, y) => placeNote(i + 1, x, y)}
-            onOpen={setEditing}
-            onDragEnd={(id, x, y) => { patchAnno(id, { x, y }); updateAnnotation(id, { x, y }).catch(() => {}) }}
-            tool={tool}
-            color={color}
-            width={width}
-            inputMode={inputMode}
-            ink={ink.filter((s) => s.page === i + 1)}
-            onInkCommit={(pts, c, w) => commitStroke(i + 1, pts, c, w)}
-            onInkErase={eraseStrokes}
-          >
-            <canvas
-              ref={(el) => { canvasRefs.current[i] = el }}
-              data-page={i + 1}
-              className="block rounded bg-white shadow-lg"
-            />
-          </PdfPageWrap>
-        ))}
+      {/* Virtualized page list: only [win.start, win.end) are mounted; spacer
+          divs above/below reserve the rest of the scroll height. w-max keeps the
+          pages their true width so the container scrolls when zoomed in. */}
+      <div className="mx-auto w-max" style={{ transform: `scale(${scale})`, transformOrigin: "top center" }}>
+        <div style={{ height: win.start * rowH }} />
+        {Array.from({ length: Math.max(0, win.end - win.start) }, (_, k) => {
+          const i = win.start + k
+          return (
+            <div key={i} style={{ marginBottom: 12 }}>
+              <PdfPageWrap
+                page={i + 1}
+                pageWidth={renderWidth}
+                pageHeight={placeholderH}
+                annotate={tool === "note"}
+                annos={annosByPage.get(i + 1) ?? NO_ANNOS}
+                ink={inkByPage.get(i + 1) ?? NO_INK}
+                tool={tool}
+                color={color}
+                width={width}
+                inputMode={inputMode}
+                onPlace={onPlaceCb}
+                onOpen={setEditing}
+                onDragEnd={onDragEndCb}
+                onInkCommit={onInkCommitCb}
+                onInkErase={onInkEraseCb}
+                registerCanvas={registerCanvas}
+              />
+            </div>
+          )
+        })}
+        <div style={{ height: Math.max(0, numPages - win.end) * rowH }} />
       </div>
 
       {editing && (
@@ -806,7 +820,13 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   )
 }
 
-function PdfPageWrap({
+// Memoized so that, with hundreds of mounted-and-unmounted pages, only the page
+// whose ink/notes actually changed re-renders. It owns its canvas (registered
+// upward) rather than taking it as children, which keeps the memo effective.
+const PdfPageWrap = memo(function PdfPageWrap({
+  page,
+  pageWidth,
+  pageHeight,
   annotate,
   annos,
   onPlace,
@@ -819,11 +839,14 @@ function PdfPageWrap({
   ink,
   onInkCommit,
   onInkErase,
-  children,
+  registerCanvas,
 }: {
+  page: number
+  pageWidth: number
+  pageHeight: number
   annotate: boolean
   annos: PdfAnnotation[]
-  onPlace: (x: number, y: number) => void
+  onPlace: (page: number, x: number, y: number) => void
   onOpen: (id: string) => void
   onDragEnd: (id: string, x: number, y: number) => void
   tool: Tool
@@ -831,9 +854,9 @@ function PdfPageWrap({
   width: number
   inputMode: InputMode
   ink: InkStroke[]
-  onInkCommit: (points: Pt[], color: string, width: number) => void
+  onInkCommit: (page: number, points: Pt[], color: string, width: number) => void
   onInkErase: (ids: string[]) => void
-  children: React.ReactNode
+  registerCanvas: (page: number, el: HTMLCanvasElement | null) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -846,22 +869,27 @@ function PdfPageWrap({
     <div
       ref={ref}
       className={`relative ${annotate ? "cursor-crosshair" : ""}`}
+      style={{ width: pageWidth }}
       onClick={(e) => {
         if (!annotate) return
-        // Ignore clicks that land on an existing pin.
         if ((e.target as HTMLElement).closest("[data-pin]")) return
         const { x, y } = frac(e.clientX, e.clientY)
-        onPlace(x, y)
+        onPlace(page, x, y)
       }}
     >
-      {children}
-      <InkLayer containerRef={ref} strokes={ink} tool={tool} color={color} width={width} inputMode={inputMode} onCommit={onInkCommit} onErase={onInkErase} />
+      <canvas
+        ref={(el) => registerCanvas(page, el)}
+        data-page={page}
+        className="block rounded bg-white shadow-lg"
+        style={{ width: pageWidth, height: pageHeight }}
+      />
+      <InkLayer containerRef={ref} strokes={ink} tool={tool} color={color} width={width} inputMode={inputMode} onCommit={(pts, c, w) => onInkCommit(page, pts, c, w)} onErase={onInkErase} />
       {annos.map((a) => (
         <NotePin key={a.id} anno={a} containerRef={ref} onOpen={() => onOpen(a.id)} onDragEnd={(x, y) => onDragEnd(a.id, x, y)} />
       ))}
     </div>
   )
-}
+})
 
 // Turn fractional input points into a filled stroke outline (perfect-freehand:
 // the same ink engine tldraw uses) so strokes are smooth and velocity-tapered.
