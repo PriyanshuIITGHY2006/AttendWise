@@ -586,6 +586,7 @@ export function Materials() {
           defaultCourseId={folder && canEdit(folder) ? folder : editableCourses[0]?.id ?? ""}
           defaultCategory={subcat ?? "extras"}
           folderId={subfolder}
+          folders={customFolders}
           userId={user!.id}
           canUploadFor={canUpload}
           onClose={() => setAddOpen(false)}
@@ -1018,6 +1019,7 @@ function AddModal({
   defaultCourseId,
   defaultCategory,
   folderId = null,
+  folders,
   userId,
   canUploadFor,
   onClose,
@@ -1027,6 +1029,7 @@ function AddModal({
   defaultCourseId: string
   defaultCategory: CategoryId
   folderId?: string | null
+  folders: MaterialFolder[]
   userId: string
   canUploadFor: (courseId: string) => boolean
   onClose: () => void
@@ -1034,11 +1037,23 @@ function AddModal({
 }) {
   const [title, setTitle] = useState("")
   const [courseId, setCourseId] = useState(defaultCourseId)
-  const [category, setCategory] = useState<CategoryId>(defaultCategory)
+  // Destination folder, encoded as "cat:<categoryId>" (a default template folder)
+  // or "folder:<uuid>" (a custom folder). The dropdown is built from whatever
+  // folders actually exist in the chosen course.
+  const [dest, setDest] = useState<string>(folderId ? `folder:${folderId}` : `cat:${defaultCategory}`)
   const [file, setFile] = useState<File | null>(null)
   const [link, setLink] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+
+  const courseFolders = folders.filter((f) => f.course_id === courseId)
+
+  // If the chosen course has no such custom folder, fall back to a category.
+  useEffect(() => {
+    if (dest.startsWith("folder:") && !courseFolders.some((f) => `folder:${f.id}` === dest)) {
+      setDest(`cat:${defaultCategory}`)
+    }
+  }, [courseId, courseFolders, dest, defaultCategory])
 
   // In courses where you can't upload files, the picker is hidden and any
   // previously chosen file is dropped -- you can still add an external link.
@@ -1064,15 +1079,16 @@ function AddModal({
         return
       }
       const filePath = toUpload ? await uploadMaterialFile(userId, courseId, toUpload) : null
+      const intoFolder = dest.startsWith("folder:")
       await createMaterial({
         course_id: courseId,
         user_id: userId,
         title: title || (file ? file.name : link),
         file_path: filePath,
         external_link: link || null,
-        category,
-        // Only file into the custom folder when the course wasn't changed.
-        folder_id: courseId === defaultCourseId ? folderId : null,
+        // A custom folder holds the file directly; a category is the template folder.
+        category: intoFolder ? "extras" : (dest.slice(4) as CategoryId),
+        folder_id: intoFolder ? dest.slice(7) : null,
       })
       onAdded()
     } catch (err) {
@@ -1113,10 +1129,17 @@ function AddModal({
             </div>
             <div>
               <Label htmlFor="m-cat">Folder</Label>
-              <select id="m-cat" value={category} onChange={(e) => setCategory(e.target.value as CategoryId)} className={selectClass}>
+              <select id="m-cat" value={dest} onChange={(e) => setDest(e.target.value)} className={selectClass}>
                 {CATEGORIES.map((c) => (
-                  <option key={c.id} value={c.id}>{c.label}</option>
+                  <option key={c.id} value={`cat:${c.id}`}>{c.label}</option>
                 ))}
+                {courseFolders.length > 0 && (
+                  <optgroup label="Your folders">
+                    {courseFolders.map((f) => (
+                      <option key={f.id} value={`folder:${f.id}`}>{f.name}</option>
+                    ))}
+                  </optgroup>
+                )}
               </select>
             </div>
           </div>
