@@ -72,6 +72,17 @@ export async function unshareCourse(shareId: string) {
   if (error) throw error
 }
 
+// Owner email per accessible course, for labelling shared folders ("shared by
+// alice@…") so same-named folders are distinguishable. Returns a course_id ->
+// email map.
+export async function listCourseOwners(): Promise<Record<string, string>> {
+  const { data, error } = await supabase.rpc("accessible_course_owners")
+  if (error) throw error
+  const map: Record<string, string> = {}
+  for (const r of data ?? []) map[r.course_id] = r.owner_email
+  return map
+}
+
 // Course ids where the current user is allowed to upload FILES (a file-enabled
 // "Type A" user, in a course owned by a Type-A user). Everyone else -- and even
 // Type-A users in a Type-B-owned course -- can only add links.

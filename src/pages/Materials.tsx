@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, type FormEvent } from "react"
 import { useAuth } from "../context/AuthContext"
-import { listAccessibleCourses, shareCourse, updateShareRole, listCourseShares, unshareCourse, listMyEditCourseIds, listUploadableCourseIds, type Course, type CourseShare } from "../features/courses/api"
+import { listAccessibleCourses, shareCourse, updateShareRole, listCourseShares, unshareCourse, listMyEditCourseIds, listUploadableCourseIds, listCourseOwners, type Course, type CourseShare } from "../features/courses/api"
 import {
   listMaterials,
   uploadMaterialFile,
@@ -70,6 +70,8 @@ export function Materials() {
   // share can read but not write.
   const [uploadableCourses, setUploadableCourses] = useState<Set<string>>(new Set())
   const [editCourses, setEditCourses] = useState<Set<string>>(new Set())
+  // course_id -> owner email, to tag shared folders ("shared by alice@…").
+  const [courseOwners, setCourseOwners] = useState<Record<string, string>>({})
 
   const [folder, setFolder] = useState<string | null>(null) // course_id, or null = root
   const [subcat, setSubcat] = useState<CategoryId | null>(null) // default category within a course
@@ -93,18 +95,20 @@ export function Materials() {
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [c, m, f, up, edit] = await Promise.all([
+    const [c, m, f, up, edit, owners] = await Promise.all([
       listAccessibleCourses(),
       listMaterials(user.id),
       listFolders(),
       listUploadableCourseIds().catch(() => [] as string[]),
       listMyEditCourseIds(user.email ?? "").catch(() => [] as string[]),
+      listCourseOwners().catch(() => ({} as Record<string, string>)),
     ])
     setCourses(c)
     setMaterials(m as MaterialWithCourse[])
     setCustomFolders(f)
     setUploadableCourses(new Set(up))
     setEditCourses(new Set(edit))
+    setCourseOwners(owners)
     setLoading(false)
   }, [user])
 
@@ -489,16 +493,22 @@ export function Materials() {
             )}
             <p className="mt-6 text-xs font-medium uppercase tracking-wide text-neutral-400">Courses</p>
             <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-              {folders.map(({ course, count }) => (
-                <FolderCard
-                  key={course.id}
-                  color={course.color}
-                  title={course.name}
-                  subtitle={`${count} item${count === 1 ? "" : "s"}`}
-                  shared={course.user_id !== user?.id}
-                  onClick={() => openCourse(course.id)}
-                />
-              ))}
+              {folders.map(({ course, count }) => {
+                const isShared = course.user_id !== user?.id
+                const owner = courseOwners[course.id]
+                return (
+                  <FolderCard
+                    key={course.id}
+                    color={course.color}
+                    title={course.name}
+                    // Shared folders show whose they are, so same-named folders
+                    // (e.g. two "Physics") stay distinguishable.
+                    subtitle={isShared && owner ? `shared by ${owner}` : `${count} item${count === 1 ? "" : "s"}`}
+                    shared={isShared}
+                    onClick={() => openCourse(course.id)}
+                  />
+                )
+              })}
             </div>
           </>
         )
