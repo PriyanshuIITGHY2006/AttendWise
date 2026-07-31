@@ -1,4 +1,4 @@
-import { lazy } from "react"
+import { lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { AuthProvider } from "./context/AuthContext"
 import { ProtectedRoute } from "./components/layout/ProtectedRoute"
@@ -25,6 +25,7 @@ const Grades = named(() => import("./pages/Grades"), "Grades")
 const PlanDayOff = named(() => import("./pages/PlanDayOff"), "PlanDayOff")
 const Deadlines = named(() => import("./pages/Deadlines"), "Deadlines")
 const Settings = named(() => import("./pages/Settings"), "Settings")
+const SharedMaterial = named(() => import("./pages/SharedMaterial"), "SharedMaterial")
 
 export default function App() {
   return (
@@ -33,6 +34,15 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
+          {/* Public link-only file viewer -- no auth gate. */}
+          <Route
+            path="/s/:token"
+            element={
+              <Suspense fallback={<div className="min-h-screen bg-neutral-950" />}>
+                <SharedMaterial />
+              </Suspense>
+            }
+          />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppLayout />}>
               <Route path="/" element={<Dashboard />} />

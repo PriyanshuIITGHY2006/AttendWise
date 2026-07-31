@@ -16,6 +16,9 @@ import {
   listFolders,
   createFolder,
   deleteFolder,
+  getShareToken,
+  createShareLink,
+  revokeShareLink,
   type Material,
   type MaterialFolder,
 } from "../features/materials/api"
@@ -84,6 +87,7 @@ export function Materials() {
   const [addOpen, setAddOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [actionsFor, setActionsFor] = useState<Entry | null>(null)
+  const [shareLinkFor, setShareLinkFor] = useState<Entry | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
@@ -611,9 +615,12 @@ export function Materials() {
           onMove={(cat) => handleMove(actionsFor, cat)}
           onStar={() => handleStar(actionsFor)}
           onRename={() => handleRename(actionsFor)}
+          onShareLink={actionsFor.material.file_path ? () => { setShareLinkFor(actionsFor); setActionsFor(null) } : undefined}
           onDelete={() => handleDelete(actionsFor)}
         />
       )}
+
+      {shareLinkFor && <ShareLinkModal entry={shareLinkFor} onClose={() => setShareLinkFor(null)} />}
 
       {shareOpen && folder && user && (
         <ShareModal
@@ -706,6 +713,80 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
   )
 }
 
+function ShareLinkModal({ entry, onClose }: { entry: Entry; onClose: () => void }) {
+  const [token, setToken] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    getShareToken(entry.material.id).then((t) => { setToken(t); setLoading(false) }).catch(() => setLoading(false))
+  }, [entry.material.id])
+
+  const link = token ? `${window.location.origin}${import.meta.env.BASE_URL}s/${token}` : ""
+
+  async function enable() {
+    setBusy(true)
+    try {
+      const t = await createShareLink(entry.material.id)
+      setToken(t)
+      // Best-effort auto-copy on create.
+      try { await navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}s/${t}`); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { /* clipboard may be blocked */ }
+    } catch { /* surfaced by the empty state staying */ }
+    setBusy(false)
+  }
+
+  async function copy() {
+    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { /* ignore */ }
+  }
+
+  async function revoke() {
+    if (!confirm("Turn off the public link? Anyone using it will lose access.")) return
+    setBusy(true)
+    try { await revokeShareLink(entry.material.id); setToken(null) } catch { /* ignore */ }
+    setBusy(false)
+  }
+
+  return (
+    <div className="aw-overlay fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
+      <div
+        className="aw-sheet w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
+        style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between">
+          <h2 className="min-w-0 truncate text-base font-semibold">Share via link</h2>
+          <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close">
+            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
+          </button>
+        </div>
+        <p className="mt-1 truncate text-sm text-neutral-500">{entry.name}</p>
+
+        {loading ? (
+          <p className="mt-5 text-sm text-neutral-400">Checking…</p>
+        ) : token ? (
+          <>
+            <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">Anyone with this link can view the file — no account needed.</p>
+            <div className="mt-3 flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-800/60">
+              <span className="min-w-0 flex-1 truncate text-xs text-neutral-600 dark:text-neutral-300">{link}</span>
+              <Button onClick={copy} className="shrink-0">{copied ? "Copied!" : "Copy"}</Button>
+            </div>
+            <div className="mt-4 flex items-center justify-between">
+              <p className="text-xs text-neutral-400">View-only. Revoke any time.</p>
+              <button onClick={revoke} disabled={busy} className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50">Turn off link</button>
+            </div>
+          </>
+        ) : (
+          <>
+            <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">Create a public link so anyone can open this file — without logging in or being on the share list. It's view-only, and you can revoke it any time.</p>
+            <Button onClick={enable} disabled={busy} className="mt-4 w-full">{busy ? "Creating…" : "Create public link"}</Button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
 function QuickCard({ glyph, tint, title, subtitle, onClick }: { glyph: "star" | "clock"; tint: string; title: string; subtitle: string; onClick: () => void }) {
   return (
     <button
@@ -727,7 +808,7 @@ function QuickCard({ glyph, tint, title, subtitle, onClick }: { glyph: "star" | 
   )
 }
 
-function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onStar: () => void; onRename: () => void; onDelete: () => void }) {
+function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onShareLink, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onStar: () => void; onRename: () => void; onShareLink?: () => void; onDelete: () => void }) {
   const current = (entry.material.category as CategoryId) ?? "extras"
   const starred = entry.material.starred
   return (
@@ -768,6 +849,14 @@ function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }
             )
           })}
         </div>
+        {onShareLink && (
+          <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
+            <button onClick={onShareLink} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
+              <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              <span className="font-medium">Share via link</span>
+            </button>
+          </div>
+        )}
         <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
           <button onClick={onDelete} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
             <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
