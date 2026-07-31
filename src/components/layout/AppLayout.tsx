@@ -140,7 +140,7 @@ function AccountMenu() {
 }
 
 export function AppLayout() {
-  const { profile, hasMaterialAccess } = useAuth()
+  const { profile } = useAuth()
   const [showSplash, setShowSplash] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) === "1")
   const [ready, setReady] = useState(() => sessionStorage.getItem(SPLASH_FLAG_KEY) !== "1")
   const { courseCount, worstStatus } = useOverallStatus()
@@ -167,13 +167,15 @@ export function AppLayout() {
   }
 
   const showTour = !showSplash && !!profile && !profile.has_completed_tour
-  const navEntries = hasMaterialAccess ? [...NAV, MATERIALS_ENTRY] : NAV
+  // Materials is open to everyone now (view + add links); file-upload and
+  // management rights are enforced per-course inside the page.
+  const navEntries = [...NAV, MATERIALS_ENTRY]
 
   return (
     <div className="app-shell flex flex-col">
       {showSplash && <WelcomeSplash onDone={handleSplashDone} />}
       {showTour && <ProductTour />}
-      <CommandPalette hasMaterialAccess={hasMaterialAccess} />
+      <CommandPalette />
 
       {/* pt uses the device's safe-area inset so content clears the status bar /
           notch on phones (viewport-fit=cover draws under it) */}

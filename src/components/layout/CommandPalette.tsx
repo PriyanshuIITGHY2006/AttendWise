@@ -5,7 +5,7 @@ import { listCourses, type Course } from "../../features/courses/api"
 
 type Item = { id: string; label: string; hint?: string; color?: string; go: () => void }
 
-export function CommandPalette({ hasMaterialAccess }: { hasMaterialAccess: boolean }) {
+export function CommandPalette() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -45,7 +45,7 @@ export function CommandPalette({ hasMaterialAccess }: { hasMaterialAccess: boole
       { id: "nav-insights", label: "Insights", hint: "Go to", go: () => navigate("/insights") },
       { id: "nav-grades", label: "Grades & GPA", hint: "Go to", go: () => navigate("/grades") },
       { id: "nav-calendar", label: "Calendar", hint: "Go to", go: () => navigate("/calendar") },
-      ...(hasMaterialAccess ? [{ id: "nav-materials", label: "Materials", hint: "Go to", go: () => navigate("/materials") }] : []),
+      { id: "nav-materials", label: "Materials", hint: "Go to", go: () => navigate("/materials") },
       { id: "nav-settings", label: "Settings", hint: "Go to", go: () => navigate("/settings") },
     ]
     const courseItems: Item[] = courses.map((c) => ({
@@ -59,7 +59,7 @@ export function CommandPalette({ hasMaterialAccess }: { hasMaterialAccess: boole
     if (!query.trim()) return all
     const q = query.toLowerCase()
     return all.filter((i) => i.label.toLowerCase().includes(q))
-  }, [courses, hasMaterialAccess, navigate, query])
+  }, [courses, navigate, query])
 
   function select(item: Item) {
     item.go()

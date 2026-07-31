@@ -33,10 +33,18 @@ export async function listAccessibleCourses(): Promise<Course[]> {
   return data
 }
 
-export async function shareCourse(courseId: string, ownerId: string, email: string) {
+// role: "link" (view + add external links only) or "full" (upload files, edit,
+// delete). New recipients default to link-only; the owner elevates trusted
+// people to full.
+export async function shareCourse(courseId: string, ownerId: string, email: string, role: "full" | "link" = "link") {
   const { error } = await supabase
     .from("course_shares")
-    .insert({ course_id: courseId, owner_id: ownerId, shared_with_email: email.trim().toLowerCase() })
+    .insert({ course_id: courseId, owner_id: ownerId, shared_with_email: email.trim().toLowerCase(), role })
+  if (error) throw error
+}
+
+export async function updateShareRole(shareId: string, role: "full" | "link") {
+  const { error } = await supabase.from("course_shares").update({ role }).eq("id", shareId)
   if (error) throw error
 }
 
@@ -46,9 +54,31 @@ export async function listCourseShares(courseId: string): Promise<CourseShare[]>
   return data
 }
 
+// Course ids where the current user was granted "full" material rights as a
+// recipient (RLS returns their own received shares). Lets the UI show file
+// upload for a non-allowlisted user who was toggled to full on a course.
+export async function listMyFullCourseIds(email: string): Promise<string[]> {
+  const addr = email.trim().toLowerCase()
+  const { data, error } = await supabase
+    .from("course_shares")
+    .select("course_id, shared_with_email, role")
+    .eq("role", "full")
+  if (error) throw error
+  return (data ?? []).filter((s) => s.shared_with_email.toLowerCase() === addr).map((s) => s.course_id)
+}
+
 export async function unshareCourse(shareId: string) {
   const { error } = await supabase.from("course_shares").delete().eq("id", shareId)
   if (error) throw error
+}
+
+// Course ids where the current user is allowed to upload FILES (a file-enabled
+// "Type A" user, in a course owned by a Type-A user). Everyone else -- and even
+// Type-A users in a Type-B-owned course -- can only add links.
+export async function listUploadableCourseIds(): Promise<string[]> {
+  const { data, error } = await supabase.rpc("uploadable_course_ids")
+  if (error) throw error
+  return (data ?? []) as string[]
 }
 
 export async function createCourse(course: TablesInsert<"courses">) {
