@@ -1,27 +1,27 @@
--- Tiered materials access (live migrations: material_contributor_roles,
--- material_file_upload_owner_domain, material_full_is_owner_or_toggled). This
--- file records the FINAL state.
+-- Folder (course-folder) sharing with an Edit / View-only toggle, plus the
+-- member-type file rule. Live migrations: material_contributor_roles,
+-- material_file_upload_owner_domain, material_full_is_owner_or_toggled,
+-- folder_share_edit_view. This file records the FINAL state.
 --
 -- Model:
---   * Materials opens to everyone with course access (view + add links).
---   * FILE UPLOAD is limited to a Type-A user (material_access_allowlist) in a
---     course OWNED BY a Type-A user. Even a Type-A user can only add links in a
---     Type-B-owned course.
---   * Managing OTHERS' materials (edit/move/delete) needs course ownership or a
---     'full' share; you can always manage your own entry. Type-A status governs
---     file upload only, not edit rights in courses you don't own.
---   * The 'full'/'link' per-share toggle sets a recipient's manage reach.
+--   * Materials opens to everyone with course access.
+--   * A folder share is "view" (read-only) or "edit" (can write).
+--   * With edit, WHAT you can write follows member type: links always; files
+--     only for a Type-A user (material_access_allowlist) in a Type-A-owned
+--     course. Even a Type-A user can only add links in a Type-B-owned course.
+--   * Only course folders are shareable (no per-file public links).
 --
--- Verified with simulated identities (owner, another Type-A, link recipient,
--- full recipient, Type-A in a Type-B course, stranger).
+-- Verified with simulated identities (view recipient, edit recipient Type B,
+-- edit recipient Type A in a Type-A course, edit Type A in a Type-B course,
+-- owner, stranger).
 
--- Per-course contributor level for a shared recipient. New shares default to
--- 'link'; owners elevate trusted people to 'full'.
+-- Per-share role: view (read-only) or edit (write). New shares default to view.
 alter table public.course_shares
-  add column if not exists role text not null default 'link'
-  check (role in ('full', 'link'));
+  add column if not exists role text not null default 'view';
+alter table public.course_shares drop constraint if exists course_shares_role_check;
+alter table public.course_shares add constraint course_shares_role_check check (role in ('edit', 'view'));
 
--- Manage-others rights: course owner or a 'full' share on the course.
+-- Write (edit) permission for a folder: own the course or hold an 'edit' share.
 create or replace function private.is_full_material_user(cid uuid)
 returns boolean language sql stable security definer set search_path to 'public'
 as $$
@@ -30,7 +30,7 @@ as $$
         select 1 from course_shares s
         where s.course_id = cid
           and lower(s.shared_with_email) = lower(coalesce(auth.email(), ''))
-          and s.role = 'full'
+          and s.role = 'edit'
       );
 $$;
 
@@ -46,18 +46,19 @@ as $$
   );
 $$;
 
--- Read: anyone who can access the course.
+-- Read: anyone who can access the course (owner or any share, view or edit).
 drop policy if exists "read accessible materials" on public.materials;
 create policy "read accessible materials" on public.materials
   for select using (private.can_access_course(course_id));
 
--- Insert: a file needs an upload-eligible user (Type A) in a Type-A-owned
--- course; otherwise only a pure external link.
+-- Insert: needs write (edit) permission for everything, including links; a file
+-- additionally needs a Type-A user in a Type-A-owned course.
 drop policy if exists "insert into accessible courses" on public.materials;
 create policy "insert into accessible courses" on public.materials
   for insert with check (
     auth.uid() = user_id
     and private.can_access_course(course_id)
+    and private.is_full_material_user(course_id)
     and (
       (file_path is not null
         and private.has_material_access(auth.email())
@@ -66,8 +67,8 @@ create policy "insert into accessible courses" on public.materials
     )
   );
 
--- Update: full contributors or the row owner; a file_path may only be present
--- if the editor is upload-eligible (edit can't smuggle in a file).
+-- Update / delete: editors (or the row owner); a file_path may only be present
+-- if the editor is upload-eligible.
 drop policy if exists "update accessible materials" on public.materials;
 create policy "update accessible materials" on public.materials
   for update using (
@@ -83,7 +84,6 @@ create policy "update accessible materials" on public.materials
     )
   );
 
--- Delete: full contributors or the row owner.
 drop policy if exists "delete accessible materials" on public.materials;
 create policy "delete accessible materials" on public.materials
   for delete using (
@@ -91,20 +91,8 @@ create policy "delete accessible materials" on public.materials
     and (private.is_full_material_user(course_id) or user_id = auth.uid())
   );
 
--- Public share links: only the file's uploader or a Type-A user.
-drop policy if exists "insert shares for accessible material" on public.material_shares;
-create policy "insert shares for accessible material" on public.material_shares
-  for insert with check (
-    created_by = auth.uid()
-    and exists (
-      select 1 from public.materials m
-      where m.id = material_id
-        and (m.user_id = auth.uid() or private.has_material_access(auth.email()))
-    )
-  );
-
--- Courses where the current user may upload files (client uses this to show the
--- file picker only where uploads will succeed).
+-- Courses where the current user may upload files (client shows the file picker
+-- only where uploads will succeed).
 create or replace function public.uploadable_course_ids()
 returns setof uuid language sql stable security definer set search_path to 'public'
 as $$
@@ -114,3 +102,6 @@ as $$
     and private.course_owner_is_full(c.id);
 $$;
 grant execute on function public.uploadable_course_ids() to authenticated;
+
+-- Per-file public share links were removed; only folders are shareable.
+drop table if exists public.material_shares cascade;

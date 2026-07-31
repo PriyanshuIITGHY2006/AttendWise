@@ -33,17 +33,17 @@ export async function listAccessibleCourses(): Promise<Course[]> {
   return data
 }
 
-// role: "link" (view + add external links only) or "full" (upload files, edit,
-// delete). New recipients default to link-only; the owner elevates trusted
-// people to full.
-export async function shareCourse(courseId: string, ownerId: string, email: string, role: "full" | "link" = "link") {
+// role: "view" (read-only) or "edit" (can write -- links always, files only for
+// a file-enabled member in a file-enabled course). New recipients default to
+// view-only; the owner toggles trusted people to edit.
+export async function shareCourse(courseId: string, ownerId: string, email: string, role: "edit" | "view" = "view") {
   const { error } = await supabase
     .from("course_shares")
     .insert({ course_id: courseId, owner_id: ownerId, shared_with_email: email.trim().toLowerCase(), role })
   if (error) throw error
 }
 
-export async function updateShareRole(shareId: string, role: "full" | "link") {
+export async function updateShareRole(shareId: string, role: "edit" | "view") {
   const { error } = await supabase.from("course_shares").update({ role }).eq("id", shareId)
   if (error) throw error
 }
@@ -54,15 +54,15 @@ export async function listCourseShares(courseId: string): Promise<CourseShare[]>
   return data
 }
 
-// Course ids where the current user was granted "full" material rights as a
-// recipient (RLS returns their own received shares). Lets the UI show file
-// upload for a non-allowlisted user who was toggled to full on a course.
-export async function listMyFullCourseIds(email: string): Promise<string[]> {
+// Course ids where the current user holds an "edit" share as recipient (RLS
+// returns their own received shares). Lets the UI enable writing in a folder
+// someone shared with edit rights.
+export async function listMyEditCourseIds(email: string): Promise<string[]> {
   const addr = email.trim().toLowerCase()
   const { data, error } = await supabase
     .from("course_shares")
     .select("course_id, shared_with_email, role")
-    .eq("role", "full")
+    .eq("role", "edit")
   if (error) throw error
   return (data ?? []).filter((s) => s.shared_with_email.toLowerCase() === addr).map((s) => s.course_id)
 }

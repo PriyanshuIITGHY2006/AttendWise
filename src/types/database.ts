@@ -491,27 +491,6 @@ export type Database = {
         }
         Relationships: []
       }
-      material_shares: {
-        Row: {
-          token: string
-          material_id: string
-          created_by: string
-          created_at: string
-        }
-        Insert: {
-          token?: string
-          material_id: string
-          created_by?: string
-          created_at?: string
-        }
-        Update: {
-          token?: string
-          material_id?: string
-          created_by?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
       pdf_ink: {
         Row: {
           id: string
