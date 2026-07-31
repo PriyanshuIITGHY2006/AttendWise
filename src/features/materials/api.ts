@@ -137,44 +137,6 @@ export async function setMaterialFolder(id: string, folderId: string | null) {
   if (error) throw error
 }
 
-export type MaterialShare = Tables<"material_shares">
-
-// A public, link-only share for one file. Anyone with the token can view it (no
-// login, no allow-list) via the `material-share` edge function; deleting the row
-// revokes it. One link per file per owner -- minting again returns the existing.
-export async function getShareToken(materialId: string): Promise<string | null> {
-  const { data, error } = await supabase.from("material_shares").select("token").eq("material_id", materialId).maybeSingle()
-  if (error) throw error
-  return data?.token ?? null
-}
-
-export async function createShareLink(materialId: string): Promise<string> {
-  const existing = await getShareToken(materialId)
-  if (existing) return existing
-  const { data, error } = await supabase.from("material_shares").insert({ material_id: materialId }).select("token").single()
-  if (error) {
-    // Lost an insert race (unique on material_id, created_by) -- reuse the winner.
-    const again = await getShareToken(materialId)
-    if (again) return again
-    throw error
-  }
-  return data.token
-}
-
-export async function revokeShareLink(materialId: string) {
-  const { error } = await supabase.from("material_shares").delete().eq("material_id", materialId)
-  if (error) throw error
-}
-
-// Resolve a share token to a viewable file. Runs against the public edge
-// function (verify_jwt off), so it works with no logged-in session.
-export async function resolveShare(token: string): Promise<{ title: string; path: string; url: string }> {
-  const { data, error } = await supabase.functions.invoke("material-share", { body: { token } })
-  if (error) throw error
-  if (data?.error) throw new Error(data.error)
-  return data as { title: string; path: string; url: string }
-}
-
 export async function updateMaterialNotes(id: string, notes: string) {
   const { error } = await supabase.from("materials").update({ notes }).eq("id", id)
   if (error) throw error

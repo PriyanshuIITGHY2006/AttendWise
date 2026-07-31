@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, type FormEvent } from "react"
 import { useAuth } from "../context/AuthContext"
-import { listAccessibleCourses, shareCourse, updateShareRole, listCourseShares, unshareCourse, listMyFullCourseIds, listUploadableCourseIds, type Course, type CourseShare } from "../features/courses/api"
+import { listAccessibleCourses, shareCourse, updateShareRole, listCourseShares, unshareCourse, listMyEditCourseIds, listUploadableCourseIds, type Course, type CourseShare } from "../features/courses/api"
 import {
   listMaterials,
   uploadMaterialFile,
@@ -16,9 +16,6 @@ import {
   listFolders,
   createFolder,
   deleteFolder,
-  getShareToken,
-  createShareLink,
-  revokeShareLink,
   type Material,
   type MaterialFolder,
 } from "../features/materials/api"
@@ -64,15 +61,15 @@ function fmtDate(iso: string) {
 }
 
 export function Materials() {
-  const { user, hasMaterialAccess } = useAuth()
+  const { user } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
   const [materials, setMaterials] = useState<MaterialWithCourse[]>([])
   const [loading, setLoading] = useState(true)
-  // Courses where I may upload files (Type-A user in a Type-A-owned course), and
-  // courses where I was toggled "full" (manage others' materials). Everyone can
-  // still view + add links to any course they can access.
+  // Courses I can write to (own, or shared with "edit"), and the subset where I
+  // may upload files (file-enabled member in a file-enabled course). A view-only
+  // share can read but not write.
   const [uploadableCourses, setUploadableCourses] = useState<Set<string>>(new Set())
-  const [fullCourses, setFullCourses] = useState<Set<string>>(new Set())
+  const [editCourses, setEditCourses] = useState<Set<string>>(new Set())
 
   const [folder, setFolder] = useState<string | null>(null) // course_id, or null = root
   const [subcat, setSubcat] = useState<CategoryId | null>(null) // default category within a course
@@ -92,23 +89,22 @@ export function Materials() {
   const [addOpen, setAddOpen] = useState(false)
   const [shareOpen, setShareOpen] = useState(false)
   const [actionsFor, setActionsFor] = useState<Entry | null>(null)
-  const [shareLinkFor, setShareLinkFor] = useState<Entry | null>(null)
 
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [c, m, f, up, full] = await Promise.all([
+    const [c, m, f, up, edit] = await Promise.all([
       listAccessibleCourses(),
       listMaterials(user.id),
       listFolders(),
       listUploadableCourseIds().catch(() => [] as string[]),
-      listMyFullCourseIds(user.email ?? "").catch(() => [] as string[]),
+      listMyEditCourseIds(user.email ?? "").catch(() => [] as string[]),
     ])
     setCourses(c)
     setMaterials(m as MaterialWithCourse[])
     setCustomFolders(f)
     setUploadableCourses(new Set(up))
-    setFullCourses(new Set(full))
+    setEditCourses(new Set(edit))
     setLoading(false)
   }, [user])
 
@@ -343,16 +339,18 @@ export function Materials() {
     [user, load],
   )
 
-  // Permission helpers. Materials is open to anyone signed in; what you can DO
-  // depends on your type and the course.
-  //  - upload files: only in `uploadableCourses` (Type-A user, Type-A course)
-  //  - manage (edit/rename/move/delete/star) a material: Type-A user, a course
-  //    you were toggled "full" on, or your own entry
-  //  - add links: anyone with access to the course (all courses listed here)
+  // Permission helpers. Materials is open to anyone signed in; a folder share is
+  // read-only ("view") unless it grants "edit".
+  //  - canEdit: write to this folder (own it, or hold an edit share)
+  //  - canUpload: additionally allowed to upload FILES (file-enabled member in a
+  //    file-enabled course); everyone else with edit can only add links
+  //  - canManage: edit/move/delete a specific material (edit rights, or own it)
   const ownsCourse = (courseId: string) => courses.find((c) => c.id === courseId)?.user_id === user?.id
+  const canEdit = (courseId: string) => ownsCourse(courseId) || editCourses.has(courseId)
   const canUpload = (courseId: string) => uploadableCourses.has(courseId)
-  const canManage = (m: MaterialWithCourse) => ownsCourse(m.course_id) || fullCourses.has(m.course_id) || m.user_id === user?.id
-  const canShareLink = (m: MaterialWithCourse) => !!m.file_path && (hasMaterialAccess || m.user_id === user?.id)
+  const canManage = (m: MaterialWithCourse) => canEdit(m.course_id) || m.user_id === user?.id
+  // Editable courses feed the Add sheet's course picker.
+  const editableCourses = courses.filter((c) => canEdit(c.id))
 
   // Which level are we rendering?
   const showCourseFolders = !searching && !folder && !special
@@ -411,9 +409,9 @@ export function Materials() {
               <span className="hidden sm:inline">Share</span>
             </button>
           )}
-          <Button onClick={() => setAddOpen(true)} disabled={courses.length === 0}>
-            Add
-          </Button>
+          {editableCourses.length > 0 && (
+            <Button onClick={() => setAddOpen(true)}>Add</Button>
+          )}
         </div>
       </div>
 
@@ -534,10 +532,10 @@ export function Materials() {
         </div>
       ) : (
         <div
-          onDragOver={folder && (subcat || subfolder) ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
-          onDragLeave={folder && (subcat || subfolder) ? () => setDragOver(false) : undefined}
+          onDragOver={folder && canUpload(folder) && (subcat || subfolder) ? (e) => { e.preventDefault(); setDragOver(true) } : undefined}
+          onDragLeave={folder && canUpload(folder) && (subcat || subfolder) ? () => setDragOver(false) : undefined}
           onDrop={
-            folder && (subcat || subfolder)
+            folder && canUpload(folder) && (subcat || subfolder)
               ? (e) => {
                   e.preventDefault()
                   setDragOver(false)
@@ -559,13 +557,13 @@ export function Materials() {
           ) : layout === "grid" ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {entries.map((e) => (
-                <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={canManage(e.material) || canShareLink(e.material) ? () => setActionsFor(e) : undefined} showCourse={searching || !!special} />
+                <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={canManage(e.material) ? () => setActionsFor(e) : undefined} showCourse={searching || !!special} />
               ))}
             </div>
           ) : (
             <div className="divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200/70 dark:divide-neutral-800 dark:border-neutral-800">
               {entries.map((e) => (
-                <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={canManage(e.material) || canShareLink(e.material) ? () => setActionsFor(e) : undefined} showCourse={searching || !!special} />
+                <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={canManage(e.material) ? () => setActionsFor(e) : undefined} showCourse={searching || !!special} />
               ))}
             </div>
           )}
@@ -574,8 +572,8 @@ export function Materials() {
 
       {addOpen && (
         <AddModal
-          courses={courses}
-          defaultCourseId={folder ?? courses[0]?.id ?? ""}
+          courses={editableCourses}
+          defaultCourseId={folder && canEdit(folder) ? folder : editableCourses[0]?.id ?? ""}
           defaultCategory={subcat ?? "extras"}
           folderId={subfolder}
           userId={user!.id}
@@ -629,12 +627,9 @@ export function Materials() {
           onMove={(cat) => handleMove(actionsFor, cat)}
           onStar={() => handleStar(actionsFor)}
           onRename={() => handleRename(actionsFor)}
-          onShareLink={canShareLink(actionsFor.material) ? () => { setShareLinkFor(actionsFor); setActionsFor(null) } : undefined}
           onDelete={() => handleDelete(actionsFor)}
         />
       )}
-
-      {shareLinkFor && <ShareLinkModal entry={shareLinkFor} onClose={() => setShareLinkFor(null)} />}
 
       {shareOpen && folder && user && (
         <ShareModal
@@ -669,7 +664,7 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
     setBusy(true)
     setError(null)
     try {
-      await shareCourse(courseId, ownerId, addr, "link")
+      await shareCourse(courseId, ownerId, addr, "view")
       setEmail("")
       load()
     } catch (err) {
@@ -679,7 +674,7 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
     }
   }
 
-  async function setRole(id: string, role: "full" | "link") {
+  async function setRole(id: string, role: "edit" | "view") {
     setShares((prev) => prev.map((s) => (s.id === id ? { ...s, role } : s)))
     try {
       await updateShareRole(id, role)
@@ -710,7 +705,7 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
           </button>
         </div>
-        <p className="mt-1 text-sm text-neutral-500">People you share with can view and add links. Toggle someone to <span className="font-medium">Full</span> to also let them edit and manage materials.</p>
+        <p className="mt-1 text-sm text-neutral-500">Share this course folder. <span className="font-medium">View-only</span> people can just read it; <span className="font-medium">Edit</span> people can add and manage materials.</p>
 
         <form onSubmit={add} className="mt-4 flex gap-2">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="friend@email.com" className="flex-1" />
@@ -723,13 +718,13 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
             <p className="text-sm text-neutral-400">Not shared with anyone yet.</p>
           ) : (
             shares.map((s) => {
-              const full = s.role === "full"
+              const edit = s.role === "edit"
               return (
                 <div key={s.id} className="flex items-center gap-2 rounded-lg px-1 py-1.5 text-sm">
                   <span className="min-w-0 flex-1 truncate">{s.shared_with_email}</span>
                   <div className="flex shrink-0 overflow-hidden rounded-md border border-neutral-200 text-xs dark:border-neutral-700">
-                    <button onClick={() => setRole(s.id, "link")} className={`px-2 py-1 ${!full ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>Link</button>
-                    <button onClick={() => setRole(s.id, "full")} className={`px-2 py-1 ${full ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>Full</button>
+                    <button onClick={() => setRole(s.id, "view")} className={`px-2 py-1 ${!edit ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>View</button>
+                    <button onClick={() => setRole(s.id, "edit")} className={`px-2 py-1 ${edit ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>Edit</button>
                   </div>
                   <button onClick={() => remove(s.id)} className="shrink-0 text-xs font-medium text-red-600 hover:underline">Remove</button>
                 </div>
@@ -737,81 +732,7 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
             })
           )}
         </div>
-        <p className="mt-3 text-xs text-neutral-400">“Link” members can view and add links. “Full” members can also edit, move and delete. Uploading files stays limited to your course's file-enabled members.</p>
-      </div>
-    </div>
-  )
-}
-
-function ShareLinkModal({ entry, onClose }: { entry: Entry; onClose: () => void }) {
-  const [token, setToken] = useState<string | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [busy, setBusy] = useState(false)
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    getShareToken(entry.material.id).then((t) => { setToken(t); setLoading(false) }).catch(() => setLoading(false))
-  }, [entry.material.id])
-
-  const link = token ? `${window.location.origin}${import.meta.env.BASE_URL}s/${token}` : ""
-
-  async function enable() {
-    setBusy(true)
-    try {
-      const t = await createShareLink(entry.material.id)
-      setToken(t)
-      // Best-effort auto-copy on create.
-      try { await navigator.clipboard.writeText(`${window.location.origin}${import.meta.env.BASE_URL}s/${t}`); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { /* clipboard may be blocked */ }
-    } catch { /* surfaced by the empty state staying */ }
-    setBusy(false)
-  }
-
-  async function copy() {
-    try { await navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1800) } catch { /* ignore */ }
-  }
-
-  async function revoke() {
-    if (!confirm("Turn off the public link? Anyone using it will lose access.")) return
-    setBusy(true)
-    try { await revokeShareLink(entry.material.id); setToken(null) } catch { /* ignore */ }
-    setBusy(false)
-  }
-
-  return (
-    <div className="aw-overlay fixed inset-0 z-40 flex items-end justify-center bg-neutral-950/50 backdrop-blur-sm sm:items-center sm:p-4" onClick={onClose}>
-      <div
-        className="aw-sheet w-full max-w-md rounded-t-2xl bg-white p-5 shadow-elevated dark:bg-neutral-900 sm:rounded-2xl"
-        style={{ paddingBottom: "calc(1.25rem + env(safe-area-inset-bottom))" }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between">
-          <h2 className="min-w-0 truncate text-base font-semibold">Share via link</h2>
-          <button onClick={onClose} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800" aria-label="Close">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
-          </button>
-        </div>
-        <p className="mt-1 truncate text-sm text-neutral-500">{entry.name}</p>
-
-        {loading ? (
-          <p className="mt-5 text-sm text-neutral-400">Checking…</p>
-        ) : token ? (
-          <>
-            <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">Anyone with this link can view the file — no account needed.</p>
-            <div className="mt-3 flex items-center gap-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 dark:border-neutral-700 dark:bg-neutral-800/60">
-              <span className="min-w-0 flex-1 truncate text-xs text-neutral-600 dark:text-neutral-300">{link}</span>
-              <Button onClick={copy} className="shrink-0">{copied ? "Copied!" : "Copy"}</Button>
-            </div>
-            <div className="mt-4 flex items-center justify-between">
-              <p className="text-xs text-neutral-400">View-only. Revoke any time.</p>
-              <button onClick={revoke} disabled={busy} className="text-sm font-medium text-red-600 hover:underline disabled:opacity-50">Turn off link</button>
-            </div>
-          </>
-        ) : (
-          <>
-            <p className="mt-4 text-sm text-neutral-600 dark:text-neutral-300">Create a public link so anyone can open this file — without logging in or being on the share list. It's view-only, and you can revoke it any time.</p>
-            <Button onClick={enable} disabled={busy} className="mt-4 w-full">{busy ? "Creating…" : "Create public link"}</Button>
-          </>
-        )}
+        <p className="mt-3 text-xs text-neutral-400">“View” members can only read the folder. “Edit” members can add links and manage materials; uploading actual files stays limited to your course's file-enabled members.</p>
       </div>
     </div>
   )
@@ -838,7 +759,7 @@ function QuickCard({ glyph, tint, title, subtitle, onClick }: { glyph: "star" | 
   )
 }
 
-function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onShareLink, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onStar: () => void; onRename: () => void; onShareLink?: () => void; onDelete: () => void }) {
+function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onStar: () => void; onRename: () => void; onDelete: () => void }) {
   const current = (entry.material.category as CategoryId) ?? "extras"
   const starred = entry.material.starred
   return (
@@ -879,14 +800,6 @@ function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onShareLin
             )
           })}
         </div>
-        {onShareLink && (
-          <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
-            <button onClick={onShareLink} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800">
-              <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" strokeLinecap="round" strokeLinejoin="round" /></svg>
-              <span className="font-medium">Share via link</span>
-            </button>
-          </div>
-        )}
         <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
           <button onClick={onDelete} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
             <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
