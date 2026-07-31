@@ -151,6 +151,7 @@ export function DocViewer({
   onCloseTab,
   onMinimize,
   onNotesChange,
+  readOnly = false,
 }: {
   docs: OpenDoc[]
   activeId: string
@@ -158,6 +159,9 @@ export function DocViewer({
   onCloseTab: (id: string) => void
   onMinimize: () => void
   onNotesChange: (id: string, notes: string) => void
+  // Public share viewer: hide drawing/notes and never touch account-scoped
+  // ink/annotations. View + zoom + download only.
+  readOnly?: boolean
 }) {
   const [zoomById, setZoomById] = useState<Record<string, number>>({})
   const [notesOpen, setNotesOpen] = useState(false)
@@ -239,7 +243,7 @@ export function DocViewer({
         <button onClick={() => setZoom(focusId, zoomOf(focusId) * 1.25)} className={`${iconBtn} hover:bg-white/10`} aria-label="Zoom in">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
         </button>
-        {focused?.kind === "pdf" && (
+        {focused?.kind === "pdf" && !readOnly && (
           <button
             onClick={() => setTool((t) => (t === "pan" ? "pen" : "pan"))}
             className={`${iconBtn} ${tool !== "pan" ? "bg-amber-400 text-neutral-900" : "hover:bg-white/10"}`}
@@ -253,10 +257,12 @@ export function DocViewer({
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2" />{panes.length >= 2 && <path d="M10 4v16" />}{panes.length >= 3 && <path d="M15.5 4v16" />}</svg>
           {split && <span className="absolute -right-0.5 -top-0.5 rounded-full bg-indigo-500 px-1 text-[9px] font-semibold leading-4 text-white">{panes.length}</span>}
         </button>
+        {!readOnly && (
         <button onClick={() => setNotesOpen((v) => !v)} className={`relative ${iconBtn} ${notesOpen ? "bg-white/15 text-white" : "hover:bg-white/10"}`} aria-label="Notes">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5Z" /><path d="M8 12h8M8 16h5" strokeLinecap="round" /></svg>
           {focused?.notes.trim() && <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-indigo-400" />}
         </button>
+        )}
         <a href={focused?.url} download={focused?.name} target="_blank" rel="noopener noreferrer" className={`${iconBtn} hover:bg-white/10`} aria-label="Download">
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 21h16" strokeLinecap="round" strokeLinejoin="round" /></svg>
         </a>
@@ -320,6 +326,7 @@ export function DocViewer({
                     color={tool === "highlighter" ? hlColor : penColor}
                     width={tool === "highlighter" ? HL_WIDTH : penWidth}
                     inputMode={inputMode}
+                    readOnly={readOnly}
                     registerDraw={d.id === focusId ? (api, canUndo, canRedo) => { drawApi.current = api; setHist({ canUndo, canRedo }) } : undefined}
                   />
                 )}
@@ -502,7 +509,7 @@ function ImagePane({ url, zoom, onZoom }: { url: string; zoom: number; onZoom: (
   )
 }
 
-function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, color, width, inputMode, registerDraw }: { url: string; httpHeaders?: Record<string, string>; drive?: boolean; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; color: string; width: number; inputMode: InputMode; registerDraw?: (api: { undo: () => void; redo: () => void }, canUndo: boolean, canRedo: boolean) => void }) {
+function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, color, width, inputMode, readOnly, registerDraw }: { url: string; httpHeaders?: Record<string, string>; drive?: boolean; materialId: string; zoom: number; onZoom: (z: number) => void; tool: Tool; color: string; width: number; inputMode: InputMode; readOnly?: boolean; registerDraw?: (api: { undo: () => void; redo: () => void }, canUndo: boolean, canRedo: boolean) => void }) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [numPages, setNumPages] = useState(0)
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
@@ -564,9 +571,10 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   }, [url])
 
   useEffect(() => {
+    if (readOnly) return // public share viewer: never touch account-scoped data
     listAnnotations(materialId).then(setAnnos).catch(() => {})
     listInk(materialId).then(setInk).catch(() => {})
-  }, [materialId])
+  }, [materialId, readOnly])
 
   const reportHistory = useCallback(() => {
     registerDraw?.({ undo, redo }, undoStack.current.length > 0, redoStack.current.length > 0)
