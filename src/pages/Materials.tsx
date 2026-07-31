@@ -671,6 +671,11 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
       setError("Enter a valid email.")
       return
     }
+    // Already in the list -> guide to the toggle instead of a failed insert.
+    if (shares.some((s) => s.shared_with_email.toLowerCase() === addr)) {
+      setError("Already shared — set their access with the View/Edit toggle below.")
+      return
+    }
     setBusy(true)
     setError(null)
     try {
@@ -678,7 +683,12 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
       setEmail("")
       load()
     } catch (err) {
-      setError(err instanceof Error && err.message.includes("duplicate") ? "Already shared with that email." : "Couldn't share.")
+      // Supabase throws a PostgrestError (a plain object, not an Error), so match
+      // on its code/message rather than `instanceof Error`.
+      const code = (err as { code?: string })?.code
+      const msg = (err as { message?: string })?.message ?? ""
+      const dup = code === "23505" || /duplicate|already exists/i.test(msg)
+      setError(dup ? "Already shared — set their access with the View/Edit toggle below." : "Couldn't share.")
     } finally {
       setBusy(false)
     }
