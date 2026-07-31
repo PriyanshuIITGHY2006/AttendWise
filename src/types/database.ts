@@ -224,6 +224,7 @@ export type Database = {
           course_id: string
           owner_id: string
           shared_with_email: string
+          role: string
           created_at: string
         }
         Insert: {
@@ -231,6 +232,7 @@ export type Database = {
           course_id: string
           owner_id: string
           shared_with_email: string
+          role?: string
           created_at?: string
         }
         Update: {
@@ -238,6 +240,7 @@ export type Database = {
           course_id?: string
           owner_id?: string
           shared_with_email?: string
+          role?: string
           created_at?: string
         }
         Relationships: []
@@ -704,6 +707,7 @@ export type Database = {
     }
     Functions: {
       am_i_material_allowed: { Args: never; Returns: boolean }
+      uploadable_course_ids: { Args: never; Returns: string[] }
       course_stats_for_user: {
         Args: never
         Returns: {

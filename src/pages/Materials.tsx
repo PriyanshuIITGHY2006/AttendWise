@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useCallback, type FormEvent } from "react"
 import { useAuth } from "../context/AuthContext"
-import { listAccessibleCourses, shareCourse, listCourseShares, unshareCourse, type Course, type CourseShare } from "../features/courses/api"
+import { listAccessibleCourses, shareCourse, updateShareRole, listCourseShares, unshareCourse, listMyFullCourseIds, listUploadableCourseIds, type Course, type CourseShare } from "../features/courses/api"
 import {
   listMaterials,
   uploadMaterialFile,
@@ -68,6 +68,11 @@ export function Materials() {
   const [courses, setCourses] = useState<Course[]>([])
   const [materials, setMaterials] = useState<MaterialWithCourse[]>([])
   const [loading, setLoading] = useState(true)
+  // Courses where I may upload files (Type-A user in a Type-A-owned course), and
+  // courses where I was toggled "full" (manage others' materials). Everyone can
+  // still view + add links to any course they can access.
+  const [uploadableCourses, setUploadableCourses] = useState<Set<string>>(new Set())
+  const [fullCourses, setFullCourses] = useState<Set<string>>(new Set())
 
   const [folder, setFolder] = useState<string | null>(null) // course_id, or null = root
   const [subcat, setSubcat] = useState<CategoryId | null>(null) // default category within a course
@@ -92,10 +97,18 @@ export function Materials() {
   const load = useCallback(async () => {
     if (!user) return
     setLoading(true)
-    const [c, m, f] = await Promise.all([listAccessibleCourses(), listMaterials(user.id), listFolders()])
+    const [c, m, f, up, full] = await Promise.all([
+      listAccessibleCourses(),
+      listMaterials(user.id),
+      listFolders(),
+      listUploadableCourseIds().catch(() => [] as string[]),
+      listMyFullCourseIds(user.email ?? "").catch(() => [] as string[]),
+    ])
     setCourses(c)
     setMaterials(m as MaterialWithCourse[])
     setCustomFolders(f)
+    setUploadableCourses(new Set(up))
+    setFullCourses(new Set(full))
     setLoading(false)
   }, [user])
 
@@ -330,16 +343,16 @@ export function Materials() {
     [user, load],
   )
 
-  if (!hasMaterialAccess) {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Materials</h1>
-        <Card className="mt-6">
-          <p className="text-sm text-neutral-500">You don't have access to this feature.</p>
-        </Card>
-      </div>
-    )
-  }
+  // Permission helpers. Materials is open to anyone signed in; what you can DO
+  // depends on your type and the course.
+  //  - upload files: only in `uploadableCourses` (Type-A user, Type-A course)
+  //  - manage (edit/rename/move/delete/star) a material: Type-A user, a course
+  //    you were toggled "full" on, or your own entry
+  //  - add links: anyone with access to the course (all courses listed here)
+  const ownsCourse = (courseId: string) => courses.find((c) => c.id === courseId)?.user_id === user?.id
+  const canUpload = (courseId: string) => uploadableCourses.has(courseId)
+  const canManage = (m: MaterialWithCourse) => ownsCourse(m.course_id) || fullCourses.has(m.course_id) || m.user_id === user?.id
+  const canShareLink = (m: MaterialWithCourse) => !!m.file_path && (hasMaterialAccess || m.user_id === user?.id)
 
   // Which level are we rendering?
   const showCourseFolders = !searching && !folder && !special
@@ -546,13 +559,13 @@ export function Materials() {
           ) : layout === "grid" ? (
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {entries.map((e) => (
-                <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching || !!special} />
+                <FileTile key={e.material.id} entry={e} thumb={e.material.file_path ? urls[e.material.file_path] : undefined} onOpen={() => openEntry(e)} onMenu={canManage(e.material) || canShareLink(e.material) ? () => setActionsFor(e) : undefined} showCourse={searching || !!special} />
               ))}
             </div>
           ) : (
             <div className="divide-y divide-neutral-100 overflow-hidden rounded-xl border border-neutral-200/70 dark:divide-neutral-800 dark:border-neutral-800">
               {entries.map((e) => (
-                <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={() => setActionsFor(e)} showCourse={searching || !!special} />
+                <FileRow key={e.material.id} entry={e} onOpen={() => openEntry(e)} onMenu={canManage(e.material) || canShareLink(e.material) ? () => setActionsFor(e) : undefined} showCourse={searching || !!special} />
               ))}
             </div>
           )}
@@ -566,6 +579,7 @@ export function Materials() {
           defaultCategory={subcat ?? "extras"}
           folderId={subfolder}
           userId={user!.id}
+          canUploadFor={canUpload}
           onClose={() => setAddOpen(false)}
           onAdded={() => {
             setAddOpen(false)
@@ -615,7 +629,7 @@ export function Materials() {
           onMove={(cat) => handleMove(actionsFor, cat)}
           onStar={() => handleStar(actionsFor)}
           onRename={() => handleRename(actionsFor)}
-          onShareLink={actionsFor.material.file_path ? () => { setShareLinkFor(actionsFor); setActionsFor(null) } : undefined}
+          onShareLink={canShareLink(actionsFor.material) ? () => { setShareLinkFor(actionsFor); setActionsFor(null) } : undefined}
           onDelete={() => handleDelete(actionsFor)}
         />
       )}
@@ -655,13 +669,22 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
     setBusy(true)
     setError(null)
     try {
-      await shareCourse(courseId, ownerId, addr)
+      await shareCourse(courseId, ownerId, addr, "link")
       setEmail("")
       load()
     } catch (err) {
       setError(err instanceof Error && err.message.includes("duplicate") ? "Already shared with that email." : "Couldn't share.")
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function setRole(id: string, role: "full" | "link") {
+    setShares((prev) => prev.map((s) => (s.id === id ? { ...s, role } : s)))
+    try {
+      await updateShareRole(id, role)
+    } catch {
+      load()
     }
   }
 
@@ -687,7 +710,7 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" /></svg>
           </button>
         </div>
-        <p className="mt-1 text-sm text-neutral-500">People you share with can view, upload, and delete files in this course's folder.</p>
+        <p className="mt-1 text-sm text-neutral-500">People you share with can view and add links. Toggle someone to <span className="font-medium">Full</span> to also let them edit and manage materials.</p>
 
         <form onSubmit={add} className="mt-4 flex gap-2">
           <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="friend@email.com" className="flex-1" />
@@ -699,15 +722,22 @@ function ShareModal({ courseId, courseName, ownerId, onClose }: { courseId: stri
           {shares.length === 0 ? (
             <p className="text-sm text-neutral-400">Not shared with anyone yet.</p>
           ) : (
-            shares.map((s) => (
-              <div key={s.id} className="flex items-center justify-between rounded-lg px-1 py-1.5 text-sm">
-                <span className="min-w-0 truncate">{s.shared_with_email}</span>
-                <button onClick={() => remove(s.id)} className="shrink-0 text-xs font-medium text-red-600 hover:underline">Remove</button>
-              </div>
-            ))
+            shares.map((s) => {
+              const full = s.role === "full"
+              return (
+                <div key={s.id} className="flex items-center gap-2 rounded-lg px-1 py-1.5 text-sm">
+                  <span className="min-w-0 flex-1 truncate">{s.shared_with_email}</span>
+                  <div className="flex shrink-0 overflow-hidden rounded-md border border-neutral-200 text-xs dark:border-neutral-700">
+                    <button onClick={() => setRole(s.id, "link")} className={`px-2 py-1 ${!full ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>Link</button>
+                    <button onClick={() => setRole(s.id, "full")} className={`px-2 py-1 ${full ? "bg-indigo-600 text-white" : "text-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}>Full</button>
+                  </div>
+                  <button onClick={() => remove(s.id)} className="shrink-0 text-xs font-medium text-red-600 hover:underline">Remove</button>
+                </div>
+              )
+            })
           )}
         </div>
-        <p className="mt-3 text-xs text-neutral-400">Note: they need Materials access on their account to open it.</p>
+        <p className="mt-3 text-xs text-neutral-400">“Link” members can view and add links. “Full” members can also edit, move and delete. Uploading files stays limited to your course's file-enabled members.</p>
       </div>
     </div>
   )
@@ -960,7 +990,7 @@ function MoreIcon({ className = "h-4 w-4" }: { className?: string }) {
   )
 }
 
-function FileTile({ entry, thumb, onOpen, onMenu, showCourse }: { entry: Entry; thumb?: string; onOpen: () => void; onMenu: () => void; showCourse: boolean }) {
+function FileTile({ entry, thumb, onOpen, onMenu, showCourse }: { entry: Entry; thumb?: string; onOpen: () => void; onMenu?: () => void; showCourse: boolean }) {
   return (
     <div className="group relative overflow-hidden rounded-xl border border-neutral-200/70 bg-white transition-all hover:-translate-y-0.5 hover:shadow-card-hover dark:border-neutral-800 dark:bg-neutral-900">
       <button onClick={onOpen} className="block w-full text-left">
@@ -977,18 +1007,20 @@ function FileTile({ entry, thumb, onOpen, onMenu, showCourse }: { entry: Entry; 
           </p>
         </div>
       </button>
-      <button
-        onClick={onMenu}
-        className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/80 text-neutral-500 opacity-0 backdrop-blur transition-opacity hover:text-neutral-900 group-hover:opacity-100 dark:bg-neutral-900/80 dark:hover:text-neutral-100"
-        aria-label="File actions"
-      >
-        <MoreIcon />
-      </button>
+      {onMenu && (
+        <button
+          onClick={onMenu}
+          className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-lg bg-white/80 text-neutral-500 opacity-0 backdrop-blur transition-opacity hover:text-neutral-900 group-hover:opacity-100 dark:bg-neutral-900/80 dark:hover:text-neutral-100"
+          aria-label="File actions"
+        >
+          <MoreIcon />
+        </button>
+      )}
     </div>
   )
 }
 
-function FileRow({ entry, onOpen, onMenu, showCourse }: { entry: Entry; onOpen: () => void; onMenu: () => void; showCourse: boolean }) {
+function FileRow({ entry, onOpen, onMenu, showCourse }: { entry: Entry; onOpen: () => void; onMenu?: () => void; showCourse: boolean }) {
   return (
     <div className="flex items-center gap-3 bg-white px-3 py-2.5 dark:bg-neutral-900">
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-3 text-left">
@@ -1003,9 +1035,11 @@ function FileRow({ entry, onOpen, onMenu, showCourse }: { entry: Entry; onOpen: 
           </p>
         </div>
       </button>
-      <button onClick={onMenu} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800" aria-label="File actions">
-        <MoreIcon />
-      </button>
+      {onMenu && (
+        <button onClick={onMenu} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 dark:hover:bg-neutral-800" aria-label="File actions">
+          <MoreIcon />
+        </button>
+      )}
     </div>
   )
 }
@@ -1052,6 +1086,7 @@ function AddModal({
   defaultCategory,
   folderId = null,
   userId,
+  canUploadFor,
   onClose,
   onAdded,
 }: {
@@ -1060,6 +1095,7 @@ function AddModal({
   defaultCategory: CategoryId
   folderId?: string | null
   userId: string
+  canUploadFor: (courseId: string) => boolean
   onClose: () => void
   onAdded: () => void
 }) {
@@ -1071,11 +1107,18 @@ function AddModal({
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
+  // In courses where you can't upload files, the picker is hidden and any
+  // previously chosen file is dropped -- you can still add an external link.
+  const fileAllowed = canUploadFor(courseId)
+  useEffect(() => {
+    if (!fileAllowed && file) setFile(null)
+  }, [fileAllowed, file])
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     if (!courseId) return
     if (!file && !link) {
-      setError("Attach a file or a link.")
+      setError(fileAllowed ? "Attach a file or a link." : "Add a link.")
       return
     }
     setSubmitting(true)
@@ -1144,12 +1187,18 @@ function AddModal({
               </select>
             </div>
           </div>
+          {fileAllowed ? (
+            <div>
+              <Label htmlFor="m-file">File</Label>
+              <input id="m-file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-neutral-500 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium dark:file:bg-neutral-800 dark:file:text-neutral-100" />
+            </div>
+          ) : (
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-xs text-neutral-500 dark:border-neutral-700 dark:bg-neutral-800/50">
+              You can add a link here. File uploads for this course are limited to its file-enabled members.
+            </div>
+          )}
           <div>
-            <Label htmlFor="m-file">File</Label>
-            <input id="m-file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="block w-full text-sm text-neutral-500 file:mr-3 file:rounded-md file:border-0 file:bg-neutral-100 file:px-3 file:py-2 file:text-sm file:font-medium dark:file:bg-neutral-800 dark:file:text-neutral-100" />
-          </div>
-          <div>
-            <Label htmlFor="m-link">Or external link</Label>
+            <Label htmlFor="m-link">{fileAllowed ? "Or external link" : "External link"}</Label>
             <Input id="m-link" type="url" value={link} onChange={(e) => setLink(e.target.value)} placeholder="https://drive.google.com/…" />
             <p className="mt-1 text-xs text-neutral-500">A Google Drive PDF shared as “Anyone with the link” opens right here — with annotations.</p>
           </div>
