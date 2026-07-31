@@ -687,6 +687,7 @@ export type Database = {
     Functions: {
       am_i_material_allowed: { Args: never; Returns: boolean }
       uploadable_course_ids: { Args: never; Returns: string[] }
+      accessible_course_owners: { Args: never; Returns: { course_id: string; owner_email: string }[] }
       course_stats_for_user: {
         Args: never
         Returns: {
