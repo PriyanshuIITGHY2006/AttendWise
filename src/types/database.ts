@@ -358,7 +358,7 @@ export type Database = {
       materials: {
         Row: {
           category: string
-          course_id: string
+          course_id: string | null
           created_at: string
           external_link: string | null
           file_path: string | null
@@ -374,7 +374,7 @@ export type Database = {
         }
         Insert: {
           category?: string
-          course_id: string
+          course_id?: string | null
           created_at?: string
           external_link?: string | null
           file_path?: string | null
@@ -390,7 +390,7 @@ export type Database = {
         }
         Update: {
           category?: string
-          course_id?: string
+          course_id?: string | null
           created_at?: string
           external_link?: string | null
           file_path?: string | null
@@ -471,21 +471,21 @@ export type Database = {
         Row: {
           id: string
           user_id: string
-          course_id: string
+          course_id: string | null
           name: string
           created_at: string
         }
         Insert: {
           id?: string
           user_id?: string
-          course_id: string
+          course_id?: string | null
           name: string
           created_at?: string
         }
         Update: {
           id?: string
           user_id?: string
-          course_id?: string
+          course_id?: string | null
           name?: string
           created_at?: string
         }

@@ -15,6 +15,7 @@ import {
   deleteMaterial,
   listFolders,
   createFolder,
+  createRootFolder,
   deleteFolder,
   type Material,
   type MaterialFolder,
@@ -61,7 +62,7 @@ function fmtDate(iso: string) {
 }
 
 export function Materials() {
-  const { user } = useAuth()
+  const { user, hasMaterialAccess } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
   const [materials, setMaterials] = useState<MaterialWithCourse[]>([])
   const [loading, setLoading] = useState(true)
@@ -79,6 +80,8 @@ export function Materials() {
   const [special, setSpecial] = useState<"starred" | "recent" | null>(null) // virtual root folders
   const [customFolders, setCustomFolders] = useState<MaterialFolder[]>([])
   const [folderModalCourse, setFolderModalCourse] = useState<string | null>(null) // "new folder" modal target
+  const [rootFolder, setRootFolder] = useState<string | null>(null) // open personal root folder id
+  const [newRootOpen, setNewRootOpen] = useState(false) // "new root folder" modal
   const [dragOver, setDragOver] = useState(false)
   const [layout, setLayout] = useState<"grid" | "list">("grid")
   const [sort, setSort] = useState<"name" | "date" | "type">("name")
@@ -123,16 +126,22 @@ export function Materials() {
     setSubcat(null)
     setSubfolder(null)
     setSpecial(null)
+    setRootFolder(null)
     setQuery("")
   }
-  const openCourse = (courseId: string) => { setFolder(courseId); setSubcat(null); setSubfolder(null) }
+  const openCourse = (courseId: string) => { setFolder(courseId); setSubcat(null); setSubfolder(null); setRootFolder(null) }
   const openCategory = (cat: CategoryId) => { setSubcat(cat); setSubfolder(null) }
   const openSubfolder = (id: string) => { setSubfolder(id); setSubcat(null) }
   const backToCourse = () => { setSubcat(null); setSubfolder(null) }
+  const openRootFolder = (id: string) => { setRootFolder(id); setFolder(null); setSubcat(null); setSubfolder(null); setSpecial(null) }
+  const openSpecial = (s: "starred" | "recent") => { setSpecial(s); setRootFolder(null) }
 
   // Custom folders for the open course.
   const courseFolders = useMemo(() => customFolders.filter((f) => f.course_id === folder), [customFolders, folder])
   const openFolderName = subfolder ? customFolders.find((f) => f.id === subfolder)?.name ?? null : null
+  // Top-level personal folders (course-less), and the open one's name.
+  const rootFolders = useMemo(() => customFolders.filter((f) => !f.course_id), [customFolders])
+  const openRootName = rootFolder ? customFolders.find((f) => f.id === rootFolder)?.name ?? null : null
 
   const starredCount = useMemo(() => materials.filter((m) => m.starred).length, [materials])
   const recentCount = useMemo(() => materials.filter((m) => m.last_opened_at).length, [materials])
@@ -141,7 +150,7 @@ export function Materials() {
   // is uploaded). Course folders are permanent -- they can't be deleted here.
   const folders = useMemo(() => {
     const counts = new Map<string, number>()
-    for (const m of materials) counts.set(m.course_id, (counts.get(m.course_id) ?? 0) + 1)
+    for (const m of materials) if (m.course_id) counts.set(m.course_id, (counts.get(m.course_id) ?? 0) + 1)
     return courses.map((c) => ({ course: c, count: counts.get(c.id) ?? 0 }))
   }, [courses, materials])
 
@@ -176,6 +185,9 @@ export function Materials() {
         .slice()
         .sort((a, b) => (b.last_opened_at ?? "").localeCompare(a.last_opened_at ?? ""))
         .slice(0, 30)
+    } else if (rootFolder) {
+      // Personal (course-less) files in this top-level folder.
+      list = list.filter((m) => !m.course_id && m.folder_id === rootFolder)
     } else if (folder && subfolder) {
       list = list.filter((m) => m.course_id === folder && m.folder_id === subfolder)
     } else if (folder && subcat) {
@@ -196,7 +208,7 @@ export function Materials() {
       })
     }
     return result
-  }, [materials, folder, subcat, subfolder, special, query, searching, sort, typeFilter])
+  }, [materials, folder, subcat, subfolder, rootFolder, special, query, searching, sort, typeFilter])
 
   // Batch-sign visible files so image tiles get thumbnails and the viewer opens
   // instantly.
@@ -312,6 +324,25 @@ export function Materials() {
     }
   }
 
+  // A root folder's files are course-less, so they'd be orphaned if the folder
+  // went away -- delete them with it.
+  async function handleDeleteRootFolder(f: MaterialFolder) {
+    const contained = materials.filter((m) => !m.course_id && m.folder_id === f.id)
+    const msg = contained.length
+      ? `Delete “${f.name}” and its ${contained.length} item${contained.length === 1 ? "" : "s"}? This can't be undone.`
+      : `Delete the folder “${f.name}”?`
+    if (!confirm(msg)) return
+    setCustomFolders((prev) => prev.filter((x) => x.id !== f.id))
+    setMaterials((prev) => prev.filter((m) => !(!m.course_id && m.folder_id === f.id)))
+    if (rootFolder === f.id) goRoot()
+    try {
+      for (const m of contained) await deleteMaterial(m)
+      await deleteFolder(f.id)
+    } catch {
+      load()
+    }
+  }
+
   async function handleRename(entry: Entry) {
     const next = prompt("Rename file", entry.name)?.trim()
     setActionsFor(null)
@@ -352,14 +383,16 @@ export function Materials() {
   const ownsCourse = (courseId: string) => courses.find((c) => c.id === courseId)?.user_id === user?.id
   const canEdit = (courseId: string) => ownsCourse(courseId) || editCourses.has(courseId)
   const canUpload = (courseId: string) => uploadableCourses.has(courseId)
-  const canManage = (m: MaterialWithCourse) => canEdit(m.course_id) || m.user_id === user?.id
+  // A personal (course-less) material is managed by its owner; a course one by
+  // anyone who can edit that course or owns the row.
+  const canManage = (m: MaterialWithCourse) => m.user_id === user?.id || (!!m.course_id && canEdit(m.course_id))
   // Editable courses feed the Add sheet's course picker.
   const editableCourses = courses.filter((c) => canEdit(c.id))
 
   // Which level are we rendering?
-  const showCourseFolders = !searching && !folder && !special
+  const showCourseFolders = !searching && !folder && !special && !rootFolder
   const showCategoryFolders = !searching && !!folder && !subcat && !subfolder
-  const showFiles = searching || !!special || (!!folder && (!!subcat || !!subfolder))
+  const showFiles = searching || !!special || !!rootFolder || (!!folder && (!!subcat || !!subfolder))
   const specialLabel = special === "starred" ? "Starred" : special === "recent" ? "Recent" : null
 
   return (
@@ -367,9 +400,17 @@ export function Materials() {
       {/* breadcrumb + add */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-1.5 text-sm">
-          <Crumb active={!folder && !searching && !special} onClick={goRoot}>
+          <Crumb active={!folder && !searching && !special && !rootFolder} onClick={goRoot}>
             Materials
           </Crumb>
+          {!searching && openRootName && (
+            <>
+              <Sep />
+              <Crumb active>
+                <span className="max-w-[9rem] truncate sm:max-w-none">{openRootName}</span>
+              </Crumb>
+            </>
+          )}
           {!searching && !special && currentCourseName && (
             <>
               <Sep />
@@ -413,7 +454,7 @@ export function Materials() {
               <span className="hidden sm:inline">Share</span>
             </button>
           )}
-          {editableCourses.length > 0 && (
+          {(editableCourses.length > 0 || rootFolder) && (
             <Button onClick={() => setAddOpen(true)}>Add</Button>
           )}
         </div>
@@ -477,21 +518,21 @@ export function Materials() {
       {loading ? (
         <ListSkeleton />
       ) : showCourseFolders ? (
-        folders.length === 0 ? (
-          <EmptyState onAdd={() => setAddOpen(true)} canAdd={courses.length > 0} />
+        folders.length === 0 && rootFolders.length === 0 ? (
+          <EmptyState onAdd={() => setAddOpen(true)} canAdd={courses.length > 0} onNewFolder={() => setNewRootOpen(true)} />
         ) : (
           <>
             {(starredCount > 0 || recentCount > 0) && (
               <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
                 {starredCount > 0 && (
-                  <QuickCard glyph="star" tint="#f59e0b" title="Starred" subtitle={`${starredCount} item${starredCount === 1 ? "" : "s"}`} onClick={() => setSpecial("starred")} />
+                  <QuickCard glyph="star" tint="#f59e0b" title="Starred" subtitle={`${starredCount} item${starredCount === 1 ? "" : "s"}`} onClick={() => openSpecial("starred")} />
                 )}
                 {recentCount > 0 && (
-                  <QuickCard glyph="clock" tint="#6366f1" title="Recent" subtitle="Recently opened" onClick={() => setSpecial("recent")} />
+                  <QuickCard glyph="clock" tint="#6366f1" title="Recent" subtitle="Recently opened" onClick={() => openSpecial("recent")} />
                 )}
               </div>
             )}
-            <p className="mt-6 text-xs font-medium uppercase tracking-wide text-neutral-400">Courses</p>
+            {folders.length > 0 && <p className="mt-6 text-xs font-medium uppercase tracking-wide text-neutral-400">Courses</p>}
             <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
               {folders.map(({ course, count }) => {
                 const isShared = course.user_id !== user?.id
@@ -509,6 +550,31 @@ export function Materials() {
                   />
                 )
               })}
+            </div>
+
+            {/* Personal top-level folders (no course, no templates inside). */}
+            <p className="mt-6 text-xs font-medium uppercase tracking-wide text-neutral-400">Your folders</p>
+            <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+              {rootFolders.map((f) => {
+                const count = materials.filter((m) => !m.course_id && m.folder_id === f.id).length
+                return (
+                  <FolderCard
+                    key={f.id}
+                    color="#64748b"
+                    title={f.name}
+                    subtitle={`${count} item${count === 1 ? "" : "s"}`}
+                    onClick={() => openRootFolder(f.id)}
+                    onDelete={() => handleDeleteRootFolder(f)}
+                  />
+                )
+              })}
+              <button
+                onClick={() => setNewRootOpen(true)}
+                className="flex min-h-[5.5rem] flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-neutral-300 text-sm font-medium text-neutral-500 transition-colors hover:border-neutral-400 hover:text-neutral-700 dark:border-neutral-700 dark:hover:text-neutral-300"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 5v14M5 12h14" strokeLinecap="round" /></svg>
+                New folder
+              </button>
             </div>
           </>
         )
@@ -583,12 +649,16 @@ export function Materials() {
       {addOpen && (
         <AddModal
           courses={editableCourses}
+          owners={courseOwners}
           defaultCourseId={folder && canEdit(folder) ? folder : editableCourses[0]?.id ?? ""}
           defaultCategory={subcat ?? "extras"}
           folderId={subfolder}
           folders={customFolders}
           userId={user!.id}
           canUploadFor={canUpload}
+          rootFolderId={rootFolder}
+          rootFolderName={openRootName}
+          canUploadPersonal={hasMaterialAccess}
           onClose={() => setAddOpen(false)}
           onAdded={() => {
             setAddOpen(false)
@@ -605,6 +675,18 @@ export function Materials() {
             const f = await createFolder(folderModalCourse, name)
             setCustomFolders((prev) => [...prev, f])
             setFolderModalCourse(null)
+          }}
+        />
+      )}
+
+      {newRootOpen && (
+        <NewFolderModal
+          existing={rootFolders.map((f) => f.name.toLowerCase())}
+          onClose={() => setNewRootOpen(false)}
+          onCreate={async (name) => {
+            const f = await createRootFolder(name)
+            setCustomFolders((prev) => [...prev, f])
+            setNewRootOpen(false)
           }}
         />
       )}
@@ -801,26 +883,32 @@ function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }
             Rename
           </button>
         </div>
-        <p className="px-1 pb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Move to folder</p>
-        <div className="space-y-1">
-          {CATEGORIES.map((c) => {
-            const isCurrent = c.id === current
-            return (
-              <button
-                key={c.id}
-                disabled={isCurrent}
-                onClick={() => onMove(c.id)}
-                className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm ${isCurrent ? "cursor-default text-neutral-400" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
-              >
-                <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none">
-                  <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill={c.color} opacity={isCurrent ? 0.4 : 0.9} />
-                </svg>
-                <span className="flex-1 font-medium">{c.label}</span>
-                {isCurrent && <span className="text-xs text-neutral-400">Current</span>}
-              </button>
-            )
-          })}
-        </div>
+        {/* Category move only applies to course materials -- a personal
+            (course-less) file has no categories to move between. */}
+        {entry.material.course_id && (
+          <>
+            <p className="px-1 pb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Move to folder</p>
+            <div className="space-y-1">
+              {CATEGORIES.map((c) => {
+                const isCurrent = c.id === current
+                return (
+                  <button
+                    key={c.id}
+                    disabled={isCurrent}
+                    onClick={() => onMove(c.id)}
+                    className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm ${isCurrent ? "cursor-default text-neutral-400" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none">
+                      <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill={c.color} opacity={isCurrent ? 0.4 : 0.9} />
+                    </svg>
+                    <span className="flex-1 font-medium">{c.label}</span>
+                    {isCurrent && <span className="text-xs text-neutral-400">Current</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </>
+        )}
         <div className="mt-2 border-t border-neutral-100 pt-2 dark:border-neutral-800">
           <button onClick={onDelete} className="flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-500/10">
             <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m2 0v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -846,11 +934,20 @@ function Sep() {
   return <span className="shrink-0 text-neutral-300">/</span>
 }
 
-function EmptyState({ onAdd, canAdd }: { onAdd: () => void; canAdd: boolean }) {
+function EmptyState({ onAdd, canAdd, onNewFolder }: { onAdd: () => void; canAdd: boolean; onNewFolder?: () => void }) {
   return (
     <Card className="mx-auto mt-6 max-w-md text-center">
       <p className="text-sm text-neutral-500">No files yet.</p>
-      {canAdd ? <Button className="mt-3" onClick={onAdd}>Add your first file</Button> : <p className="mt-2 text-sm text-neutral-400">Add a course first.</p>}
+      {canAdd ? (
+        <Button className="mt-3" onClick={onAdd}>Add your first file</Button>
+      ) : (
+        <p className="mt-2 text-sm text-neutral-400">Add a course first.</p>
+      )}
+      {onNewFolder && (
+        <div className="mt-3">
+          <button onClick={onNewFolder} className="text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400">or make a personal folder</button>
+        </div>
+      )}
     </Card>
   )
 }
@@ -1016,25 +1113,35 @@ function NewFolderModal({ existing, onClose, onCreate }: { existing: string[]; o
 
 function AddModal({
   courses,
+  owners,
   defaultCourseId,
   defaultCategory,
   folderId = null,
   folders,
   userId,
   canUploadFor,
+  rootFolderId = null,
+  rootFolderName = null,
+  canUploadPersonal = false,
   onClose,
   onAdded,
 }: {
   courses: Course[]
+  owners: Record<string, string>
   defaultCourseId: string
   defaultCategory: CategoryId
   folderId?: string | null
   folders: MaterialFolder[]
   userId: string
   canUploadFor: (courseId: string) => boolean
+  // Personal mode: adding into a top-level (course-less) folder.
+  rootFolderId?: string | null
+  rootFolderName?: string | null
+  canUploadPersonal?: boolean
   onClose: () => void
   onAdded: () => void
 }) {
+  const personal = !!rootFolderId
   const [title, setTitle] = useState("")
   const [courseId, setCourseId] = useState(defaultCourseId)
   // Destination folder, encoded as "cat:<categoryId>" (a default template folder)
@@ -1057,14 +1164,15 @@ function AddModal({
 
   // In courses where you can't upload files, the picker is hidden and any
   // previously chosen file is dropped -- you can still add an external link.
-  const fileAllowed = canUploadFor(courseId)
+  // Personal folders use your own file-upload eligibility.
+  const fileAllowed = personal ? canUploadPersonal : canUploadFor(courseId)
   useEffect(() => {
     if (!fileAllowed && file) setFile(null)
   }, [fileAllowed, file])
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
-    if (!courseId) return
+    if (!personal && !courseId) return
     if (!file && !link) {
       setError(fileAllowed ? "Attach a file or a link." : "Add a link.")
       return
@@ -1078,17 +1186,17 @@ function AddModal({
         setError(`That file is ${formatBytes(toUpload.size)} — over the 48 MB limit. Compress it, or paste a link instead.`)
         return
       }
-      const filePath = toUpload ? await uploadMaterialFile(userId, courseId, toUpload) : null
+      const filePath = toUpload ? await uploadMaterialFile(userId, personal ? "personal" : courseId, toUpload) : null
       const intoFolder = dest.startsWith("folder:")
       await createMaterial({
-        course_id: courseId,
+        course_id: personal ? null : courseId,
         user_id: userId,
         title: title || (file ? file.name : link),
         file_path: filePath,
         external_link: link || null,
-        // A custom folder holds the file directly; a category is the template folder.
-        category: intoFolder ? "extras" : (dest.slice(4) as CategoryId),
-        folder_id: intoFolder ? dest.slice(7) : null,
+        // Personal + custom folders hold the file directly; a category is the template folder.
+        category: personal || intoFolder ? "extras" : (dest.slice(4) as CategoryId),
+        folder_id: personal ? rootFolderId : intoFolder ? dest.slice(7) : null,
       })
       onAdded()
     } catch (err) {
@@ -1118,31 +1226,40 @@ function AddModal({
             <Label htmlFor="m-title">Title <span className="font-normal text-neutral-400">(optional)</span></Label>
             <Input id="m-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Defaults to the file name" />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="m-course">Course</Label>
-              <select id="m-course" value={courseId} onChange={(e) => setCourseId(e.target.value)} className={selectClass}>
-                {courses.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
+          {personal ? (
+            <div className="rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm dark:border-neutral-700 dark:bg-neutral-800/50">
+              Adding to <span className="font-medium">{rootFolderName}</span>
             </div>
-            <div>
-              <Label htmlFor="m-cat">Folder</Label>
-              <select id="m-cat" value={dest} onChange={(e) => setDest(e.target.value)} className={selectClass}>
-                {CATEGORIES.map((c) => (
-                  <option key={c.id} value={`cat:${c.id}`}>{c.label}</option>
-                ))}
-                {courseFolders.length > 0 && (
-                  <optgroup label="Your folders">
-                    {courseFolders.map((f) => (
-                      <option key={f.id} value={`folder:${f.id}`}>{f.name}</option>
-                    ))}
-                  </optgroup>
-                )}
-              </select>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="m-course">Course</Label>
+                <select id="m-course" value={courseId} onChange={(e) => setCourseId(e.target.value)} className={selectClass}>
+                  {courses.map((c) => {
+                    // Disambiguate same-named courses shared by different owners.
+                    const shared = c.user_id !== userId
+                    const label = shared && owners[c.id] ? `${c.name} · ${owners[c.id]}` : c.name
+                    return <option key={c.id} value={c.id}>{label}</option>
+                  })}
+                </select>
+              </div>
+              <div>
+                <Label htmlFor="m-cat">Folder</Label>
+                <select id="m-cat" value={dest} onChange={(e) => setDest(e.target.value)} className={selectClass}>
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={`cat:${c.id}`}>{c.label}</option>
+                  ))}
+                  {courseFolders.length > 0 && (
+                    <optgroup label="Your folders">
+                      {courseFolders.map((f) => (
+                        <option key={f.id} value={`folder:${f.id}`}>{f.name}</option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
             </div>
-          </div>
+          )}
           {fileAllowed ? (
             <div>
               <Label htmlFor="m-file">File</Label>

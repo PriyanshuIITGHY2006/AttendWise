@@ -120,6 +120,14 @@ export async function createFolder(courseId: string, name: string): Promise<Mate
   return data
 }
 
+// A top-level personal folder (no course, no category templates), private to
+// the creator.
+export async function createRootFolder(name: string): Promise<MaterialFolder> {
+  const { data, error } = await supabase.from("material_folders").insert({ course_id: null, name: name.trim() }).select().single()
+  if (error) throw error
+  return data
+}
+
 export async function renameFolder(id: string, name: string) {
   const { error } = await supabase.from("material_folders").update({ name: name.trim() }).eq("id", id)
   if (error) throw error
