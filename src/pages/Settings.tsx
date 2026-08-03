@@ -184,6 +184,7 @@ export function Settings() {
                   {(
                     [
                       { key: "roast", label: "Bunkmate 😏" },
+                      { key: "kuchupuchu", label: "Kuchupuchu 🥺" },
                       { key: "plain", label: "Plain" },
                     ] as const
                   ).map((opt) => (
