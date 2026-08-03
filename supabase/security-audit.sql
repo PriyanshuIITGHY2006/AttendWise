@@ -1,0 +1,44 @@
+-- Full-application security audit (materials sharing + whole app). Migrations
+-- applied live: fix_profile_role_privilege_escalation, profiles_column_scoped_update,
+-- harden_storage_read_prefix_match, lock_rpc_to_authenticated.
+--
+-- Method: Supabase security advisor + adversarial RLS simulations against every
+-- table, all SECURITY DEFINER functions, storage policies, and edge functions.
+--
+-- VULNERABILITIES FOUND & FIXED
+-- 1. Privilege escalation (critical): the profiles UPDATE policy is
+--    `auth.uid() = id` and `authenticated` held a table-level UPDATE grant, so
+--    any signed-in user could set their own profiles.role = 'admin' and gain
+--    admin rights (e.g. write institute_calendar, which drives everyone's
+--    session generation). Confirmed a 'student' self-promoting to 'admin'.
+--    FIX: replace the blanket table UPDATE grant with a column-scoped grant
+--    covering only personal fields; role is assigned by the backend only.
+-- 2. Storage IDOR: the "read shared material files" policy matched objects by
+--    materials.file_path (uploader-controlled) -- a user could reference another
+--    user's storage object (incl. a private personal file) and read it. FIX:
+--    require the object's owner-prefix to equal the material's uploader and
+--    exclude personal files. (See security-materials-sharing.sql.)
+-- 3. Anon-callable SECURITY DEFINER RPCs: accessible_course_owners /
+--    uploadable_course_ids revoked from anon/public. (See same file.)
+--
+-- VERIFIED SAFE
+--  * All 16 public tables have RLS enabled; material_access_allowlist & push_log
+--    are deny-all (only reachable via SECURITY DEFINER / service role).
+--  * Every SECURITY DEFINER function pins `search_path = public`.
+--  * handle_new_user (signup) sets only id/email/full_name -- role can't be
+--    self-assigned at signup.
+--  * attendance_push_targets is not callable by anon/authenticated (backend only).
+--  * drive-proxy validates the Drive id ([A-Za-z0-9_-]{10,}) and hardcodes the
+--    Google host -- no SSRF to arbitrary/internal hosts.
+--  * materials-storage scopes every key to the caller's own uid prefix.
+--  * attendance-push (verify_jwt off) gates on a CRON_SECRET header.
+--  * materials bucket is private; pdf_ink/pdf_annotations & personal materials
+--    are strictly owner-only.
+--  * material-share edge function neutralized to a 410 stub (no service-role).
+--
+-- RECOMMENDATION (dashboard config, not code): enable Auth "leaked password
+-- protection" (HaveIBeenPwned) in the Supabase dashboard.
+
+-- (1) Privilege-escalation fix, recorded for the repo:
+revoke update on public.profiles from authenticated, anon;
+grant update (full_name, branch, has_completed_tour, is_first_year_ug) on public.profiles to authenticated;
