@@ -3,7 +3,7 @@ import type { Tables } from "../../types/database"
 
 export type NotificationSettings = Tables<"notification_settings">
 
-export type HumorLevel = "roast" | "plain"
+export type HumorLevel = "roast" | "plain" | "kuchupuchu"
 
 /** The per-type switches + quiet hours + digests that live on the global row. */
 export type NotificationPrefs = {
@@ -50,7 +50,7 @@ function rowToPrefs(row: NotificationSettings | null): NotificationPrefs {
     daily_digest_time: row.daily_digest_time,
     quiet_start: row.quiet_start,
     quiet_end: row.quiet_end,
-    humor_level: row.humor_level === "plain" ? "plain" : "roast",
+    humor_level: row.humor_level === "plain" ? "plain" : row.humor_level === "kuchupuchu" ? "kuchupuchu" : "roast",
   }
 }
 

@@ -188,7 +188,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
 
   if (prefs.muted) return // master switch: nothing scheduled while muted
 
-  const plain = prefs.humor_level === "plain"
+  const voice = prefs.humor_level
   const now = Date.now()
   const notifications: Parameters<typeof LocalNotifications.schedule>[0]["notifications"] = []
 
@@ -205,7 +205,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
         ...ANDROID_OPTS,
         id: hashToRange(`class-${s.id}`, NAMESPACE.class, 100_000_000),
         title: "Class starting soon",
-        body: classStartingSoon(s.courseName, prefs.lead_time_minutes, `${s.id}-${s.startTime}`, plain),
+        body: classStartingSoon(s.courseName, prefs.lead_time_minutes, `${s.id}-${s.startTime}`, voice),
         schedule: { at: fireAt },
         actionTypeId: CLASS_ACTION_TYPE,
         extra: { sessionId: s.id, userId },
@@ -225,7 +225,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
         ...ANDROID_OPTS,
         id: hashToRange(`quiz-${ev.id}`, NAMESPACE.quiz, 100_000_000),
         title: "Coming up",
-        body: quizReminder(ev.title, ev.courseName, Math.max(1, daysAway), ev.id, plain),
+        body: quizReminder(ev.title, ev.courseName, Math.max(1, daysAway), ev.id, voice),
         schedule: { at: fireAt },
       })
     }
@@ -243,7 +243,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
         ...ANDROID_OPTS,
         id: hashToRange(`planned-${skip.sessionId}`, NAMESPACE.planned, 50_000_000),
         title: "Skipping tomorrow?",
-        body: plannedSkipReminder(skip.courseName, skip.sessionId, plain),
+        body: plannedSkipReminder(skip.courseName, skip.sessionId, voice),
         schedule: { at: dayBefore },
       })
     }
@@ -257,7 +257,7 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
       ...ANDROID_OPTS,
       id: DIGEST_ID,
       title: "AttendWise",
-      body: dailyDigest(`digest-${prefs.daily_digest_time}`, plain),
+      body: dailyDigest(`digest-${prefs.daily_digest_time}`, voice),
       schedule: { on: { hour: dh, minute: dm }, allowWhileIdle: true },
     })
   }
@@ -300,7 +300,7 @@ export async function notifyThresholdIfChanged(
         ...ANDROID_OPTS,
         id: hashToRange(`threshold-${courseId}-${status}-${today}`, NAMESPACE.threshold, 100_000_000),
         title: status === "red" ? "Attendance in trouble" : "Cutting it close",
-        body: thresholdRoast(courseName, percent, status, `${courseId}-${today}`, prefs.humor_level === "plain"),
+        body: thresholdRoast(courseName, percent, status, `${courseId}-${today}`, prefs.humor_level),
         schedule: { at: new Date(Date.now() + 1000) },
       },
     ],
@@ -322,7 +322,7 @@ export async function notifyUnmarkedIfNeeded(count: number, prefs: NotificationP
         ...ANDROID_OPTS,
         id: hashToRange(`unmarked-${today}`, NAMESPACE.unmarked, 100_000_000),
         title: "Unmarked classes",
-        body: unmarkedNudge(count, `${count}-${today}`, prefs.humor_level === "plain"),
+        body: unmarkedNudge(count, `${count}-${today}`, prefs.humor_level),
         schedule: { at: new Date(Date.now() + 1000) },
       },
     ],
