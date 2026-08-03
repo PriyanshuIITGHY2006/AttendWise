@@ -8,6 +8,7 @@ import {
   getMaterialFileUrls,
   createMaterial,
   moveMaterial,
+  setMaterialFolder,
   updateMaterialNotes,
   setMaterialStarred,
   renameMaterial,
@@ -295,13 +296,24 @@ export function Materials() {
   }
 
   async function handleMove(entry: Entry, category: CategoryId) {
-    // Optimistic: reflect the new folder immediately, then persist.
-    setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, category } : m)))
+    // Moving to a category also lifts the file out of any custom folder, so clear
+    // folder_id optimistically too (moveMaterial does the same server-side).
+    setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, category, folder_id: null } : m)))
     setActionsFor(null)
     try {
       await moveMaterial(entry.material.id, category)
     } catch {
       load() // revert to server truth on failure
+    }
+  }
+
+  async function handleMoveToFolder(entry: Entry, folderId: string) {
+    setMaterials((prev) => prev.map((m) => (m.id === entry.material.id ? { ...m, folder_id: folderId } : m)))
+    setActionsFor(null)
+    try {
+      await setMaterialFolder(entry.material.id, folderId)
+    } catch {
+      load()
     }
   }
 
@@ -716,8 +728,10 @@ export function Materials() {
       {actionsFor && (
         <FileActionsSheet
           entry={actionsFor}
+          folders={customFolders.filter((f) => f.course_id === actionsFor.material.course_id)}
           onClose={() => setActionsFor(null)}
           onMove={(cat) => handleMove(actionsFor, cat)}
+          onMoveToFolder={(fid) => handleMoveToFolder(actionsFor, fid)}
           onStar={() => handleStar(actionsFor)}
           onRename={() => handleRename(actionsFor)}
           onDelete={() => handleDelete(actionsFor)}
@@ -862,7 +876,10 @@ function QuickCard({ glyph, tint, title, subtitle, onClick }: { glyph: "star" | 
   )
 }
 
-function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }: { entry: Entry; onClose: () => void; onMove: (cat: CategoryId) => void; onStar: () => void; onRename: () => void; onDelete: () => void }) {
+function FileActionsSheet({ entry, folders, onClose, onMove, onMoveToFolder, onStar, onRename, onDelete }: { entry: Entry; folders: MaterialFolder[]; onClose: () => void; onMove: (cat: CategoryId) => void; onMoveToFolder: (folderId: string) => void; onStar: () => void; onRename: () => void; onDelete: () => void }) {
+  // A file in a custom folder lives there, not in a category -- so the current
+  // location is the folder (if any), otherwise the category.
+  const inFolder = entry.material.folder_id
   const current = (entry.material.category as CategoryId) ?? "extras"
   const starred = entry.material.starred
   return (
@@ -890,7 +907,7 @@ function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }
             <p className="px-1 pb-2 text-xs font-medium uppercase tracking-wide text-neutral-400">Move to folder</p>
             <div className="space-y-1">
               {CATEGORIES.map((c) => {
-                const isCurrent = c.id === current
+                const isCurrent = !inFolder && c.id === current
                 return (
                   <button
                     key={c.id}
@@ -902,6 +919,23 @@ function FileActionsSheet({ entry, onClose, onMove, onStar, onRename, onDelete }
                       <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill={c.color} opacity={isCurrent ? 0.4 : 0.9} />
                     </svg>
                     <span className="flex-1 font-medium">{c.label}</span>
+                    {isCurrent && <span className="text-xs text-neutral-400">Current</span>}
+                  </button>
+                )
+              })}
+              {folders.map((f) => {
+                const isCurrent = inFolder === f.id
+                return (
+                  <button
+                    key={f.id}
+                    disabled={isCurrent}
+                    onClick={() => onMoveToFolder(f.id)}
+                    className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2.5 text-left text-sm ${isCurrent ? "cursor-default text-neutral-400" : "hover:bg-neutral-100 dark:hover:bg-neutral-800"}`}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-6 w-6 shrink-0" fill="none">
+                      <path d="M3 7a2 2 0 0 1 2-2h3.5l2 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z" fill="#64748b" opacity={isCurrent ? 0.4 : 0.9} />
+                    </svg>
+                    <span className="flex-1 font-medium">{f.name}</span>
                     {isCurrent && <span className="text-xs text-neutral-400">Current</span>}
                   </button>
                 )
