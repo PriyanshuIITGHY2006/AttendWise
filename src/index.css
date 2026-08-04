@@ -112,3 +112,32 @@ html.dark {
   max-width: 100%;
   overflow-x: hidden;
 }
+
+/* pdf.js selectable text layer, overlaid on each rendered page canvas. Spans are
+   transparent (the canvas shows the visible text); this layer only exists so the
+   browser can select/copy. pdf.js positions spans via --total-scale-factor. */
+.aw-textlayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  opacity: 1;
+  line-height: 1;
+  text-align: initial;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+}
+.aw-textlayer :is(span, br) {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0 0;
+}
+.aw-textlayer span.markedContent {
+  top: 0;
+  height: 0;
+}
+.aw-textlayer ::selection {
+  background: rgba(79, 70, 229, 0.4);
+}

@@ -15,6 +15,8 @@ export type LoadedPdf = {
   firstPageAspect: number
   /** Render page `n` (1-based) into `canvas` at the given CSS width in px. */
   renderPage: (n: number, canvas: HTMLCanvasElement, cssWidth: number) => Promise<void>
+  /** Render page `n`'s selectable text layer into `container` at the given CSS width. */
+  renderTextLayer: (n: number, container: HTMLElement, cssWidth: number) => Promise<void>
   destroy: () => void
 }
 
@@ -39,6 +41,19 @@ export async function loadPdf(url: string, httpHeaders?: Record<string, string>)
       canvas.style.width = `${cssWidth}px`
       canvas.style.height = `${Math.floor(viewport.height / dpr)}px`
       await page.render({ canvasContext: ctx, viewport, canvas }).promise
+    },
+    async renderTextLayer(n, container, cssWidth) {
+      const page = await doc.getPage(n)
+      const unscaled = page.getViewport({ scale: 1 })
+      // Text layer is laid out in CSS pixels (no DPR) to sit exactly over the
+      // canvas; pdf.js positions the spans via the --total-scale-factor variable.
+      const scale = cssWidth / unscaled.width
+      const viewport = page.getViewport({ scale })
+      container.replaceChildren()
+      container.style.setProperty("--scale-factor", String(scale))
+      container.style.setProperty("--total-scale-factor", String(scale))
+      const layer = new pdfjsLib.TextLayer({ textContentSource: page.streamTextContent(), container, viewport })
+      await layer.render()
     },
     destroy() {
       loadingTask.destroy()
