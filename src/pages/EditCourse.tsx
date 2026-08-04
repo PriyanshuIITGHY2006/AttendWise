@@ -5,7 +5,6 @@ import {
   listSchedule,
   updateCourse,
   replaceSchedule,
-  generateSessions,
   type Course,
   type CourseSchedule,
 } from "../features/courses/api"
@@ -64,7 +63,7 @@ export function EditCourse() {
       })),
     )
 
-    await generateSessions(courseId)
+    // replaceSchedule now re-projects sessions atomically; no separate generate.
     navigate(`/courses/${courseId}`)
   }
 

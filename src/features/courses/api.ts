@@ -119,14 +119,23 @@ export async function listSchedule(courseId: string) {
   return data
 }
 
+// Replace a course's weekly schedule AND re-project its sessions atomically:
+// past/marked classes are preserved, future unmarked classes are re-generated
+// from the new schedule. Done in one RPC so the schedule swap can't strand the
+// old future sessions (the FK is ON DELETE SET NULL, which otherwise hides them
+// from the regenerator). No separate generateSessions() call is needed after.
 export async function replaceSchedule(courseId: string, slots: Omit<TablesInsert<"course_schedule">, "course_id">[]) {
-  const { error: deleteError } = await supabase.from("course_schedule").delete().eq("course_id", courseId)
-  if (deleteError) throw deleteError
-  if (slots.length === 0) return
-  const { error: insertError } = await supabase
-    .from("course_schedule")
-    .insert(slots.map((s) => ({ ...s, course_id: courseId })))
-  if (insertError) throw insertError
+  const { error } = await supabase.rpc("set_course_schedule", {
+    p_course_id: courseId,
+    p_slots: slots.map((s) => ({
+      day_of_week: s.day_of_week,
+      start_time: s.start_time,
+      end_time: s.end_time,
+      component_type: s.component_type,
+      room: s.room ?? null,
+    })),
+  })
+  if (error) throw error
 }
 
 export async function addScheduleSlot(slot: TablesInsert<"course_schedule">) {
