@@ -703,6 +703,10 @@ export type Database = {
         Args: { p_course_id: string }
         Returns: undefined
       }
+      set_course_schedule: {
+        Args: { p_course_id: string; p_slots: unknown }
+        Returns: undefined
+      }
       list_unmarked_past_sessions: {
         Args: never
         Returns: {
