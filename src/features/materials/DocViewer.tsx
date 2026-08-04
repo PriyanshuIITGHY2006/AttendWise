@@ -515,6 +515,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading")
   const pdfRef = useRef<LoadedPdf | null>(null)
   const canvasRefs = useRef<(HTMLCanvasElement | null)[]>([])
+  const textLayerRefs = useRef<(HTMLDivElement | null)[]>([])
   const [renderZoom, setRenderZoom] = useState(zoom)
   // First page's aspect ratio, for sizing not-yet-rendered placeholders. Whether
   // a page canvas is drawn at the current zoom is tracked on the element itself
@@ -702,6 +703,16 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
         } catch {
           /* leave unmarked so it retries */
         }
+        // Selectable text overlay, aligned to the canvas at the same width.
+        const tl = textLayerRefs.current[n - 1]
+        if (tl && tl.dataset.renderedZoom !== String(renderZoom)) {
+          try {
+            await pdfRef.current!.renderTextLayer(n, tl, rw)
+            tl.dataset.renderedZoom = String(renderZoom)
+          } catch {
+            /* text layer is best-effort; leave unmarked to retry */
+          }
+        }
       }
     })()
     return () => {
@@ -738,6 +749,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
   const onInkEraseCb = useCallback((ids: string[]) => impl.current.eraseStrokes(ids), [])
   const onDragEndCb = useCallback((id: string, x: number, y: number) => { impl.current.patchAnno(id, { x, y }); updateAnnotation(id, { x, y }).catch(() => {}) }, [])
   const registerCanvas = useCallback((p: number, el: HTMLCanvasElement | null) => { canvasRefs.current[p - 1] = el }, [])
+  const registerTextLayer = useCallback((p: number, el: HTMLDivElement | null) => { textLayerRefs.current[p - 1] = el }, [])
   const inkByPage = useMemo(() => {
     const m = new Map<number, InkStroke[]>()
     for (const s of ink) { const a = m.get(s.page); if (a) a.push(s); else m.set(s.page, [s]) }
@@ -798,6 +810,7 @@ function PdfPane({ url, httpHeaders, drive, materialId, zoom, onZoom, tool, colo
                 onInkCommit={onInkCommitCb}
                 onInkErase={onInkEraseCb}
                 registerCanvas={registerCanvas}
+                registerTextLayer={registerTextLayer}
               />
             </div>
           )
@@ -861,6 +874,7 @@ const PdfPageWrap = memo(function PdfPageWrap({
   onInkCommit,
   onInkErase,
   registerCanvas,
+  registerTextLayer,
 }: {
   page: number
   pageWidth: number
@@ -878,6 +892,7 @@ const PdfPageWrap = memo(function PdfPageWrap({
   onInkCommit: (page: number, points: Pt[], color: string, width: number) => void
   onInkErase: (ids: string[]) => void
   registerCanvas: (page: number, el: HTMLCanvasElement | null) => void
+  registerTextLayer: (page: number, el: HTMLDivElement | null) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
 
@@ -903,6 +918,14 @@ const PdfPageWrap = memo(function PdfPageWrap({
         data-page={page}
         className="block rounded bg-white shadow-lg"
         style={{ width: pageWidth, height: pageHeight }}
+      />
+      {/* Selectable text overlay. Only accepts pointer events (for selection)
+          while panning -- when a drawing tool or the note tool is active it stays
+          inert so the ink layer / note placement own the gestures. */}
+      <div
+        ref={(el) => registerTextLayer(page, el)}
+        className="aw-textlayer"
+        style={{ width: pageWidth, height: pageHeight, pointerEvents: tool === "pan" ? "auto" : "none" }}
       />
       <InkLayer containerRef={ref} strokes={ink} tool={tool} color={color} width={width} inputMode={inputMode} onCommit={(pts, c, w) => onInkCommit(page, pts, c, w)} onErase={onInkErase} />
       {annos.map((a) => (
