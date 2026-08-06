@@ -3,12 +3,15 @@ import type { Tables, TablesInsert, TablesUpdate } from "../../types/database"
 
 export type CourseEvent = Tables<"course_events">
 
+// Upcoming, NOT-done events. Done deadlines are excluded so they stop driving
+// reminders (and the dashboard's "due today" count) the moment you tick them off.
 export async function listUpcomingEvents(userId: string) {
   const today = new Date().toISOString().slice(0, 10)
   const { data, error } = await supabase
     .from("course_events")
     .select("*, courses(name, color)")
     .eq("user_id", userId)
+    .eq("done", false)
     .gte("event_date", today)
     .order("event_date", { ascending: true })
   if (error) throw error

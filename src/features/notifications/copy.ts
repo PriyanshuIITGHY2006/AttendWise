@@ -173,28 +173,30 @@ export function classStartingSoon(courseName: string, minutes: number, seed: str
 }
 
 export function quizReminder(title: string, courseName: string, days: number, seed: string, voice: HumorLevel = "roast"): string {
-  const d = days === 1 ? "day" : "days"
-  if (voice === "plain") return `${title} (${courseName}) is in ${days} ${d}.`
+  // "today" / "tomorrow" / "in N days" reads better than "0 days away".
+  const when = days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`
+  const whenHi = days <= 0 ? "aaj" : days === 1 ? "kal" : `${days} din me`
+  if (voice === "plain") return `${title} (${courseName}) is ${days <= 0 ? "today" : days === 1 ? "tomorrow" : `in ${days} days`}.`
   if (voice === "kuchupuchu") {
     return pick(
       [
-        `Kuchupuchu ${title} (${courseName}) ${days} ${d} me hai 😨 padhai shuru?`,
-        `${days} ${d} me ${title} 📚 kuchupuchu syllabus khud nahi padhega, chalo`,
-        `Kuchupuchu ${title} aa raha hai ${days} ${d} me 🫠 ${courseName} bol raha hai all the best`,
-        `${title} (${courseName}) ${days} ${d} door 🥹 kuchupuchu "aaj raat se" wali energy laao`,
-        `Kuchupuchu ${days} ${d} bache ${title} ke liye ⏳ ${courseName} ki taiyari?`,
-        `${title} in ${days} ${d} 😬 kuchupuchu notes khol lo na please`,
-        `Kuchupuchu ${title} sar pe hai (${days} ${d}) 📖 ${courseName} thoda padhlo`,
-        `${days} ${d} to ${title} 🚀 kuchupuchu ab procrastination band, padhai on`,
+        `Kuchupuchu ${title} (${courseName}) ${whenHi} hai 😨 padhai shuru?`,
+        `${title} ${whenHi} 📚 kuchupuchu syllabus khud nahi padhega, chalo`,
+        `Kuchupuchu ${title} ${whenHi} hai 🫠 ${courseName} bol raha hai all the best`,
+        `${title} (${courseName}) ${whenHi} 🥹 kuchupuchu "aaj raat se" wali energy laao`,
+        `Kuchupuchu ${title} ${whenHi} 📖 ${courseName} ki taiyari ho gayi?`,
+        `${title} ${whenHi} 😬 kuchupuchu notes khol lo na please`,
+        `Kuchupuchu ${title} sar pe hai (${whenHi}) 📖 ${courseName} thoda padhlo`,
+        `${title} ${whenHi} 🚀 kuchupuchu ab procrastination band, padhai on`,
       ],
       seed,
     )
   }
   return pick(
     [
-      `${title} (${courseName}) is ${days} ${d} away. Hope "starting tonight" energy holds up.`,
-      `${days} ${d} until ${title} in ${courseName}. The syllabus isn't going to read itself.`,
-      `${title} looms in ${days} ${d}. ${courseName} said good luck, you'll need it.`,
+      `${title} (${courseName}) is ${when}. Hope "starting tonight" energy holds up.`,
+      `${title} in ${courseName} is ${when}. The syllabus isn't going to read itself.`,
+      `${title} ${when}. ${courseName} said good luck, you'll need it.`,
     ],
     seed,
   )

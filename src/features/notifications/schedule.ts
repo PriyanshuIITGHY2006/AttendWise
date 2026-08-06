@@ -214,20 +214,35 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
   }
 
   if (prefs.quiz_reminders) {
+    const todayMid = new Date(); todayMid.setHours(0, 0, 0, 0)
     for (const ev of upcomingEvents) {
-      const eventDate = new Date(`${ev.eventDateISO}T09:00:00`)
-      const daysAway = Math.ceil((eventDate.getTime() - now) / 86_400_000)
-      if (daysAway < 0 || daysAway > 3) continue
-      const fireAt = daysAway === 0 ? new Date(now + 60_000) : new Date(eventDate.getTime() - 86_400_000)
-      if (fireAt.getTime() <= now) continue
-      if (inQuietHours(fireAt, prefs.quiet_start, prefs.quiet_end)) continue
-      notifications.push({
-        ...ANDROID_OPTS,
-        id: hashToRange(`quiz-${ev.id}`, NAMESPACE.quiz, 100_000_000),
-        title: "Coming up",
-        body: quizReminder(ev.title, ev.courseName, Math.max(1, daysAway), ev.id, voice),
-        schedule: { at: fireAt },
-      })
+      // Days between today and the event's date (0 = today, 1 = tomorrow, ...).
+      const eventMid = new Date(`${ev.eventDateISO}T00:00:00`)
+      const daysAway = Math.round((eventMid.getTime() - todayMid.getTime()) / 86_400_000)
+      // Only reminders for events that haven't passed and aren't too far out.
+      if (daysAway < 0 || daysAway > 14) continue
+
+      // Two fixed-time nudges per event -- the evening before (18:00) and the
+      // morning of (08:00). Fixed times (not "now + a minute") mean re-syncing on
+      // every app open just replaces the same pending alarm instead of stacking
+      // up, so a done/near event can't spam a fresh notification each open.
+      const eveningBefore = new Date(`${ev.eventDateISO}T18:00:00`); eveningBefore.setDate(eveningBefore.getDate() - 1)
+      const morningOf = new Date(`${ev.eventDateISO}T08:00:00`)
+      const slots: { at: Date; tag: string; days: number }[] = [
+        { at: eveningBefore, tag: "eve", days: 1 }, // "tomorrow" wording
+        { at: morningOf, tag: "morn", days: 0 }, // "today" wording
+      ]
+      for (const s of slots) {
+        if (s.at.getTime() <= now) continue // that moment already passed
+        if (inQuietHours(s.at, prefs.quiet_start, prefs.quiet_end)) continue
+        notifications.push({
+          ...ANDROID_OPTS,
+          id: hashToRange(`quiz-${ev.id}-${s.tag}`, NAMESPACE.quiz, 100_000_000),
+          title: "Coming up",
+          body: quizReminder(ev.title, ev.courseName, s.days, ev.id, voice),
+          schedule: { at: s.at },
+        })
+      }
     }
   }
 
