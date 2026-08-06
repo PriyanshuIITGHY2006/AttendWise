@@ -283,13 +283,22 @@ export async function syncScheduledNotifications({ upcomingClasses, upcomingEven
 // Threshold roasts and the unmarked nudge fire immediately (not scheduled)
 // the moment the app notices the condition, deduped per day via localStorage
 // so re-opening the app doesn't spam the same roast repeatedly.
+//
+// "Today" must be the DEVICE-LOCAL day, not UTC -- toISOString() would roll the
+// day over at 05:30 for an IST user, mis-deduping in the early morning.
+function localTodayISO(d = new Date()): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const day = String(d.getDate()).padStart(2, "0")
+  return `${y}-${m}-${day}`
+}
+
 function alreadyFiredToday(key: string): boolean {
-  const todayISO = new Date().toISOString().slice(0, 10)
-  return localStorage.getItem(key) === todayISO
+  return localStorage.getItem(key) === localTodayISO()
 }
 
 function markFiredToday(key: string) {
-  localStorage.setItem(key, new Date().toISOString().slice(0, 10))
+  localStorage.setItem(key, localTodayISO())
 }
 
 export async function notifyThresholdIfChanged(
@@ -308,7 +317,7 @@ export async function notifyThresholdIfChanged(
   if (prefs.muted || !prefs.threshold_alerts) return
   const granted = await ensureNotificationPermission()
   if (!granted) return
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localTodayISO()
   await LocalNotifications.schedule({
     notifications: [
       {
@@ -330,7 +339,7 @@ export async function notifyUnmarkedIfNeeded(count: number, prefs: NotificationP
   markFiredToday(key)
   const granted = await ensureNotificationPermission()
   if (!granted) return
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localTodayISO()
   await LocalNotifications.schedule({
     notifications: [
       {
