@@ -47,6 +47,13 @@ jobs:
       - name: Attendance rules (unit tests)
         run: ./gradlew -p domain test
 
+      - name: App unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Android lint
+        run: ./gradlew :app:lintDebug --stacktrace
+        continue-on-error: true
+
       - name: Unpack release signing key
         if: env.SIGNING_KEY != ''
         run: |
@@ -76,6 +83,23 @@ jobs:
         with:
           name: domain-test-report
           path: domain/build/reports/tests/test
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: app-test-report
+          path: app/build/reports/tests/testDebugUnitTest
+          retention-days: 14
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lint-report
+          path: |
+            app/build/reports/lint-results-debug.html
+            app/build/reports/lint-results-debug.txt
+            app/build/reports/lint-results-debug.xml
           retention-days: 14
 
       - name: Publish to GitHub Releases
