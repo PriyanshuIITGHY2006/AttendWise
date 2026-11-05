@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AttendWise for Android</title>
+<meta name="description" content="AttendWise is now an Android app. Download the latest version.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+  :root {
+    --bg: #f6f7f9; --fg: #16171a; --muted: #5d6270; --line: #dfe2e8;
+    --accent: #4f46e5; --accent-fg: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131417; --fg: #eceef2; --muted: #9a9fab; --line: #2a2c33; --accent: #8b85ff; --accent-fg: #131417; }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  main { max-width: 34rem; margin: 0 auto; padding: 56px 20px 64px; }
+  .mark { width: 44px; height: 44px; display: block; margin-bottom: 28px; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+  p { margin: 0 0 16px; }
+  .muted { color: var(--muted); }
+  .btn {
+    display: inline-block; margin: 12px 0 6px; padding: 14px 22px; border-radius: 12px;
+    background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600;
+  }
+  .meta { font-size: 0.875rem; color: var(--muted); margin: 0 0 40px; min-height: 1.4em; }
+  h2 { font-size: 1rem; margin: 32px 0 8px; }
+  ol { margin: 0; padding-left: 1.2rem; }
+  li { margin-bottom: 6px; }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0 20px; }
+  a { color: var(--accent); }
+  footer { font-size: 0.875rem; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <img class="mark" src="favicon.svg" alt="">
+  <h1>AttendWise is now an Android app</h1>
+  <p class="muted">The website version has been retired. The new app is faster, works offline, and adds home-screen widgets and class reminders you can mark from the notification.</p>
+
+  <a class="btn" id="download" href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download for Android</a>
+  <p class="meta" id="meta"></p>
+
+  <h2>Installing</h2>
+  <ol>
+    <li>Open the downloaded <code>.apk</code> file.</li>
+    <li>If Android asks, allow your browser to install apps.</li>
+    <li>Sign in with a new account. Data from the old website doesn't carry over, so add your courses again.</li>
+  </ol>
+
+  <h2>Using an iPhone?</h2>
+  <p class="muted">There's no iPhone version.</p>
+
+  <hr>
+  <footer>Made for IIT Guwahati students. <a href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">All releases</a></footer>
+</main>
+<script>
+  // Turn off the old website's offline cache so returning visitors see this page.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
+  }
+  if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).catch(function () {});
+
+  // Point the button straight at the newest APK. Prefer the signed app over the test build.
+  fetch('https://api.github.com/repos/PriyanshuIITGHY2006/AttendWise/releases?per_page=20')
+    .then(function (r) { return r.ok ? r.json() : []; })
+    .then(function (releases) {
+      var pick = null, pickRel = null;
+      [/^AttendWise-\d+\.apk$/, /^AttendWise-test-\d+\.apk$/].some(function (re) {
+        return releases.some(function (rel) {
+          if (rel.draft) return false;
+          var a = (rel.assets || []).find(function (x) { return re.test(x.name); });
+          if (a) { pick = a; pickRel = rel; return true; }
+          return false;
+        });
+      });
+      if (!pick) return;
+      document.getElementById('download').href = pick.browser_download_url;
+      var mb = (pick.size / 1048576).toFixed(0);
+      var date = new Date(pickRel.published_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+      var test = /test/.test(pick.name) ? ' · test build' : '';
+      document.getElementById('meta').textContent = pickRel.name.replace(/^AttendWise\s*/, '') + ' · ' + mb + ' MB · ' + date + test;
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>
