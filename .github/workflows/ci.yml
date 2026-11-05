@@ -5,13 +5,19 @@ on:
     branches: [v2-native, dev]
     paths-ignore:
       - 'site/**'
-      - '**.md'
+      - 'web/**'
+      - '.github/scripts/**'
       - '.github/workflows/pages.yml'
+      - '.gitignore'
+      - '**.md'
   pull_request:
     paths-ignore:
       - 'site/**'
-      - '**.md'
+      - 'web/**'
+      - '.github/scripts/**'
       - '.github/workflows/pages.yml'
+      - '.gitignore'
+      - '**.md'
   workflow_dispatch:
 
 concurrency:

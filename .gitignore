@@ -28,3 +28,12 @@ Thumbs.db
 !app/debug.keystore
 # Release signing material unpacked by CI
 app/signing/
+
+# Website pages generated from web/ and CHANGELOG.md by .github/scripts/build_site.py
+/site/terms.html
+/site/privacy.html
+/site/delete-account.html
+/site/changelog.html
+/site/changelog.json
+/site/sitemap.xml
+/site/help/
