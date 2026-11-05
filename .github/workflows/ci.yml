@@ -5,13 +5,11 @@ on:
     branches: [v2-native, dev]
     paths-ignore:
       - 'site/**'
-      - 'docs/**'
       - '**.md'
       - '.github/workflows/pages.yml'
   pull_request:
     paths-ignore:
       - 'site/**'
-      - 'docs/**'
       - '**.md'
       - '.github/workflows/pages.yml'
   workflow_dispatch:

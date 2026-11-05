@@ -106,7 +106,6 @@ Each release has up to two APKs:
 | `app/` | The Android app: Jetpack Compose screens and theme (`ui/`), Room database, Supabase client and sync (`data/`), alarms and notifications (`notify/`), Glance widgets (`widget/`). |
 | `supabase/migrations/` | The database schema, applied in order. |
 | `site/` | The website and the download page (static HTML, deployed to GitHub Pages). |
-| `docs/` | Plans and decisions: [`V2_PLAN.md`](docs/V2_PLAN.md) and [`REBUILD_HANDOFF.md`](docs/REBUILD_HANDOFF.md). |
 | `.github/workflows/` | `ci.yml` builds, tests and publishes the APKs. `pages.yml` deploys the website. |
 
 ## Building and testing
@@ -132,7 +131,7 @@ Release builds are signed only when a keystore and a `signing.properties` file a
 ## CI and releases
 
 - `ci.yml` runs on pushes to `v2-native` and `dev`, and on pull requests. It runs the domain tests, builds both APKs, and on `v2-native` publishes a pre-release named `v2-build-<n>` with the APKs attached.
-- Changes that only touch `site/`, `docs/` or Markdown files do not run CI, so editing the website or the docs does not rebuild the app or publish a new build.
+- Changes that only touch `site/` or Markdown files do not run CI, so editing the website or the README does not rebuild the app or publish a new build.
 - Only one CI run per branch is active at a time. A newer push cancels the older run.
 
 ## Website
