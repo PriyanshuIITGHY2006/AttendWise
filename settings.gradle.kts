@@ -28,6 +28,8 @@ dependencyResolutionManagement {
 
 rootProject.name = "AttendWise"
 
-// :domain is pure Kotlin (JVM) and holds every attendance rule.
-// The Android modules (:data, :app) are added in the next milestone step.
-include(":domain")
+// The attendance rules are a separate, pure-Kotlin build so they can be built
+// and tested anywhere a JDK runs: `cd domain && ../gradlew test`.
+includeBuild("domain")
+
+include(":app")

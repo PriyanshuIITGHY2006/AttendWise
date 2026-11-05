@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AttendWise</string>
+    <string name="widget_today">Today</string>
+    <string name="widget_today_desc">Today\'s classes with Present and Absent buttons</string>
+    <string name="widget_next">Next class</string>
+    <string name="widget_next_desc">Your next class, room and countdown</string>
+    <string name="widget_ring">Course ring</string>
+    <string name="widget_ring_desc">One course\'s attendance and safe skips</string>
+    <string name="widget_bunk">Can I bunk today?</string>
+    <string name="widget_bunk_desc">One-line verdict for today</string>
+    <string name="widget_danger">Needs attention</string>
+    <string name="widget_danger_desc">Courses that are tight or at risk</string>
+</resources>

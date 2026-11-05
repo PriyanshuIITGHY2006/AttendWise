@@ -23,3 +23,8 @@ google-services.json
 # OS
 .DS_Store
 Thumbs.db
+
+# The debug key is deliberately public so test builds update in place.
+!app/debug.keystore
+# Release signing material unpacked by CI
+app/signing/
