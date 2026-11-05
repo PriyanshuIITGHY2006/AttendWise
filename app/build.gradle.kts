@@ -18,7 +18,7 @@ val hasReleaseKey = signingProps.getProperty("storePassword") != null
 
 android {
     namespace = "app.attendwise"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "in.ac.iitg.attendwise"

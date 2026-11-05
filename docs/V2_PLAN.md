@@ -10,7 +10,7 @@ The full plan for rebuilding AttendWise as a true native Android app in Kotlin. 
 |---|---|
 | Stack | **Kotlin + Jetpack Compose + Material 3 + Glance** (widgets) |
 | Platform | Android only |
-| Backend | **Fresh Supabase project** with a new, clean schema. Users start over (fits nicely: the Monsoon semester ends 21 Nov, so everyone sets up Winter 2027 fresh anyway) |
+| Backend | **Fresh, clean schema** in its own `v2` Postgres schema inside the existing project (the free plan allows only 2 active projects, both in use). Users start over with their data; accounts carry over, so Google sign-in works with no new setup ✅ applied |
 | v1 scope | 5 tabs: Today, Courses, Plan, Calendar, Profile + 5 widgets + actionable notifications. **No** Grades, Deadlines, Materials |
 | Old web app | Preserved on the **`web-app-archive` branch** (tag pushes are blocked from the build sandbox), then deleted from `v2-native`: web app, Capacitor `android/`, `PUSH_SETUP.md`, Pages deploy, old `supabase/` SQL ✅ done |
 | Signing key | Old keystore is gone → new key. Anyone with the old APK uninstalls it once, then installs v2 |
@@ -30,12 +30,12 @@ The full plan for rebuilding AttendWise as a true native Android app in Kotlin. 
 
 ### 1.2 Modules
 ```
-:domain   pure Kotlin (JVM) — models, session generator, attendance math,
-          planner, verdicts, witty copy bank. 100% unit-tested.
-:data     Room database, Supabase client, sync engine, repositories,
-          settings (DataStore).
-:app      Compose UI, navigation, Glance widgets, notifications, alarms,
-          WorkManager jobs, dependency wiring (Hilt).
+domain/   separate pure-Kotlin build (included build) — models, class
+          generator, attendance math, planner, verdicts, notification
+          timing, validation. Fully unit-tested; builds without Android.
+app/      Android app — data (Room, Supabase REST/auth client, sync),
+          Compose UI, Glance widgets, notifications, alarms, WorkManager.
+          Hand-wired dependencies (no DI framework).
 ```
 
 ### 1.3 Libraries
@@ -45,7 +45,7 @@ The full plan for rebuilding AttendWise as a true native Android app in Kotlin. 
 | Navigation | Navigation Compose (type-safe routes) |
 | Widgets | Jetpack Glance (`glance-appwidget`, `glance-material3`) |
 | Local DB | Room (+ KSP), Kotlin Flow for live queries |
-| Backend client | `supabase-kt` (Auth, Postgrest) + Ktor client |
+| Backend client | Small own client on OkHttp against Supabase's documented Auth and REST endpoints (fewer dependencies) |
 | Google sign-in | Android Credential Manager → Google ID token → `signInWithIdToken` on Supabase |
 | Background | WorkManager (sync, daily planning), AlarmManager exact alarms (class-time events) |
 | Settings | DataStore |
@@ -58,7 +58,9 @@ The full plan for rebuilding AttendWise as a true native Android app in Kotlin. 
 
 ---
 
-## 2. Fresh backend (new Supabase project)
+## 2. Fresh backend (`v2` schema)
+
+> **Status: applied** (`supabase/migrations/20261105070000_v2_schema.sql`). Security advisor: no findings for `v2`. The institute calendar was copied from the old table (2026 holidays, exams and swaps).
 
 ### 2.1 Tables
 Every user table gets `id uuid` (generated on the device), `user_id`, `updated_at` (set by a server trigger) and `deleted_at` (soft delete, so deletes sync). RLS on every user table allows **owner-only** access (`user_id = auth.uid()`).
@@ -191,7 +193,7 @@ On every push to `v2-native` (later `dev`):
 3. On a version tag (`v2.0.0-m1`, …): publish the APK to **GitHub Releases**, with screenshots attached as artifacts.
 4. Emulator job (Android emulator runner): install the APK, launch, run Compose UI smoke tests, capture real screenshots.
 
-**GitHub secrets needed (one-time):** `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `GOOGLE_WEB_CLIENT_ID`, `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS`, `KEY_PASSWORD`.
+**GitHub secrets needed (one-time):** just `SIGNING_KEY` (keystore + passwords packed into one value). The Supabase URL and publishable key are public by design and live in the code; Google sign-in reuses the project's existing configuration.
 
 ### 5.2 Signing key (new)
 Generated once at the start of Milestone 1. The owner gets the keystore file + passwords, stores **two backups** (e.g. Google Drive + phone), and pastes them into GitHub secrets. Losing it again means everyone reinstalls again, so the backups matter.
