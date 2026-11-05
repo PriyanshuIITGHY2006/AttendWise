@@ -105,8 +105,11 @@ Each release has up to two APKs:
 | `domain/` | Pure Kotlin. Every attendance rule: class generation from the timetable and institute calendar, attendance maths, the planner, next-class and notification timing, validation. No Android dependency, fully unit-tested. Built as a separate included build. |
 | `app/` | The Android app: Jetpack Compose screens and theme (`ui/`), Room database, Supabase client and sync (`data/`), alarms and notifications (`notify/`), Glance widgets (`widget/`). |
 | `supabase/migrations/` | The database schema, applied in order. |
-| `site/` | The website and the download page (static HTML, deployed to GitHub Pages). |
+| `site/` | The website: the landing page, styles, images and fonts (static files, deployed to GitHub Pages). |
+| `web/` | Sources for the website pages written in Markdown: the terms, the privacy policy, the delete account page and the help centre. |
+| `CHANGELOG.md` | Release notes, newest first. It becomes the changelog page. |
 | `.github/workflows/` | `ci.yml` builds, tests and publishes the APKs. `pages.yml` deploys the website. |
+| `.github/scripts/` | `build_site.py` turns `web/` and `CHANGELOG.md` into website pages. |
 
 ## Building and testing
 
@@ -131,17 +134,30 @@ Release builds are signed only when a keystore and a `signing.properties` file a
 ## CI and releases
 
 - `ci.yml` runs on pushes to `v2-native` and `dev`, and on pull requests. It runs the domain tests, builds both APKs, and on `v2-native` publishes a pre-release named `v2-build-<n>` with the APKs attached.
-- Changes that only touch `site/` or Markdown files do not run CI, so editing the website or the README does not rebuild the app or publish a new build.
+- Changes that only touch `site/`, `web/`, the website scripts or Markdown files do not run CI, so editing the website, the help or the README does not rebuild the app or publish a new build.
 - Only one CI run per branch is active at a time. A newer push cancels the older run.
 
 ## Website
 
-`site/` is deployed by `pages.yml` to GitHub Pages whenever a push to `v2-native` changes it.
+The website is deployed by `pages.yml` to GitHub Pages whenever a push to `v2-native` changes `site/`, `web/`, `CHANGELOG.md` or the website script.
 
-- `index.html` is the landing page. The Download button reads the GitHub Releases API and links the newest `AttendWise-<n>.apk`, falling back to `AttendWise-test-<n>.apk`, and shows the release date and size under it.
-- `terms.html` holds the terms and conditions.
-- `sw.js` is a stub that clears the offline cache the old website installed, so returning visitors see the current page.
-- `404.html` is created from `index.html` during the deploy.
+| Page | Where it comes from |
+|---|---|
+| Landing page (`index.html`) | Written by hand in `site/`. The Download button reads the GitHub Releases API and links the newest `AttendWise-<n>.apk`, falling back to `AttendWise-test-<n>.apk`, and shows the release date and size under it. |
+| Terms, privacy policy, delete account | Markdown in `web/pages/`. |
+| Help centre (`/help/`) | One Markdown file per article in `web/help/`, with a search box on the index. |
+| Changelog | `CHANGELOG.md`. It also produces `changelog.json` for use inside the app. |
+| Sitemap | Built from the pages above. |
+
+During the deploy, `.github/scripts/build_site.py` (Python standard library only) turns the Markdown into HTML in `site/`. Those generated files are not committed. To preview locally, run the script and serve `site/` under `/AttendWise/`:
+
+```bash
+python3 .github/scripts/build_site.py
+```
+
+Other files: `css/page.css` styles the generated pages, `sw.js` is a stub that clears the offline cache the old website installed, and `404.html` is created from `index.html` during the deploy.
+
+To add a help article, create `web/help/<name>.md` with a `title`, `description` and `order` at the top. To add a release note, add a section to `CHANGELOG.md`.
 
 ## Branches
 

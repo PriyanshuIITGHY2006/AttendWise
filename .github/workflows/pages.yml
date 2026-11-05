@@ -3,7 +3,7 @@ name: Website
 on:
   push:
     branches: [v2-native]
-    paths: ['site/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'web/**', 'CHANGELOG.md', '.github/scripts/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,6 +23,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Build the pages written in Markdown
+        run: python3 .github/scripts/build_site.py
       - run: |
           cp site/index.html site/404.html
       - uses: actions/upload-pages-artifact@v3
