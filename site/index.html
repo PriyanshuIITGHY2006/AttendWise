@@ -3,63 +3,337 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
 <title>AttendWise for Android</title>
-<meta name="description" content="AttendWise is now an Android app. Download the latest version.">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="description" content="AttendWise is an Android app that shows which classes you can safely skip. Download the latest version.">
+<link rel="icon" href="/AttendWise/favicon.svg" type="image/svg+xml">
 <style>
   :root {
-    --bg: #f6f7f9; --fg: #16171a; --muted: #5d6270; --line: #dfe2e8;
-    --accent: #4f46e5; --accent-fg: #fff;
+    color-scheme: dark;
+    --bg: #05070d;
+    --fg: #f2f5fb;
+    --muted: #a9b1c4;
+    --line: rgba(255, 255, 255, 0.14);
+    --glass: linear-gradient(145deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.02));
+    --glow: radial-gradient(60% 55% at 85% 8%, rgba(46, 112, 255, 0.55), transparent 70%),
+            radial-gradient(45% 40% at 0% 0%, rgba(120, 150, 255, 0.18), transparent 70%);
+    --glow-low: radial-gradient(60% 45% at 0% 55%, rgba(46, 112, 255, 0.32), transparent 100%);
+    --accent: #2463eb;
+    --accent-fg: #ffffff;
+    --link: #92b6ff;
+    --tile: rgba(94, 140, 255, 0.16);
+    --tile-fg: #a9c4ff;
+    --bezel: #0b0d12;
+    --shadow: 0 30px 60px rgba(0, 0, 0, 0.55);
   }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #131417; --fg: #eceef2; --muted: #9a9fab; --line: #2a2c33; --accent: #8b85ff; --accent-fg: #131417; }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #f3f6fc;
+      --fg: #0e1320;
+      --muted: #495369;
+      --line: #d9e0ee;
+      --glass: linear-gradient(145deg, #ffffff, #f7f9fe);
+      --glow: radial-gradient(60% 55% at 85% 8%, rgba(36, 99, 235, 0.22), transparent 70%),
+              radial-gradient(45% 40% at 0% 0%, rgba(36, 99, 235, 0.08), transparent 70%);
+      --glow-low: radial-gradient(60% 45% at 0% 55%, rgba(36, 99, 235, 0.12), transparent 100%);
+      --link: #1a4fc7;
+      --tile: #e4ecff;
+      --tile-fg: #1a4fc7;
+      --shadow: 0 24px 48px rgba(20, 40, 90, 0.22);
+    }
   }
+
   * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
   body {
     margin: 0; background: var(--bg); color: var(--fg);
-    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-text-size-adjust: 100%;
   }
-  main { max-width: 34rem; margin: 0 auto; padding: 56px 20px 64px; }
-  .mark { width: 44px; height: 44px; display: block; margin-bottom: 28px; }
-  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 12px; letter-spacing: -0.01em; }
+  img { max-width: 100%; height: auto; display: block; }
+  a { color: var(--link); }
+  a:focus-visible, .btn:focus-visible, .strip:focus-visible {
+    outline: 3px solid var(--link); outline-offset: 3px; border-radius: 8px;
+  }
+  .wrap { max-width: 72rem; margin: 0 auto; padding: 0 20px; }
+  section { padding: 56px 0; }
+  h1, h2, h3 { font-weight: 500; letter-spacing: -0.02em; margin: 0; }
+  h2 { font-size: clamp(1.75rem, 6vw, 2.5rem); line-height: 1.15; margin-bottom: 12px; }
+  h3 { font-size: 1.125rem; line-height: 1.3; margin-bottom: 6px; }
   p { margin: 0 0 16px; }
   .muted { color: var(--muted); }
+  .lead { max-width: 36rem; }
+
+  /* Top bar */
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 1.25rem; font-weight: 600; color: var(--fg); text-decoration: none; }
+  .brand img { width: 36px; height: 36px; border-radius: 9px; }
+  .top a.small { font-size: 0.9375rem; font-weight: 600; text-decoration: none; padding: 12px 0; }
+
+  /* Hero */
+  .hero { background: var(--glow); }
+  .hero-grid { display: grid; gap: 40px; align-items: center; padding: 24px 0 64px; }
+  h1 { font-size: clamp(2.25rem, 9.5vw, 4.25rem); line-height: 1.05; margin-bottom: 20px; }
   .btn {
-    display: inline-block; margin: 12px 0 6px; padding: 14px 22px; border-radius: 12px;
+    display: inline-block; margin: 8px 0 6px; padding: 15px 26px; border-radius: 14px;
     background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600;
   }
-  .meta { font-size: 0.875rem; color: var(--muted); margin: 0 0 40px; min-height: 1.4em; }
-  h2 { font-size: 1rem; margin: 32px 0 8px; }
+  .btn:hover { filter: brightness(1.1); }
+  .meta { font-size: 0.875rem; color: var(--muted); margin: 0; min-height: 1.4em; }
+
+  /* Phone frames */
+  .phone {
+    background: var(--bezel); border: 1px solid var(--line); border-radius: 38px; padding: 8px;
+    box-shadow: var(--shadow); width: 100%;
+  }
+  .phone img { border-radius: 30px; width: 100%; aspect-ratio: 390 / 844; background: #fff; }
+  .phones { display: flex; justify-content: center; }
+  .phones .phone { max-width: 250px; }
+  .phones .second { display: none; }
+
+  /* Cards */
+  .glass { background: var(--glass); border: 1px solid var(--line); border-radius: 24px; }
+  .features { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); margin-top: 28px; }
+  .feature { padding: 24px; }
+  .feature p { margin: 0; color: var(--muted); }
+  .icon {
+    width: 44px; height: 44px; border-radius: 14px; background: var(--tile); color: var(--tile-fg);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 16px;
+  }
+  .icon svg { width: 24px; height: 24px; }
+
+  /* Screens strip */
+  .shots { background: var(--glow-low); }
+  .strip {
+    display: flex; gap: 20px; overflow-x: auto; scroll-snap-type: x mandatory;
+    padding: 8px 20px 24px; margin: 24px -20px 0; scroll-padding: 0 20px;
+  }
+  .strip figure { margin: 0; flex: 0 0 auto; width: 224px; scroll-snap-align: start; }
+  .strip figcaption { margin-top: 12px; font-size: 0.9375rem; color: var(--muted); text-align: center; }
+
+  /* Install */
+  .install-grid { display: grid; gap: 16px; }
+  .panel { padding: 28px 24px; }
+  .panel h2 { font-size: 1.375rem; margin-bottom: 12px; }
   ol { margin: 0; padding-left: 1.2rem; }
-  li { margin-bottom: 6px; }
-  hr { border: 0; border-top: 1px solid var(--line); margin: 40px 0 20px; }
-  a { color: var(--accent); }
-  footer { font-size: 0.875rem; color: var(--muted); }
+  li { margin-bottom: 8px; }
+  li:last-child { margin-bottom: 0; }
+  .panel p:last-child { margin-bottom: 0; }
+
+  /* Maker and contact */
+  .contact-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 20px; }
+  .contact-list li { margin: 0; }
+  .contact-list .label { display: block; font-size: 0.875rem; color: var(--muted); margin-bottom: 2px; }
+  .contact-list a { font-size: 1.125rem; word-break: break-word; }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 48px; font-size: 0.875rem; color: var(--muted); }
+
+  @media (min-width: 820px) {
+    section { padding: 88px 0; }
+    .hero-grid { grid-template-columns: 1.15fr 1fr; padding-top: 48px; }
+    .phones { justify-content: flex-end; align-items: flex-start; }
+    .phones .phone { max-width: 270px; }
+    .phones .second { display: block; margin: 72px 0 0 -40px; }
+    .install-grid { grid-template-columns: 1.4fr 1fr; }
+    .two { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+    .strip { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; scroll-padding: 0; }
+  }
+
+  /* Scroll animations. Only active with JavaScript and when the visitor has not asked for less motion. */
+  @media (prefers-reduced-motion: no-preference) {
+    .js .reveal {
+      opacity: 0; transform: translateY(28px);
+      transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms),
+                  transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms);
+    }
+    .js .phones .phone.reveal { transform: translateY(56px) scale(0.97); transition-duration: 0.9s; }
+    .js .reveal.in { opacity: 1; transform: none; }
+    .btn { transition: filter 0.2s ease, transform 0.2s ease; }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+  }
 </style>
+<script>document.documentElement.className += ' js';</script>
 </head>
 <body>
+
+<div class="hero">
+  <div class="wrap">
+    <header class="top">
+      <a class="brand" href="/AttendWise/"><img src="/AttendWise/favicon.svg" alt="" width="36" height="36">AttendWise</a>
+      <a class="small" href="#download">Download</a>
+    </header>
+
+    <div class="hero-grid">
+      <div>
+        <h1>Know which classes you can skip.</h1>
+        <p class="muted lead">AttendWise is now an Android app. The website version has been retired. The new app is faster, works offline, and adds home-screen widgets and class reminders you can mark from the notification.</p>
+
+        <a class="btn" id="download" href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download for Android</a>
+        <p class="meta" id="meta"></p>
+      </div>
+
+      <div class="phones">
+        <div class="phone">
+          <picture>
+            <source srcset="/AttendWise/img/today-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="/AttendWise/img/today.webp" width="780" height="1688" alt="The Today screen: five classes for Thursday 1 October with present and absent buttons, a day swap notice and a Can I bunk today card.">
+          </picture>
+        </div>
+        <div class="phone second">
+          <img src="/AttendWise/img/courses.webp" width="780" height="1688" alt="The Courses screen: five courses with attendance rings and how many safe skips each has left.">
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <main>
-  <img class="mark" src="favicon.svg" alt="">
-  <h1>AttendWise is now an Android app</h1>
-  <p class="muted">The website version has been retired. The new app is faster, works offline, and adds home-screen widgets and class reminders you can mark from the notification.</p>
+  <section id="features">
+    <div class="wrap">
+      <h2>What it does</h2>
+      <p class="muted lead">Built for one question: can I miss this class and still stay above the attendance requirement?</p>
 
-  <a class="btn" id="download" href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download for Android</a>
-  <p class="meta" id="meta"></p>
+      <div class="features">
+        <div class="glass feature">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"></rect><path d="M8 2v4M16 2v4M3 10h18M9 15l2 2 4-4"></path></svg></div>
+          <h3>Mark today in one tap</h3>
+          <p>Tap or swipe a class to mark it present or absent. The Today list also says which classes are safe to skip.</p>
+        </div>
+        <div class="glass feature">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"></path><path d="m8.5 12 2.5 2.5 4.5-5"></path></svg></div>
+          <h3>Safe skips per course</h3>
+          <p>Each course shows its percentage and how many classes you can miss before dropping under the requirement. Zero-tolerance courses like labs are flagged.</p>
+        </div>
+        <div class="glass feature">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 21V4"></path><path d="M5 4h11l-2 4 2 4H5"></path></svg></div>
+          <h3>Day-off planner</h3>
+          <p>Pick the days you want off. AttendWise tells you which classes are safe to miss, which are risky, and which you must attend.</p>
+        </div>
+        <div class="glass feature">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"></rect><path d="M8 2v4M16 2v4M3 10h18"></path><path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"></path></svg></div>
+          <h3>Institute calendar</h3>
+          <p>Holidays and day swaps are built in. When a Thursday runs Friday's timetable, your class list follows.</p>
+        </div>
+        <div class="glass feature">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2"></rect><rect x="13" y="3" width="8" height="8" rx="2"></rect><rect x="3" y="13" width="8" height="8" rx="2"></rect><rect x="13" y="13" width="8" height="8" rx="2"></rect></svg></div>
+          <h3>Home-screen widgets</h3>
+          <p>Five widgets: can I bunk today, today's classes, your next class, a course's safe skips, and the courses that need attention.</p>
+        </div>
+        <div class="glass feature">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"></path><path d="M10 21a2 2 0 0 0 4 0"></path></svg></div>
+          <h3>Reminders you can answer</h3>
+          <p>Get a reminder before each class and a prompt after it. Tap Present, Absent or Cancelled right from the notification.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <h2>Installing</h2>
-  <ol>
-    <li>Open the downloaded <code>.apk</code> file.</li>
-    <li>If Android asks, allow your browser to install apps.</li>
-    <li>Sign in with a new account. Data from the old website doesn't carry over, so add your courses again.</li>
-  </ol>
+  <section class="shots" id="screens">
+    <div class="wrap">
+      <h2>Screens</h2>
+      <p class="muted lead">Scroll sideways to see more of the app.</p>
 
-  <h2>Using an iPhone?</h2>
-  <p class="muted">There's no iPhone version.</p>
+      <div class="strip" tabindex="0" role="group" aria-label="App screenshots, scroll sideways">
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/today.webp" width="780" height="1688" loading="lazy" alt="Today screen in light mode with the day's classes and mark buttons."></div>
+          <figcaption>Today</figcaption>
+        </figure>
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/courses.webp" width="780" height="1688" loading="lazy" alt="Courses screen with an attendance ring and safe skips for each course."></div>
+          <figcaption>Courses</figcaption>
+        </figure>
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/plan.webp" width="780" height="1688" loading="lazy" alt="Plan screen with a month calendar and a verdict for each course on the chosen days off."></div>
+          <figcaption>Plan</figcaption>
+        </figure>
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/calendar.webp" width="780" height="1688" loading="lazy" alt="Calendar screen showing a month with holidays, a day swap and the day's classes."></div>
+          <figcaption>Calendar</figcaption>
+        </figure>
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/widgets.webp" width="780" height="1688" loading="lazy" alt="A phone home screen with all five AttendWise widgets."></div>
+          <figcaption>Widgets</figcaption>
+        </figure>
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/notifications.webp" width="780" height="1688" loading="lazy" alt="Class notifications with Present, Absent and Cancelled action buttons."></div>
+          <figcaption>Notifications</figcaption>
+        </figure>
+        <figure>
+          <div class="phone"><img src="/AttendWise/img/today-dark.webp" width="780" height="1688" loading="lazy" alt="Today screen in dark mode."></div>
+          <figcaption>Dark mode</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
 
-  <hr>
-  <footer>Made for IIT Guwahati students. <a href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">All releases</a></footer>
+  <section id="install">
+    <div class="wrap install-grid">
+      <div class="glass panel">
+        <h2>Installing</h2>
+        <ol>
+          <li>Open the downloaded <code>.apk</code> file.</li>
+          <li>If Android asks, allow your browser to install apps.</li>
+          <li>Sign in with a new account. Data from the old website doesn't carry over, so add your courses again.</li>
+        </ol>
+      </div>
+      <div class="glass panel">
+        <h2>Using an iPhone?</h2>
+        <p class="muted">There's no iPhone version.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="maker">
+    <div class="wrap two">
+      <div>
+        <h2>Meet the maker</h2>
+        <p class="muted lead">AttendWise is built by Priyanshu Debnath for IIT Guwahati students.</p>
+      </div>
+      <div id="contact">
+        <h2>Contact</h2>
+        <ul class="contact-list">
+          <li><span class="label">Email</span><a href="mailto:priyanshuib01@gmail.com">priyanshuib01@gmail.com</a></li>
+          <li><span class="label">GitHub</span><a href="https://github.com/PriyanshuIITGHY2006">github.com/PriyanshuIITGHY2006</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
 </main>
+
+<footer>
+  <div class="wrap">Made for IIT Guwahati students. <a href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">All releases</a></div>
+</footer>
+
 <script>
+  // Fade and slide sections in as they scroll into view.
+  (function () {
+    if (!('IntersectionObserver' in window)) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var items = document.querySelectorAll('.hero-grid > div:first-child, .phones .phone:not(.second), section h2, section .lead, .feature, .strip, .panel, .contact-list li');
+    var second = document.querySelector('.phones .second');
+    var counts = new Map();
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        e.target.classList.add('in');
+        // The second hero phone is hidden on narrow screens, so it follows the first one.
+        if (second && e.target.nextElementSibling === second) second.classList.add('in');
+        io.unobserve(e.target);
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+    if (second) { second.style.setProperty('--d', '200ms'); second.classList.add('reveal'); }
+    Array.prototype.forEach.call(items, function (el) {
+      var parent = el.parentElement;
+      var n = counts.get(parent) || 0;
+      counts.set(parent, n + 1);
+      el.style.setProperty('--d', Math.min(n, 5) * 90 + 'ms');
+      el.classList.add('reveal');
+      io.observe(el);
+    });
+  })();
+
   // Turn off the old website's offline cache so returning visitors see this page.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
