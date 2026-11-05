@@ -18,6 +18,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -92,7 +97,7 @@ private val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
  * semester that has started, changes apply from today by default, so earlier
  * classes and their marks stay exactly as they were.
  */
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun CourseEditor(vm: AppViewModel, semester: SemesterEntity, existingCount: Int, courseId: String?, onDone: () -> Unit, onCancel: () -> Unit) {
     val today = LocalDate.now()
@@ -165,22 +170,45 @@ fun CourseEditor(vm: AppViewModel, semester: SemesterEntity, existingCount: Int,
         }
 
         Text("Attendance needed", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        var askCustom by remember { mutableStateOf(false) }
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(75, 80, 85, 100).forEach { p ->
                 FilterChip(selected = threshold == p && customThreshold.isEmpty(), onClick = { threshold = p; customThreshold = "" }, label = { Text("$p%") })
             }
-            OutlinedTextField(
-                customThreshold,
-                { v -> customThreshold = v.filter { it.isDigit() }.take(3); customThreshold.toIntOrNull()?.let { threshold = it } },
-                label = { Text("Other") }, singleLine = true, modifier = Modifier.width(90.dp),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            FilterChip(
+                selected = customThreshold.isNotEmpty(), onClick = { askCustom = true },
+                label = { Text(if (customThreshold.isNotEmpty()) "Custom, $threshold%" else "Custom", maxLines = 1) },
+            )
+        }
+        if (askCustom) {
+            var value by remember { mutableStateOf(customThreshold) }
+            val parsed = value.toIntOrNull()?.takeIf { it in 1..100 }
+            AlertDialog(
+                onDismissRequest = { askCustom = false },
+                title = { Text("Attendance needed") },
+                text = {
+                    OutlinedTextField(
+                        value, { v -> value = v.filter { it.isDigit() }.take(3) },
+                        label = { Text("Percent") }, suffix = { Text("%") }, singleLine = true,
+                        isError = value.isNotEmpty() && parsed == null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    )
+                },
+                confirmButton = {
+                    TextButton(enabled = parsed != null, onClick = { threshold = parsed!!; customThreshold = "$parsed"; askCustom = false }) { Text("Set") }
+                },
+                dismissButton = { TextButton(onClick = { askCustom = false }) { Text("Cancel") } },
             )
         }
 
         Text("Runs for", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(Term.FULL to "Full semester", Term.PRE_MID to "Before mid-sem", Term.POST_MID to "After mid-sem").forEach { (t, label) ->
-                FilterChip(selected = term == t, onClick = { term = t }, label = { Text(label) })
+        val terms = listOf(Term.FULL to "Full sem", Term.PRE_MID to "First half", Term.POST_MID to "Second half")
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            terms.forEachIndexed { i, (t, label) ->
+                SegmentedButton(
+                    selected = term == t, onClick = { term = t },
+                    shape = SegmentedButtonDefaults.itemShape(i, terms.size), icon = {},
+                ) { Text(label, maxLines = 1, softWrap = false) }
             }
         }
         if (term != Term.FULL && (semester.midStartDay == null || semester.midEndDay == null)) {
@@ -189,8 +217,8 @@ fun CourseEditor(vm: AppViewModel, semester: SemesterEntity, existingCount: Int,
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Zero-tolerance", style = MaterialTheme.typography.bodyLarge)
-                Text("Never suggest skipping (labs, strict profs)", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Never skip", style = MaterialTheme.typography.bodyLarge)
+                Text("Labs and strict profs", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Switch(checked = strict, onCheckedChange = { strict = it })
         }

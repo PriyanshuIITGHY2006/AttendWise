@@ -53,7 +53,7 @@ class CourseRingConfigActivity : ComponentActivity() {
                         LazyColumn {
                             items(courses, key = { it.id }) { course ->
                                 Text(
-                                    "${course.code}  ·  ${course.name}",
+                                    "${course.code}  ${course.name}",
                                     style = MaterialTheme.typography.bodyLarge,
                                     modifier = Modifier.fillMaxWidth().clickable {
                                         scope.launch {

@@ -137,7 +137,7 @@ fun CalendarScreen(vm: AppViewModel, d: Derived, padding: PaddingValues) {
         item { DayBanner(d.dayInfo(selected)) }
         item {
             Text(
-                selected.format(DateTimeFormatter.ofPattern("EEEE, d MMMM")) + if (selected == d.now.date) " · today" else "",
+                (if (selected == d.now.date) "Today, " else "") + selected.format(DateTimeFormatter.ofPattern("EEEE d MMMM")),
                 style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
@@ -149,7 +149,7 @@ fun CalendarScreen(vm: AppViewModel, d: Derived, padding: PaddingValues) {
 
     editing?.let { occ ->
         MarkDialog(
-            title = "${d.data.code(occ.courseId)} · ${occ.date.format(DayFmt)} ${occ.start.format(TimeFmt)}",
+            title = "${d.data.code(occ.courseId)}, ${occ.date.format(DayFmt)} at ${occ.start.format(TimeFmt)}",
             current = occ.mark?.status,
             onPick = { vm.mark(occ.key, occ.end, it); editing = null },
             onDismiss = { editing = null },

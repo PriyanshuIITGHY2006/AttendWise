@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -132,14 +133,14 @@ fun Ring(percent: Double?, color: Color, size: Dp, stroke: Dp, modifier: Modifie
 
 /** Short status text for a course, as on the mockups. */
 fun statusLine(s: AttendanceStats): String = when {
-    s.strictNoSkip && s.status != CourseStatus.AT_RISK -> "Zero-tolerance · never skip"
+    s.strictNoSkip && s.status != CourseStatus.AT_RISK -> "Never skip"
     s.status == CourseStatus.AT_RISK && !s.canReachThreshold -> "Can't reach ${s.thresholdPercent}% this semester"
     s.status == CourseStatus.AT_RISK && s.overBudget > 0 -> "Over budget by ${s.overBudget}"
-    s.status == CourseStatus.AT_RISK && s.recoveryClasses != null -> "At risk · attend ${s.recoveryClasses} to recover"
+    s.status == CourseStatus.AT_RISK && s.recoveryClasses != null -> "Attend the next ${s.recoveryClasses} to recover"
     s.status == CourseStatus.AT_RISK -> "At risk"
-    s.status == CourseStatus.TIGHT -> "No skips left" + if (s.counts.plannedSkips > 0) " · ${s.counts.plannedSkips} planned" else ""
+    s.status == CourseStatus.TIGHT -> "No skips left" + if (s.counts.plannedSkips > 0) ", ${s.counts.plannedSkips} planned" else ""
     s.counts.marked == 0 && s.counts.remaining == 0 -> "No classes yet"
-    else -> "${s.safeSkipsLeft} safe skip${if (s.safeSkipsLeft == 1) "" else "s"}" + if (s.counts.plannedSkips > 0) " · ${s.counts.plannedSkips} planned" else ""
+    else -> "${s.safeSkipsLeft} safe skip${if (s.safeSkipsLeft == 1) "" else "s"} left" + if (s.counts.plannedSkips > 0) ", ${s.counts.plannedSkips} planned" else ""
 }
 
 @Composable
@@ -282,8 +283,8 @@ fun ClassCard(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     CourseDot(data.color(occ.courseId))
                     Text(data.code(occ.courseId), fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    val meta = listOfNotNull(occ.kind.name.lowercase().replaceFirstChar { it.uppercase() }.takeIf { occ.kind.name != "LECTURE" }, occ.room).joinToString(" · ")
-                    if (meta.isNotEmpty()) Text("· $meta", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val meta = listOfNotNull(occ.kind.name.lowercase().replaceFirstChar { it.uppercase() }.takeIf { occ.kind.name != "LECTURE" }, occ.room).joinToString(", ")
+                    if (meta.isNotEmpty()) Text(meta, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 if (occ.mark == null) derived.stats[occ.courseId]?.let { StatusChip(it) }
             }
@@ -296,14 +297,19 @@ fun ClassCard(
     }
 }
 
+/** Plain label-and-number rows, used instead of boxed stat tiles. */
 @Composable
-fun StatTile(value: String, label: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier.clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surfaceContainer)
-            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(16.dp)).padding(12.dp),
-    ) {
-        Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+fun StatRows(rows: List<Pair<String, String>>) {
+    Panel {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+            rows.forEachIndexed { i, (label, value) ->
+                if (i > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(label, modifier = Modifier.weight(1f))
+                    Text(value, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
     }
 }
 

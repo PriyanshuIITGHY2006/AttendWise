@@ -56,7 +56,7 @@ fun CoursesScreen(d: Derived, padding: PaddingValues, onOpen: (String) -> Unit, 
         item {
             Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
                 Column(Modifier.weight(1f)) {
-                    Text("${d.data.semester?.name ?: ""} · ${active.size} course${if (active.size == 1) "" else "s"}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("${active.size} course${if (active.size == 1) "" else "s"} in ${d.data.semester?.name ?: "this semester"}", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("Courses", style = MaterialTheme.typography.headlineMedium)
                 }
                 FilledIconButton(onClick = onAdd, modifier = Modifier.size(48.dp), shape = RoundedCornerShape(16.dp)) {
@@ -66,10 +66,15 @@ fun CoursesScreen(d: Derived, padding: PaddingValues, onOpen: (String) -> Unit, 
         }
         item {
             val counts = d.stats.values.groupingBy { it.status }.eachCount()
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Tile(counts[CourseStatus.SAFE] ?: 0, "Safe", c.safeFg, c.safeBg, Modifier.weight(1f))
-                Tile(counts[CourseStatus.TIGHT] ?: 0, "Tight", c.tightFg, c.tightBg, Modifier.weight(1f))
-                Tile(counts[CourseStatus.AT_RISK] ?: 0, "At risk", c.riskFg, c.riskBg, Modifier.weight(1f))
+            val risk = counts[CourseStatus.AT_RISK] ?: 0
+            val tight = counts[CourseStatus.TIGHT] ?: 0
+            if (active.isNotEmpty()) {
+                val (text, color) = when {
+                    risk > 0 -> "$risk course${if (risk == 1) " needs" else "s need"} attention" to c.riskFg
+                    tight > 0 -> "$tight course${if (tight == 1) " has" else "s have"} no skips left" to c.tightFg
+                    else -> "All courses are safe" to c.safeFg
+                }
+                Text(text, color = color, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(horizontal = 4.dp))
             }
         }
         if (active.isEmpty()) item { InfoCard("No courses yet", "Tap + to add a course and its timetable.") }
@@ -103,7 +108,7 @@ fun CoursesScreen(d: Derived, padding: PaddingValues, onOpen: (String) -> Unit, 
                         Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                             CourseDot(d.data.color(course.id))
                             Spacer(Modifier.width(8.dp))
-                            Text("${course.code} · ${course.name}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("${course.code}  ${course.name}", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -112,12 +117,3 @@ fun CoursesScreen(d: Derived, padding: PaddingValues, onOpen: (String) -> Unit, 
     }
 }
 
-@Composable
-private fun Tile(count: Int, label: String, fg: androidx.compose.ui.graphics.Color, bg: androidx.compose.ui.graphics.Color, modifier: Modifier) {
-    Box(modifier.clip(RoundedCornerShape(16.dp)).background(bg).padding(12.dp)) {
-        Column {
-            Text("$count", color = fg, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Text(label, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        }
-    }
-}

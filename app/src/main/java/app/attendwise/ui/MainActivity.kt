@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -123,7 +124,7 @@ private fun Root(vm: AppViewModel, pendingRoute: String?, onRouteConsumed: () ->
 
     LaunchedEffect(Unit) {
         vm.messages.collect { m ->
-            val result = snackbar.showSnackbar(m.text, actionLabel = m.actionLabel, withDismissAction = m.actionLabel == null)
+            val result = snackbar.showSnackbar(m.text, actionLabel = m.actionLabel, withDismissAction = true, duration = SnackbarDuration.Short)
             if (result == SnackbarResult.ActionPerformed) m.action?.invoke()
         }
     }

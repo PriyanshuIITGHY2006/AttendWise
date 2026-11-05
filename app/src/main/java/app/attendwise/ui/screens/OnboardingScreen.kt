@@ -82,7 +82,7 @@ fun OnboardingScreen(vm: AppViewModel) {
             }
             else -> {
                 val semester = data.semesterEntity
-                StepTitle("Step 3 of 3 · ${semester?.name ?: ""}", if (addingCourse) "Add a course" else "Your courses")
+                StepTitle("Step 3 of 3", if (addingCourse) "Add a course" else "Your courses")
                 if (semester == null) {
                     step = 1
                 } else if (addingCourse) {

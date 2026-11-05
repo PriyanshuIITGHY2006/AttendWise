@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -53,7 +55,7 @@ import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSemester: () -> Unit) {
     val context = LocalContext.current
@@ -103,7 +105,7 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSemest
                 Column(Modifier.fillMaxWidth().padding(16.dp)) {
                     val sem = d.data.semester
                     Text(sem?.name ?: "No semester", style = MaterialTheme.typography.bodyLarge)
-                    if (sem != null) Text("${sem.start.format(DayFmt)} – ${sem.end.format(DayFmt)} · ${d.data.activeCourses.size} courses", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (sem != null) Text("${sem.start.format(DayFmt)} – ${sem.end.format(DayFmt)}, ${d.data.activeCourses.size} courses", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -126,7 +128,8 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSemest
                                 selected = humor == key,
                                 onClick = { vm.saveProfile(profile?.fullName, firstYear, key) },
                                 shape = SegmentedButtonDefaults.itemShape(i, voices.size),
-                            ) { Text(label) }
+                                icon = {},
+                            ) { Text(label, maxLines = 1, softWrap = false) }
                         }
                     }
                     Text("“" + Copy.threshold("EE 203", 70, true, humor, "preview") + "”", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -143,7 +146,7 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSemest
                     if (s?.muted != true) {
                         ToggleRow("Class reminders", "${s?.leadTimeMinutes ?: 10} min before each class", s?.classReminders ?: true) { v -> vm.saveSettings { it.copy(classReminders = v) } }
                         if (s?.classReminders != false) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 listOf(5, 10, 15, 30).forEach { m ->
                                     FilterChip(selected = (s?.leadTimeMinutes ?: 10) == m, onClick = { vm.saveSettings { it.copy(leadTimeMinutes = m) } }, label = { Text("$m min") })
                                 }
@@ -175,7 +178,7 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSemest
             val options = listOf("system" to "System", "light" to "Light", "dark" to "Dark")
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 options.forEachIndexed { i, (key, label) ->
-                    SegmentedButton(selected = theme == key, onClick = { vm.setTheme(key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size)) { Text(label) }
+                    SegmentedButton(selected = theme == key, onClick = { vm.setTheme(key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size), icon = {}) { Text(label, maxLines = 1, softWrap = false) }
                 }
             }
         }

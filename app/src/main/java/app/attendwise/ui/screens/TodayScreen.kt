@@ -123,7 +123,7 @@ fun TodayScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onPlan: ()
 
     editing?.let { occ ->
         MarkDialog(
-            title = "${d.data.code(occ.courseId)} · ${occ.date.format(DayFmt)} ${occ.start.format(TimeFmt)}",
+            title = "${d.data.code(occ.courseId)}, ${occ.date.format(DayFmt)} at ${occ.start.format(TimeFmt)}",
             current = occ.mark?.status,
             onPick = { vm.mark(occ.key, occ.end, it); editing = null },
             onDismiss = { editing = null },

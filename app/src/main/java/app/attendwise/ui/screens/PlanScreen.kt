@@ -169,15 +169,15 @@ fun PlanScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, preselectTo
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                 CourseDot(d.data.color(line.course.id))
                                 Text(line.course.code, fontWeight = FontWeight.SemiBold)
-                                Text("· ${line.candidates.size} class${if (line.candidates.size == 1) "" else "es"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("${line.candidates.size} class${if (line.candidates.size == 1) "" else "es"}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Text(
                                 when {
-                                    locked -> "Zero-tolerance course"
+                                    locked -> "Never-skip course"
                                     checked && after != null && after.overBudget > 0 -> "Over budget by ${after.overBudget}"
-                                    checked && after != null -> "${after.safeSkipsLeft} safe skips left after · ends ${after.projectedIfPlanFollowed?.toInt() ?: 0}%"
+                                    checked && after != null -> "${after.safeSkipsLeft} safe skips left after, ending at ${after.projectedIfPlanFollowed?.toInt() ?: 0}%"
                                     line.verdict == SkipVerdict.RISKY -> "Allowed, but you're below ${line.course.thresholdPercent}% now"
-                                    line.verdict == SkipVerdict.MUST_ATTEND -> "No skips left" + if (line.before.counts.plannedSkips > 0) " · ${line.before.counts.plannedSkips} already planned" else ""
+                                    line.verdict == SkipVerdict.MUST_ATTEND -> "No skips left" + if (line.before.counts.plannedSkips > 0) ", ${line.before.counts.plannedSkips} already planned" else ""
                                     else -> "${line.budget} safe skips available"
                                 },
                                 fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -218,7 +218,7 @@ fun PlanScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, preselectTo
                                 val first = marks.minOf { it.key.date }
                                 val last = marks.maxOf { it.key.date }
                                 Text(if (first == last) first.format(DayFmt) else "${first.format(DayFmt)} – ${last.format(DayFmt)}", fontWeight = FontWeight.SemiBold)
-                                Text(marks.map { d.data.code(it.key.courseId) }.distinct().joinToString(", ") + " · ${marks.size} skips", fontSize = 12.sp)
+                                Text(marks.map { d.data.code(it.key.courseId) }.distinct().joinToString(", ") + ": ${marks.size} skip${if (marks.size == 1) "" else "s"}", fontSize = 12.sp)
                             }
                             TextButton(onClick = { vm.undoPlan(planId) }) { Text("Remove") }
                         }

@@ -117,10 +117,10 @@ private fun Muted(text: String, size: Int = 12) =
 private fun Empty(context: Context, text: String) = Card(context, "today") { Muted(text, 13) }
 
 private fun statusLine(s: AttendanceStats): String = when {
-    s.strictNoSkip -> "Zero-tolerance"
-    s.status == CourseStatus.AT_RISK && s.recoveryClasses != null -> "At risk · attend ${s.recoveryClasses} in a row"
+    s.strictNoSkip -> "Never skip"
+    s.status == CourseStatus.AT_RISK && s.recoveryClasses != null -> "Attend the next ${s.recoveryClasses}"
     s.status == CourseStatus.AT_RISK -> "At risk"
-    s.status == CourseStatus.TIGHT -> "No skips left" + if (s.counts.plannedSkips > 0) " · ${s.counts.plannedSkips} planned" else ""
+    s.status == CourseStatus.TIGHT -> "No skips left" + if (s.counts.plannedSkips > 0) ", ${s.counts.plannedSkips} planned" else ""
     else -> "${s.safeSkipsLeft} safe skips"
 }
 
@@ -156,13 +156,13 @@ private fun TodayContent(context: Context, d: Derived) {
                     Spacer(GlanceModifier.width(8.dp))
                     Column(modifier = GlanceModifier.defaultWeight()) {
                         Text(
-                            d.data.code(occ.courseId) + (occ.room?.let { " · $it" } ?: ""),
+                            d.data.code(occ.courseId) + (occ.room?.let { "  $it" } ?: ""),
                             style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 14.sp, fontWeight = FontWeight.Medium),
                             maxLines = 1,
                         )
                         Muted("${occ.start} – ${occ.end}" + when (occ.mark?.status) {
-                            MarkStatus.PRESENT -> " · present"
-                            MarkStatus.ABSENT -> " · skipping"
+                            MarkStatus.PRESENT -> ", present"
+                            MarkStatus.ABSENT -> ", skipping"
                             else -> ""
                         })
                     }
@@ -234,10 +234,10 @@ class NextClassWidget : GlanceAppWidget() {
                 val stats = d.stats[occ.courseId]
                 Card(context, "course/${occ.courseId}") {
                     Column {
-                        Muted(if (next.inProgress) "NOW" else "NEXT · ${countdown(next.startsIn, occ.date, d.now.date)}")
+                        Muted(if (next.inProgress) "NOW" else "NEXT, ${countdown(next.startsIn, occ.date, d.now.date)}")
                         Spacer(GlanceModifier.height(6.dp))
                         Text(d.data.code(occ.courseId), style = TextStyle(color = GlanceTheme.colors.onSurface, fontSize = 22.sp, fontWeight = FontWeight.Bold))
-                        Muted("${occ.start}" + (occ.room?.let { " · $it" } ?: ""), 13)
+                        Muted("${occ.start}" + (occ.room?.let { " in $it" } ?: ""), 13)
                         Spacer(GlanceModifier.height(8.dp))
                         if (stats != null) {
                             val skippable = !stats.strictNoSkip && stats.safeSkipsLeft > 0 && !stats.belowThreshold

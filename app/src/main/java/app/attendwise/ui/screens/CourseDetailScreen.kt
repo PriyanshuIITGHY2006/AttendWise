@@ -45,7 +45,7 @@ import app.attendwise.ui.components.MarkChip
 import app.attendwise.ui.components.Panel
 import app.attendwise.ui.components.Ring
 import app.attendwise.ui.components.SectionHeader
-import app.attendwise.ui.components.StatTile
+import app.attendwise.ui.components.StatRows
 import app.attendwise.ui.components.StatusChip
 import app.attendwise.ui.components.TimeField
 import app.attendwise.ui.components.TimeFmt
@@ -124,12 +124,14 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
         }
         if (s != null) {
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatTile("${s.counts.attended}", "Attended", Modifier.weight(1f))
-                    StatTile("${s.counts.missed}", "Missed", Modifier.weight(1f))
-                    StatTile("${s.counts.remaining}", "Left", Modifier.weight(1f))
-                    StatTile("${s.counts.plannedSkips}", "Planned", Modifier.weight(1f))
-                }
+                StatRows(
+                    listOf(
+                        "Attended" to "${s.counts.attended}",
+                        "Missed" to "${s.counts.missed}",
+                        "Classes left" to "${s.counts.remaining}",
+                        "Planned skips" to "${s.counts.plannedSkips}",
+                    ),
+                )
             }
             item {
                 Panel {
@@ -140,8 +142,8 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
                         }
                         ProjectionBar(s.currentPercent ?: 0.0, s.projectedIfAttendAll ?: 0.0, course.thresholdPercent, c.ring(s.status), c.present)
                         Text(
-                            "Attend all ${s.counts.remaining} left → ${s.projectedIfAttendAll?.toInt() ?: 0}%" +
-                                if (s.counts.plannedSkips > 0) "  ·  with your plans → ${s.projectedIfPlanFollowed?.toInt() ?: 0}%" else "",
+                            "If you attend all ${s.counts.remaining} left you end at ${s.projectedIfAttendAll?.toInt() ?: 0}%." +
+                                if (s.counts.plannedSkips > 0) "\nWith your planned skips you end at ${s.projectedIfPlanFollowed?.toInt() ?: 0}%." else "",
                             fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         if (s.counts.unmarkedPast > 0) Text("${s.counts.unmarkedPast} past class${if (s.counts.unmarkedPast == 1) " is" else "es are"} unmarked and counted as attendable.", fontSize = 12.sp, color = c.tightFg)
@@ -158,7 +160,7 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
                         Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp)) {
                             Text(slot.dayOfWeek.name.take(3).lowercase().replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(48.dp))
                             Text("${slot.start.format(TimeFmt)} – ${slot.end.format(TimeFmt)}", modifier = Modifier.weight(1f))
-                            Text(listOfNotNull(slot.kind.name.lowercase().replaceFirstChar { it.uppercase() }, slot.room).joinToString(" · "), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(listOfNotNull(slot.kind.name.lowercase().replaceFirstChar { it.uppercase() }, slot.room).joinToString(", "), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
@@ -184,7 +186,7 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
 
     editing?.let { occ ->
         MarkDialog(
-            title = "${course.code} · ${occ.date.format(DayFmt)} ${occ.start.format(TimeFmt)}",
+            title = "${course.code}, ${occ.date.format(DayFmt)} at ${occ.start.format(TimeFmt)}",
             current = occ.mark?.status,
             onPick = { vm.mark(occ.key, occ.end, it); editing = null },
             onDismiss = { editing = null },
@@ -211,9 +213,9 @@ private fun HistoryRow(occ: ClassOccurrence, d: Derived, onClick: () -> Unit) {
                 Text(occ.date.format(DayFmt), fontWeight = FontWeight.Medium)
                 Text(
                     "${occ.start.format(TimeFmt)} – ${occ.end.format(TimeFmt)}" + when {
-                        occ.swappedFrom != null -> " · ${occ.swappedFrom!!.name.lowercase().replaceFirstChar { it.uppercase() }} timetable"
-                        occ.source.name == "EXTRA" -> " · extra class"
-                        occ.source.name == "ORPHANED" -> " · no longer in timetable"
+                        occ.swappedFrom != null -> ", ${occ.swappedFrom!!.name.lowercase().replaceFirstChar { it.uppercase() }} timetable"
+                        occ.source.name == "EXTRA" -> ", extra class"
+                        occ.source.name == "ORPHANED" -> ", no longer in timetable"
                         else -> ""
                     },
                     fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -117,14 +117,14 @@ object AlarmScheduler {
                 val key = ClassKey(intent.getStringExtra("course") ?: return, day, LocalTime.ofSecondOfDay(intent.getIntExtra("start", 0).toLong()))
                 val occ = derived.schedule.occurrences.firstOrNull { it.key == key } ?: return
                 val code = data.code(key.courseId)
-                val room = occ.room?.let { " · $it" } ?: ""
+                val room = occ.room?.let { " in $it" } ?: ""
                 if (intent.getStringExtra("type") == "reminder") {
                     if (occ.mark?.status == MarkStatus.ABSENT || occ.mark?.status?.isNeutral == true) return
                     val minutes = Duration.between(now.dateTime, occ.date.atTime(occ.start)).toMinutes().toInt().coerceAtLeast(0)
                     Notifier.classReminder(context, id, "$code at ${occ.start}$room", Copy.classSoon(code, minutes, voice, key.toString()), key, occ.end)
                 } else {
                     if (occ.mark != null) return
-                    Notifier.markPrompt(context, id, "$code · ${occ.start}–${occ.end}", Copy.markPrompt(code, voice, key.toString()), key, occ.end)
+                    Notifier.markPrompt(context, id, "$code, ${occ.start}–${occ.end}", Copy.markPrompt(code, voice, key.toString()), key, occ.end)
                 }
             }
             "digest" -> {
