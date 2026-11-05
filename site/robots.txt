@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://priyanshuiitghy2006.github.io/AttendWise/sitemap.xml

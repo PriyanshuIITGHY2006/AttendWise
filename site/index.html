@@ -4,10 +4,66 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="dark light">
-<title>AttendWise for Android</title>
-<meta name="description" content="AttendWise is an Android app that shows which classes you can safely skip. Download the latest version.">
+<title>AttendWise: Android attendance tracker for college students</title>
+<meta name="description" content="Android attendance tracker for college students. Mark classes, see how many you can still miss per course, plan days off, get reminders. Made for IIT Guwahati.">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<link rel="canonical" href="https://priyanshuiitghy2006.github.io/AttendWise/">
+<meta name="author" content="Priyanshu Debnath">
+<meta name="application-name" content="AttendWise">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f2f5fb" media="(prefers-color-scheme: light)">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="AttendWise">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="AttendWise: Android attendance tracker for college students">
+<meta property="og:description" content="Mark classes, see how many you can still miss in each course, plan days off and get reminders. Works offline.">
+<meta property="og:url" content="https://priyanshuiitghy2006.github.io/AttendWise/">
+<meta property="og:image" content="https://priyanshuiitghy2006.github.io/AttendWise/img/og.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="AttendWise on Android: the Today screen with the day's classes and the Courses screen with attendance rings.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="AttendWise: Android attendance tracker for college students">
+<meta name="twitter:description" content="Mark classes, see how many you can still miss in each course, plan days off and get reminders. Works offline.">
+<meta name="twitter:image" content="https://priyanshuiitghy2006.github.io/AttendWise/img/og.jpg">
+<meta name="twitter:image:alt" content="AttendWise on Android: the Today screen with the day's classes and the Courses screen with attendance rings.">
 <link rel="icon" href="/AttendWise/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/AttendWise/img/icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="/AttendWise/img/apple-touch-icon.png">
+<link rel="preconnect" href="https://api.github.com">
 <link rel="preload" href="/AttendWise/fonts/questrial-400.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/AttendWise/fonts/hind-300.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/AttendWise/fonts/hind-400.woff2" as="font" type="font/woff2" crossorigin>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "AttendWise",
+  "description": "An Android attendance tracker for college students. Mark classes, see how many you can still miss in each course, plan days off, follow the institute calendar and get reminders. Works offline.",
+  "applicationCategory": "EducationalApplication",
+  "operatingSystem": "Android 8.0 or later",
+  "inLanguage": "en",
+  "url": "https://priyanshuiitghy2006.github.io/AttendWise/",
+  "downloadUrl": "https://github.com/PriyanshuIITGHY2006/AttendWise/releases",
+  "image": "https://priyanshuiitghy2006.github.io/AttendWise/img/og.jpg",
+  "screenshot": [
+    "https://priyanshuiitghy2006.github.io/AttendWise/img/today.webp",
+    "https://priyanshuiitghy2006.github.io/AttendWise/img/courses.webp",
+    "https://priyanshuiitghy2006.github.io/AttendWise/img/plan.webp",
+    "https://priyanshuiitghy2006.github.io/AttendWise/img/calendar.webp"
+  ],
+  "author": {
+    "@type": "Person",
+    "name": "Priyanshu Debnath",
+    "url": "https://github.com/PriyanshuIITGHY2006"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
 <style>
   @font-face { font-family: "Questrial"; font-weight: 400; font-display: swap; src: url(/AttendWise/fonts/questrial-400.woff2) format("woff2"); }
   @font-face { font-family: "Hind"; font-weight: 300; font-display: swap; src: url(/AttendWise/fonts/hind-300.woff2) format("woff2"); }
@@ -202,7 +258,7 @@
   }
   .retired-card { width: 100%; max-width: 34rem; padding: 32px 26px; margin: auto; }
   .retired-card img { width: 52px; height: 52px; border-radius: 13px; margin-bottom: 18px; }
-  .retired-card h1 { font-size: clamp(2rem, 8vw, 2.8rem); margin-bottom: 14px; }
+  .retired-card .rt { font-size: clamp(2rem, 8vw, 2.8rem); line-height: 1.1; margin: 0 0 14px; }
   .retired-card ol { margin: 18px 0 22px; }
   .retired-card .meta { margin-top: 4px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 6px 22px; }
@@ -272,7 +328,7 @@
 <div id="retired" role="alert">
   <div class="glass retired-card">
     <img src="/AttendWise/favicon.svg" alt="" width="52" height="52">
-    <h1>This app has been retired</h1>
+    <h2 class="rt">This app has been retired</h2>
     <p class="muted">AttendWise is now a native Android app. This old version no longer works.</p>
     <ol>
       <li>Press and hold the old AttendWise icon on your home screen, then choose Uninstall or Remove.</li>
@@ -300,7 +356,7 @@
     <div class="hero-grid">
       <div class="reveal-group">
         <h1>Know which classes you can skip.</h1>
-        <p class="muted lead">AttendWise is now an Android app. The website version has been retired. The new app is faster, works offline, and adds home-screen widgets and class reminders you can mark from the notification.</p>
+        <p class="muted lead">AttendWise is now an Android attendance app. The website version has been retired. The new app is faster, works offline, and adds home-screen widgets and class reminders you can mark from the notification.</p>
 
         <a class="btn" id="download" data-download href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download for Android</a>
         <p class="meta" id="meta" data-meta></p>
@@ -310,7 +366,7 @@
         <div class="phone p1">
           <picture>
             <source srcset="/AttendWise/img/today-dark.webp" media="(prefers-color-scheme: dark)">
-            <img src="/AttendWise/img/today.webp" width="780" height="1688" alt="The Today screen: five classes for Thursday 1 October with present and absent buttons, a day swap notice and a Can I bunk today card.">
+            <img src="/AttendWise/img/today.webp" width="780" height="1688" fetchpriority="high" decoding="async" alt="The Today screen: five classes for Thursday 1 October with present and absent buttons, a day swap notice and a Can I bunk today card.">
           </picture>
         </div>
         <div class="phone p2">
