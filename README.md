@@ -1,30 +1,54 @@
-# AttendWise
+<p align="center">
+  <img src="site/favicon.svg" alt="AttendWise logo" width="128" height="128">
+</p>
 
-[![CI](https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/ci.yml/badge.svg?branch=v2-native)](https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/ci.yml)
-[![Website](https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/pages.yml/badge.svg?branch=v2-native)](https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/pages.yml)
+<h1 align="center">AttendWise</h1>
 
-A native Android app for college attendance, made for IIT Guwahati students. It keeps your timetable, counts every class, and shows how many classes you can still miss in each course before you drop under the attendance requirement.
+<p align="center">
+  <strong>Know where your attendance stands.</strong><br>
+  A native Android app for college attendance, made for IIT Guwahati students.
+</p>
 
-AttendWise is an attendance tracker. It does not encourage anyone to skip classes, and its figures are estimates, not official records. Read the [terms and conditions](https://priyanshuiitghy2006.github.io/AttendWise/terms.html).
+<p align="center">
+  <a href="https://priyanshuiitghy2006.github.io/AttendWise/"><img src="https://img.shields.io/badge/Download-Android%20APK-2463eb?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Download for Android"></a>
+  <img src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Android 8.0 or newer">
+  <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7f52ff?style=for-the-badge&amp;logo=kotlin&amp;logoColor=white" alt="Kotlin and Jetpack Compose">
+</p>
 
-Website: <https://priyanshuiitghy2006.github.io/AttendWise/>
+<p align="center">
+  <a href="https://priyanshuiitghy2006.github.io/AttendWise/">Website</a> |
+  <a href="#features">Features</a> |
+  <a href="#install">Install</a> |
+  <a href="#how-it-works">How it works</a> |
+  <a href="#building-and-testing">Build</a> |
+  <a href="https://priyanshuiitghy2006.github.io/AttendWise/terms.html">Terms</a>
+</p>
 
-<table>
-  <tr>
-    <td><img src="site/img/today.webp" alt="Today screen" width="190"></td>
-    <td><img src="site/img/courses.webp" alt="Courses screen" width="190"></td>
-    <td><img src="site/img/plan.webp" alt="Plan screen" width="190"></td>
-    <td><img src="site/img/calendar.webp" alt="Calendar screen" width="190"></td>
-  </tr>
-  <tr>
-    <td align="center">Today</td>
-    <td align="center">Courses</td>
-    <td align="center">Plan</td>
-    <td align="center">Calendar</td>
-  </tr>
-</table>
+<p align="center">
+  <a href="https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/ci.yml"><img src="https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/ci.yml/badge.svg?branch=v2-native" alt="CI status"></a>
+  <a href="https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/pages.yml"><img src="https://github.com/PriyanshuIITGHY2006/AttendWise/actions/workflows/pages.yml/badge.svg?branch=v2-native" alt="Website status"></a>
+</p>
 
-These are design mockups of the main screens. The widgets and notifications are in `site/img/widgets.webp` and `site/img/notifications.webp`.
+<br>
+
+<p align="center">
+  <img src="site/img/today.webp" alt="Today screen" width="23%">
+  <img src="site/img/courses.webp" alt="Courses screen" width="23%">
+  <img src="site/img/plan.webp" alt="Plan screen" width="23%">
+  <img src="site/img/calendar.webp" alt="Calendar screen" width="23%">
+</p>
+
+<p align="center">
+  <sub>Today, Courses, Plan and Calendar. These are design mockups of the main screens.</sub>
+</p>
+
+<br>
+
+## About
+
+AttendWise keeps your timetable, counts every class, and shows how many classes you can still miss in each course before you drop under the attendance requirement. It runs fully offline, puts your day on the home screen with widgets, and lets you mark a class from the notification without opening the app.
+
+AttendWise is an attendance tracker. It does not encourage anyone to skip classes, and its figures are estimates, not official records. Please read the [terms and conditions](https://priyanshuiitghy2006.github.io/AttendWise/terms.html).
 
 ## Features
 
@@ -38,6 +62,16 @@ These are design mockups of the main screens. The widgets and notifications are 
 - **Works offline.** Everything runs from the on-device database. Sync happens in the background when there is a network.
 - **Themes.** Light, dark or follow the system, plus a launcher icon that changes colour with your attendance.
 - **In-app updates.** The app checks GitHub Releases for a newer build and installs it from inside the app.
+
+<p align="center">
+  <img src="site/img/widgets.webp" alt="Home screen widgets" width="30%">
+  <img src="site/img/notifications.webp" alt="Notifications with action buttons" width="30%">
+  <img src="site/img/today-dark.webp" alt="Today screen in dark mode" width="30%">
+</p>
+
+<p align="center">
+  <sub>Widgets, notifications with action buttons, and dark mode.</sub>
+</p>
 
 ## Install
 
