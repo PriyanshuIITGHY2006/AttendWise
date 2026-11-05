@@ -13,6 +13,7 @@
   <a href="https://priyanshuiitghy2006.github.io/AttendWise/"><img src="https://img.shields.io/badge/Download-Android%20APK-2463eb?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Download for Android"></a>
   <img src="https://img.shields.io/badge/Android-8.0%2B-3ddc84?style=for-the-badge&amp;logo=android&amp;logoColor=white" alt="Android 8.0 or newer">
   <img src="https://img.shields.io/badge/Kotlin-Jetpack%20Compose-7f52ff?style=for-the-badge&amp;logo=kotlin&amp;logoColor=white" alt="Kotlin and Jetpack Compose">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge" alt="MIT License"></a>
 </p>
 
 <p align="center">
@@ -162,6 +163,10 @@ To add a help article, create `web/help/<name>.md` with a `title`, `description`
 ## Branches
 
 `v2-native` is the active development branch. The earlier React and Capacitor web app is retired.
+
+## License
+
+AttendWise is released under the [MIT License](LICENSE). The website fonts, Questrial and Hind, are from Google Fonts and are licensed under the SIL Open Font License 1.1.
 
 ## Author
 
