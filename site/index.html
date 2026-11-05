@@ -226,12 +226,12 @@
   @media (prefers-reduced-motion: no-preference) {
     .js .reveal {
       opacity: 0; transform: translateY(34px);
-      transition: opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms), transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms);
+      transition: opacity 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms), transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) var(--d, 0ms);
     }
-    .js .phone.reveal { transform: translateY(70px) scale(0.96); transition-duration: 1s; }
+    .js .phone.reveal { transform: translateY(50px) scale(0.97); transition-duration: 0.65s; }
     .js .reveal.in { opacity: 1; transform: none; }
     .duo { translate: 0 var(--py, 0px); }
-    .tag { animation: float 5.5s ease-in-out infinite; }
+    .tag { animation: float 4s ease-in-out infinite; }
     .tag.blue { animation-delay: -2.4s; }
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
     .arc { animation: breathe 9s ease-in-out infinite; }
@@ -433,13 +433,13 @@
         e.target.classList.add('in');
         io.unobserve(e.target);
       });
-    }, { threshold: 0.1, rootMargin: '0px 0px -6% 0px' });
+    }, { threshold: 0.04, rootMargin: '0px 0px -2% 0px' });
     Array.prototype.forEach.call(items, function (el) {
       // Tags float with their own animation, so they only fade in.
       var parent = el.parentElement;
       var n = counts.get(parent) || 0;
       counts.set(parent, n + 1);
-      el.style.setProperty('--d', Math.min(n, 5) * 110 + 'ms');
+      el.style.setProperty('--d', Math.min(n, 4) * 60 + 'ms');
       el.classList.add('reveal');
       io.observe(el);
     });
@@ -478,7 +478,7 @@
       slides.forEach(function (s, i) {
         var next = slides[i + 1];
         if (!next) return;
-        var p = Math.min(1, Math.max(0, 1 - next.getBoundingClientRect().top / vh));
+        var p = Math.min(1, Math.max(0, (vh - next.getBoundingClientRect().top) / (vh * 0.7)));
         s.style.setProperty('--cover', (p * 0.6).toFixed(3));
         s.style.scale = (1 - p * 0.06).toFixed(4);
       });
