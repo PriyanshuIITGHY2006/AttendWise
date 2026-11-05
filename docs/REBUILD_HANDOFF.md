@@ -8,6 +8,7 @@ Snapshot of where the project stands and what has been decided, so work can resu
 
 - **All commits under the owner's name:** `Priyanshu Debnath <priyanshuib01@gmail.com>`. The build sandbox's default git identity is *not* the owner — always override it per commit (`git -c user.name=... -c user.email=...`).
 - **No AI/assistant branding anywhere in the repo** — no co-author trailers, no tool names in commit messages, file names, code comments or docs.
+- **All v2 work happens on the `v2-native` branch.**
 - Prefer action over long question lists; ask only for decisions that are genuinely the owner's.
 - Verify with real evidence (DB queries, builds, screenshots), never assume.
 - Never put other users' personal data (emails, names) in the repo.
@@ -28,11 +29,15 @@ The current product is a React/Vite **web app** wrapped in Capacitor, and the AP
 | Widgets in v1 | ✅ Decided (must-have) |
 | Remove Materials/Files feature entirely | ✅ Decided |
 | Archive current web app on a git tag before deleting it | ✅ Planned (`web-app-archive`) |
-| **Kotlin + Jetpack Compose + Glance** vs **React Native (Expo)** | ⏳ **Pending owner** — current recommendation leans **Kotlin + Compose + Glance**: Android-only + widgets-first makes Google's official widget toolkit (full Material You) the strongest fit. React Native remains viable via `react-native-android-widget` if iPhone support ever matters. |
-| Keep existing Supabase backend + user data | ⏳ Pending — **recommended YES** (10 active users, 1,869 marks would carry over) |
-| Android-only vs also iOS | ⏳ Pending (assumed Android-only so far) |
-| v1 scope: 5 tabs only, or include Grades/Deadlines | ⏳ Pending |
-| Also remove repo clutter (`PUSH_SETUP.md`, `android/`, Pages deploy, etc.) | ⏳ Pending confirmation |
+| Stack | ✅ **Kotlin + Jetpack Compose + Glance** |
+| Backend | ✅ **Fresh Supabase project**, new schema; users start over |
+| Platform | ✅ Android only |
+| v1 scope | ✅ 5 tabs only (Grades/Deadlines → v2) |
+| Remove repo clutter (`PUSH_SETUP.md`, `android/`, Pages deploy, old SQL) | ✅ Yes, after the archive tag |
+| Signing key | ✅ Old keystore lost → new key; old-APK users reinstall once |
+| Branch | ✅ All v2 work on `v2-native` |
+
+**The full build plan is in `docs/V2_PLAN.md`.**
 
 ---
 
@@ -117,4 +122,4 @@ v2 candidates: Grades/GPA, Deadlines, Insights, attendance export (PDF/CSV), mul
 
 ## 7. Next step
 
-Owner to answer: **(1) Kotlin or React Native, (2) keep Supabase data, (3) Android-only, (4) v1 scope, (5) remove repo clutter too.** Then: produce screen + widget mockups for approval → Milestone 1.
+All decisions are made. Plan written (`docs/V2_PLAN.md`). Next: **Milestone 0**, the screen + widget mockups for owner approval, then Milestone 1.
