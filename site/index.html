@@ -83,8 +83,8 @@
       document.getElementById('download').href = pick.browser_download_url;
       var mb = (pick.size / 1048576).toFixed(0);
       var date = new Date(pickRel.published_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-      var test = /test/.test(pick.name) ? ' · test build' : '';
-      document.getElementById('meta').textContent = pickRel.name.replace(/^AttendWise\s*/, '') + ' · ' + mb + ' MB · ' + date + test;
+      var test = /test/.test(pick.name) ? ' (test build)' : '';
+      document.getElementById('meta').textContent = 'Released ' + date + ', ' + mb + ' MB' + test;
     })
     .catch(function () {});
 </script>
