@@ -31,6 +31,7 @@
     --bezel: #08090d;
     --phone-edge: rgba(255, 255, 255, 0.28);
     --shadow: 0 40px 80px rgba(0, 0, 0, 0.6);
+    --stack-shadow: 0 -30px 70px rgba(0, 0, 0, 0.7);
     --tag-orange: #f5891f;
     --tag-orange-fg: #1c0f00;
     --tag-blue: #5b5df0;
@@ -44,7 +45,6 @@
     --voice-glow: radial-gradient(50% 40% at 50% 0%, rgba(40, 100, 200, 0.35), transparent 72%);
     --maker-glow: radial-gradient(46% 52% at 0% 26%, rgba(90, 170, 255, 0.7), transparent 72%);
     --contact-glow: radial-gradient(44% 50% at 100% 30%, rgba(90, 170, 255, 0.6), transparent 72%), radial-gradient(56% 54% at 0% 84%, rgba(240, 145, 30, 0.8), transparent 72%);
-    --shots-glow: radial-gradient(50% 50% at 50% 50%, rgba(37, 99, 235, 0.28), transparent 72%);
   }
   @media (prefers-color-scheme: light) {
     :root {
@@ -57,6 +57,7 @@
       --edge: linear-gradient(145deg, rgba(36, 99, 235, 0.55), rgba(36, 99, 235, 0.08) 45%, rgba(36, 99, 235, 0.35));
       --link: #1a4fc7;
       --shadow: 0 34px 60px rgba(20, 40, 100, 0.28);
+      --stack-shadow: 0 -26px 60px rgba(20, 40, 100, 0.3);
       --arc-edge: rgba(36, 99, 235, 0.4);
       --arc-fill: radial-gradient(circle at 72% 82%, rgba(36, 99, 235, 0.45), rgba(120, 160, 255, 0.2) 40%, rgba(255, 255, 255, 0) 70%);
       --hero-glow: radial-gradient(42% 38% at 12% 0%, rgba(36, 99, 235, 0.16), transparent 70%);
@@ -65,8 +66,7 @@
       --voice-glow: radial-gradient(50% 40% at 50% 0%, rgba(36, 99, 235, 0.12), transparent 72%);
       --maker-glow: radial-gradient(46% 52% at 0% 26%, rgba(36, 99, 235, 0.26), transparent 72%);
       --contact-glow: radial-gradient(44% 50% at 100% 30%, rgba(36, 99, 235, 0.24), transparent 72%), radial-gradient(56% 54% at 0% 84%, rgba(245, 150, 40, 0.38), transparent 72%);
-      --shots-glow: radial-gradient(50% 50% at 50% 50%, rgba(36, 99, 235, 0.12), transparent 72%);
-    }
+      }
   }
 
   * { box-sizing: border-box; }
@@ -78,7 +78,7 @@
   }
   img { max-width: 100%; height: auto; display: block; }
   a { color: var(--link); }
-  a:focus-visible, .btn:focus-visible, .strip:focus-visible {
+  a:focus-visible, .btn:focus-visible {
     outline: 3px solid var(--link); outline-offset: 4px; border-radius: 10px;
   }
   .wrap { max-width: 76rem; margin: 0 auto; padding: 0 22px; position: relative; }
@@ -99,13 +99,17 @@
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
   }
 
+  /* Slides: each one fills the screen, and the next one slides up over it */
+  .slide { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; }
+  .slide > .wrap { width: 100%; }
+  .hero.slide { justify-content: flex-start; }
+
   /* Hero */
   .hero { padding: 0 0 72px; background: var(--hero-glow), var(--bg); }
   .arc {
     position: absolute; z-index: -1; width: 760px; height: 760px; border-radius: 50%; right: -330px; bottom: -190px;
     border: 2px solid var(--arc-edge); background: var(--arc-fill);
   }
-  .hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 180px; z-index: -1; background: linear-gradient(to bottom, transparent, var(--bg)); pointer-events: none; }
   .top { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; }
   .brand { display: flex; align-items: center; gap: 10px; font: 400 1.75rem/1 var(--display); color: var(--fg); text-decoration: none; letter-spacing: -0.01em; }
   .brand img { width: 40px; height: 40px; border-radius: 10px; }
@@ -171,16 +175,6 @@
   .avatar img { width: 34px; height: 34px; }
   .card p { margin: 0; color: var(--muted); }
 
-  /* Screens */
-  .shots { background: var(--shots-glow), var(--bg); }
-  .strip {
-    display: flex; gap: 26px; overflow-x: auto; scroll-snap-type: x mandatory;
-    padding: 18px 22px 30px; margin: 20px -22px 0; scroll-padding: 0 22px;
-  }
-  .strip figure { margin: 0; flex: 0 0 auto; width: 232px; scroll-snap-align: start; }
-  .strip .phone { position: relative; width: 100%; }
-  .strip figcaption { margin-top: 14px; font: 400 1.25rem/1.2 var(--display); text-align: center; }
-
   /* Install */
   .install { background: var(--bg); }
   .install-grid { display: grid; gap: 18px; }
@@ -222,8 +216,6 @@
     .feat-panel { grid-template-columns: 1fr 1fr; gap: 48px 44px; padding: 56px 52px; border-radius: 56px; }
     .cards { grid-template-columns: repeat(3, 1fr); gap: 26px; }
     .card { padding: 34px 30px 38px; }
-    .strip { margin-left: 0; margin-right: 0; padding-left: 0; padding-right: 0; scroll-padding: 0; gap: 34px; }
-    .strip figure { width: 250px; }
     .install-grid { grid-template-columns: 1.4fr 1fr; gap: 26px; }
     .panel { padding: 44px 42px; border-radius: 44px; }
     .contact-split { display: grid; grid-template-columns: 1fr 1fr; align-items: end; min-height: 300px; }
@@ -244,6 +236,9 @@
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-9px); } }
     .arc { animation: breathe 9s ease-in-out infinite; }
     @keyframes breathe { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
+    .stack .slide { position: sticky; top: 0; transform-origin: 50% 0; }
+    .stack .slide + .slide { border-radius: 38px 38px 0 0; box-shadow: var(--stack-shadow); }
+    .stack .slide::after { content: ""; position: absolute; inset: 0; z-index: 30; pointer-events: none; background: #000; opacity: var(--cover, 0); }
     .btn { transition: filter 0.2s ease, transform 0.2s ease; }
     .btn:hover { transform: translateY(-2px); }
   }
@@ -252,14 +247,14 @@
 </head>
 <body>
 
-<section class="hero">
+<main>
+<section class="hero slide">
   <div class="arc" aria-hidden="true"></div>
   <div class="wrap">
     <header class="top">
       <a class="brand" href="/AttendWise/"><img src="/AttendWise/favicon.svg" alt="" width="40" height="40">AttendWise</a>
       <nav class="nav" aria-label="Page">
         <a class="hide-sm" href="#features">Features</a>
-        <a class="hide-sm" href="#screens">Screens</a>
         <a class="hide-sm" href="#contact">Contact</a>
         <a href="#download">Download</a>
       </nav>
@@ -291,8 +286,7 @@
   </div>
 </section>
 
-<main>
-  <section class="what" id="about">
+  <section class="what slide" id="about">
     <div class="wrap split">
       <div class="glass">
         <h2>What is AttendWise?</h2>
@@ -311,7 +305,7 @@
     </div>
   </section>
 
-  <section class="features" id="features">
+  <section class="features slide" id="features">
     <div class="wrap feat-grid">
       <div>
         <h2>Features</h2>
@@ -352,7 +346,7 @@
     </div>
   </section>
 
-  <section class="voice" id="voice">
+  <section class="voice slide" id="voice">
     <div class="wrap">
       <h2>In the app's own words</h2>
       <p class="muted lead">Real notifications from the app.</p>
@@ -376,45 +370,7 @@
     </div>
   </section>
 
-  <section class="shots" id="screens">
-    <div class="wrap">
-      <h2>Screens</h2>
-      <p class="muted lead">Scroll sideways to see more of the app.</p>
-
-      <div class="strip" tabindex="0" role="group" aria-label="App screenshots, scroll sideways">
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/today.webp" width="780" height="1688" loading="lazy" alt="Today screen in light mode with the day's classes and mark buttons."></div>
-          <figcaption>Today</figcaption>
-        </figure>
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/courses.webp" width="780" height="1688" loading="lazy" alt="Courses screen with an attendance ring and safe skips for each course."></div>
-          <figcaption>Courses</figcaption>
-        </figure>
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/plan.webp" width="780" height="1688" loading="lazy" alt="Plan screen with a month calendar and a verdict for each course on the chosen days off."></div>
-          <figcaption>Plan</figcaption>
-        </figure>
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/calendar.webp" width="780" height="1688" loading="lazy" alt="Calendar screen showing a month with holidays, a day swap and the day's classes."></div>
-          <figcaption>Calendar</figcaption>
-        </figure>
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/widgets.webp" width="780" height="1688" loading="lazy" alt="A phone home screen with all five AttendWise widgets."></div>
-          <figcaption>Widgets</figcaption>
-        </figure>
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/notifications.webp" width="780" height="1688" loading="lazy" alt="Class notifications with Present, Absent and Cancelled action buttons."></div>
-          <figcaption>Notifications</figcaption>
-        </figure>
-        <figure>
-          <div class="phone"><img src="/AttendWise/img/today-dark.webp" width="780" height="1688" loading="lazy" alt="Today screen in dark mode."></div>
-          <figcaption>Dark mode</figcaption>
-        </figure>
-      </div>
-    </div>
-  </section>
-
-  <section class="install" id="install">
+  <section class="install slide" id="install">
     <div class="wrap install-grid">
       <div class="glass panel">
         <h2>Installing</h2>
@@ -431,7 +387,7 @@
     </div>
   </section>
 
-  <section class="maker" id="maker">
+  <section class="maker slide" id="maker">
     <div class="wrap split">
       <div>
         <h2>Meet the maker</h2>
@@ -449,7 +405,7 @@
     </div>
   </section>
 
-  <section class="contact" id="contact">
+  <section class="contact slide" id="contact">
     <div class="wrap contact-split">
       <h2>Contact</h2>
       <ul class="contact-list">
@@ -469,7 +425,7 @@
   (function () {
     if (!('IntersectionObserver' in window)) return;
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    var items = document.querySelectorAll('.reveal-group, .duo .phone, .tag, section h2, section .lead, .glass, .card, .strip, .contact-list li');
+    var items = document.querySelectorAll('.reveal-group, .duo .phone, .tag, section h2, section .lead, .glass, .card, .contact-list li');
     var counts = new Map();
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
@@ -503,6 +459,40 @@
     window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
     window.addEventListener('resize', update);
     update();
+  })();
+
+  // Stack the slides: the next slide slides up over the current one, which scales back and dims.
+  (function () {
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
+    if (slides.length < 2) return;
+    var ticking = false;
+    function pin() {
+      // A slide taller than the screen scrolls through fully before it pins.
+      var vh = window.innerHeight;
+      slides.forEach(function (s) { s.style.top = Math.min(0, vh - s.offsetHeight) + 'px'; });
+    }
+    function cover() {
+      ticking = false;
+      var vh = window.innerHeight;
+      slides.forEach(function (s, i) {
+        var next = slides[i + 1];
+        if (!next) return;
+        var p = Math.min(1, Math.max(0, 1 - next.getBoundingClientRect().top / vh));
+        s.style.setProperty('--cover', (p * 0.6).toFixed(3));
+        s.style.scale = (1 - p * 0.06).toFixed(4);
+      });
+    }
+    function refresh() { pin(); cover(); }
+    document.documentElement.classList.add('stack');
+    refresh();
+    window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(cover); } }, { passive: true });
+    window.addEventListener('resize', refresh);
+    window.addEventListener('load', refresh);
+    if ('ResizeObserver' in window) {
+      var ro = new ResizeObserver(refresh);
+      slides.forEach(function (s) { ro.observe(s); });
+    }
   })();
 
   // Turn off the old website's offline cache so returning visitors see this page.
