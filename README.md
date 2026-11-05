@@ -1,29 +1,22 @@
 # AttendWise
 
-Attendance, schedule, and course material tracker for IITG students.
+A native Android app for college attendance: today's classes, safe skips per course, a day-off planner, the institute calendar with day swaps, and home-screen widgets. Built with Kotlin, Jetpack Compose and Glance.
 
-## What it does
+The previous React/Capacitor web app is preserved on the `web-app-archive` branch.
 
-- Per-course attendance criteria (different courses require different %) with a running safe-to-skip calculator
-- Weekly class schedule per course, with sessions generated automatically against the shared institute academic calendar
-- One-tap attendance marking, with backfill for missed days
-- Gated course-material sharing for a whitelisted set of accounts
+## Project layout
 
-## Stack
+| Module | What it holds |
+|---|---|
+| `domain/` | Pure Kotlin. Every attendance rule: class generation from the timetable and institute calendar, attendance maths, the planner, next-class and notification timing, validation. No Android dependency, fully unit-tested. |
+| `data/`, `app/` | Android modules (database, sync, UI, widgets). Coming next. |
 
-- React + TypeScript + Vite + Tailwind CSS
-- Supabase (Postgres, Auth, Storage) with row-level security on every table
+Plans and decisions: `docs/V2_PLAN.md` and `docs/REBUILD_HANDOFF.md`.
 
-## Local development
+## Running the tests
 
 ```bash
-npm install
-cp .env.example .env.local   # fill in your Supabase project URL + anon key
-npm run dev
+./gradlew :domain:test
 ```
 
-## Scripts
-
-- `npm run dev` – start the dev server
-- `npm run build` – type-check and build for production
-- `npm run lint` – run oxlint
+Requires JDK 17 or newer. The test report is written to `domain/build/reports/tests/test/index.html`.

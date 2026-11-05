@@ -12,7 +12,7 @@ The full plan for rebuilding AttendWise as a true native Android app in Kotlin. 
 | Platform | Android only |
 | Backend | **Fresh Supabase project** with a new, clean schema. Users start over (fits nicely: the Monsoon semester ends 21 Nov, so everyone sets up Winter 2027 fresh anyway) |
 | v1 scope | 5 tabs: Today, Courses, Plan, Calendar, Profile + 5 widgets + actionable notifications. **No** Grades, Deadlines, Materials |
-| Old web app | Tag `web-app-archive`, then delete web app, Capacitor `android/`, `PUSH_SETUP.md`, Pages deploy, old `supabase/` SQL |
+| Old web app | Preserved on the **`web-app-archive` branch** (tag pushes are blocked from the build sandbox), then deleted from `v2-native`: web app, Capacitor `android/`, `PUSH_SETUP.md`, Pages deploy, old `supabase/` SQL ✅ done |
 | Signing key | Old keystore is gone → new key. Anyone with the old APK uninstalls it once, then installs v2 |
 | Branch | All work on **`v2-native`**. Merged into `dev` only when v1 is ready |
 | Commits | Author `Priyanshu Debnath <priyanshuib01@gmail.com>`, no AI/tool attribution anywhere |
@@ -69,7 +69,8 @@ Every user table gets `id uuid` (generated on the device), `user_id`, `updated_a
 | `semesters` | `name`, `start_date`, `end_date`, `mid_sem_start`, `mid_sem_end` | One active at a time. Makes the v2 multi-semester archive trivial |
 | `courses` | `semester_id`, `name`, `code`, `color`, `threshold` (default 75), `strict_no_skip`, `term` (`full`/`pre_mid`/`post_mid`), `archived` | Half-semester span is derived from the semester's mid-sem dates, not stored separately |
 | `timetable_slots` | `course_id`, `day_of_week` (0=Mon), `start_time`, `end_time`, `room`, `kind` (lecture/tutorial/lab), `valid_from`, `valid_to` | **Timetable changes never rewrite history.** Editing a slot closes the old one (`valid_to`) and opens a new one |
-| `marks` | `course_id`, `slot_id` (nullable), `date`, `start_time`, `end_time`, `status` (`present`/`absent`/`cancelled`/`on_duty`), `is_extra`, `plan_id` (nullable) | **Unique `(user_id, course_id, date, start_time)`**, so the same mark from two devices merges cleanly. Future `absent` = planned skip. `is_extra` = extra/makeup class. `plan_id` lets a whole plan be undone |
+| `marks` | `course_id`, `date`, `start_time`, `end_time`, `status` (`present`/`absent`/`cancelled`/`on_duty`), `plan_id` (nullable) | **Unique `(user_id, course_id, date, start_time)`**, so the same mark from two devices merges cleanly. Future `absent` = planned skip. `plan_id` lets a whole plan be undone. `end_time` is kept so a mark survives if its class later leaves the timetable |
+| `extra_classes` | `course_id`, `date`, `start_time`, `end_time`, `room`, `kind` | One-off / makeup classes. Allowed even on holidays. Marked like any other class |
 | `notification_settings` | `muted`, `class_reminders`, `lead_time_minutes`, `mark_prompts`, `daily_digest`, `digest_time`, `threshold_alerts`, `planned_skip_reminders`, `quiet_start`, `quiet_end` | One row per user |
 | `institute_calendar` | `date`, `day_type` (`holiday`/`mid_sem_break`/`end_sem_break`/`reschedule`/`exam`), `description`, `follows_day_of_week`, `audience` (`all`/`first_year_ug`) | **Public read, admin-only write.** Seeded by migration each semester |
 
@@ -93,6 +94,16 @@ The old project (`jlueyxbqknnmcoesgnmg`) stays untouched until v2 launches, beca
 ---
 
 ## 3. Domain logic (the heart — ported exactly, then tested)
+
+> **Status: built.** `domain/` implements everything below with 74 unit tests (including brute-force checks over 20,000 random courses and the real Monsoon 2026 calendar). Kotlin package: `app.attendwise.domain` (`in` is a Kotlin keyword; the Android application id stays `in.ac.iitg.attendwise`).
+>
+> Refinements made while building it:
+> - **Started, not dated.** A mark counts as fact once its class has *started*; before that it is a plan. So an "absent" for a 5 pm class set at 9 am is a planned skip until 5 pm. (The old app used the date only.)
+> - **Exact integer maths.** "At or above p%" is `100 × attended ≥ p × total`, so rounding can never flip a verdict. Percentages are shown **rounded down**, so 74.9% never displays as 75%.
+> - **Planning beyond the budget is At risk**, not just Tight.
+> - **Calendar conflicts:** an audience-specific entry beats a general one; within an audience a no-class day beats a swap; broken swap entries are ignored.
+> - **Changed timetables / calendars:** a past mark that no longer matches a class is kept ("orphaned", the student's record wins); a future one is reported as stale so the app can drop that plan and say so.
+> - **Notifications:** reminders inside quiet hours are dropped, mark prompts and planned-skip reminders are moved to the end of quiet hours; a planned-skip reminder never fires after the skip has started.
 
 ### 3.1 Session generator
 `generateSessions(semester, courses, slots, instituteCalendar, isFirstYearUg, range) → List<ClassOccurrence>`
@@ -207,9 +218,9 @@ Each ends with a tagged, installable APK.
 
 | # | Name | Delivers | Done when |
 |---|---|---|---|
-| **0** | Design | Phone-sized mockups of every screen, the onboarding wizard and all 5 widgets, light + dark, as a clickable page | Owner approves mockups |
-| **1** | Foundation | Tag `web-app-archive`. Remove the old web app + clutter. Gradle project (3 modules, version catalog). Design system. Bottom-nav shell. New Supabase project + schema migrations + RLS. Login (Google + email). CI signed-APK pipeline | Owner signs in on their phone from a Release APK. Advisor clean. CI green |
-| **2** | Core loop | `:domain` session generator + attendance math with full tests. Room + sync. Onboarding. Courses + timetable CRUD. Today with marking. Institute calendar seeded | Owner sets up a real semester and marks classes offline; marks appear in Supabase after reconnect |
+| **0** | Design | ✅ Approved. Phone-sized mockups of every screen, onboarding, all 5 widgets and notifications, light + dark | Owner approves mockups |
+| **1** | Foundation | ✅ Archive branch, old web app removed, Gradle project + `:domain` with tests + CI. Still to do: Gradle project (3 modules, version catalog). Design system. Bottom-nav shell. New Supabase project + schema migrations + RLS. Login (Google + email). CI signed-APK pipeline | Owner signs in on their phone from a Release APK. Advisor clean. CI green |
+| **2** | Core loop | Room + sync. Onboarding. Courses + timetable CRUD. Today with marking. Institute calendar seeded | Owner sets up a real semester and marks classes offline; marks appear in Supabase after reconnect |
 | **3** | Smarts | Course detail + projections + history editing. Unified Planner with undo + "My plans". Calendar tab. Profile settings | Plans move the projections correctly. Tests cover planner edge cases |
 | **4** | Widgets + notifications | All 5 Glance widgets. All notification kinds with actions. Alarm scheduler, boot/timezone handling | Owner marks from a widget and from a notification with the app closed; survives reboot |
 | **5** | Polish + launch | Animations, haptics, empty/error states, accessibility pass (TalkBack labels, font scaling), performance check. Update checker. README | Owner sign-off → merge `v2-native` into `dev` → `v2.0.0` release → back up and pause the old Supabase project |
@@ -234,5 +245,6 @@ Each ends with a tagged, installable APK.
 ---
 
 ## 8. Immediately next
-1. **Milestone 0:** produce the screen + widget mockups for approval.
-2. Then Milestone 1 starts with the archive tag and the project skeleton.
+1. Android modules (`:data`, `:app`) with the design system and navigation shell, compiled in CI (the build sandbox cannot reach Google's Android repositories, so Android code is verified by GitHub Actions).
+2. New Supabase project + schema migrations (needs the owner's go-ahead).
+3. Signing key + signed-APK pipeline to GitHub Releases, then Google sign-in setup.

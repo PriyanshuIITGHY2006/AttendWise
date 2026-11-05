@@ -28,7 +28,7 @@ The current product is a React/Vite **web app** wrapped in Capacitor, and the AP
 | Native app (no WebView) | ✅ Decided |
 | Widgets in v1 | ✅ Decided (must-have) |
 | Remove Materials/Files feature entirely | ✅ Decided |
-| Archive current web app on a git tag before deleting it | ✅ Planned (`web-app-archive`) |
+| Archive current web app before deleting it | ✅ Done: `web-app-archive` branch |
 | Stack | ✅ **Kotlin + Jetpack Compose + Glance** |
 | Backend | ✅ **Fresh Supabase project**, new schema; users start over |
 | Platform | ✅ Android only |
@@ -122,4 +122,4 @@ v2 candidates: Grades/GPA, Deadlines, Insights, attendance export (PDF/CSV), mul
 
 ## 7. Next step
 
-All decisions are made. Plan written (`docs/V2_PLAN.md`). Next: **Milestone 0**, the screen + widget mockups for owner approval, then Milestone 1.
+All decisions are made. Plan written (`docs/V2_PLAN.md`). Mockups approved. Milestone 1 under way: `domain/` (all attendance rules + tests) is built; next are the Android modules, the new Supabase project and the APK pipeline.
