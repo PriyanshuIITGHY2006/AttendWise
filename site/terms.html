@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Terms and conditions, AttendWise</title>
+<meta name="description" content="Terms and conditions for AttendWise. AttendWise is an attendance tracker and does not encourage skipping classes.">
+<link rel="icon" href="/AttendWise/favicon.svg" type="image/svg+xml">
+<style>
+  @font-face { font-family: "Questrial"; font-weight: 400; font-display: swap; src: url(/AttendWise/fonts/questrial-400.woff2) format("woff2"); }
+  @font-face { font-family: "Hind"; font-weight: 300; font-display: swap; src: url(/AttendWise/fonts/hind-300.woff2) format("woff2"); }
+  @font-face { font-family: "Hind"; font-weight: 400; font-display: swap; src: url(/AttendWise/fonts/hind-400.woff2) format("woff2"); }
+  @font-face { font-family: "Hind"; font-weight: 500; font-display: swap; src: url(/AttendWise/fonts/hind-500.woff2) format("woff2"); }
+
+  :root {
+    color-scheme: dark;
+    --display: "Questrial", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --body: "Hind", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --bg: #000000;
+    --fg: #ffffff;
+    --muted: rgba(255, 255, 255, 0.8);
+    --line: rgba(255, 255, 255, 0.16);
+    --glass: linear-gradient(150deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.03) 55%, rgba(255, 255, 255, 0.08));
+    --edge: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0.55));
+    --link: #9cc0ff;
+    --glow: radial-gradient(46% 40% at 100% 0%, rgba(90, 170, 255, 0.5), transparent 72%), radial-gradient(40% 34% at 0% 0%, rgba(255, 255, 255, 0.22), transparent 72%);
+    --note: rgba(245, 137, 31, 0.16);
+    --note-edge: #f5891f;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      color-scheme: light;
+      --bg: #f2f5fb;
+      --fg: #0b1020;
+      --muted: #46506a;
+      --line: rgba(11, 16, 32, 0.14);
+      --glass: linear-gradient(150deg, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.65));
+      --edge: linear-gradient(145deg, rgba(36, 99, 235, 0.55), rgba(36, 99, 235, 0.08) 45%, rgba(36, 99, 235, 0.35));
+      --link: #1a4fc7;
+      --glow: radial-gradient(46% 40% at 100% 0%, rgba(36, 99, 235, 0.2), transparent 72%), radial-gradient(40% 34% at 0% 0%, rgba(36, 99, 235, 0.1), transparent 72%);
+      --note: rgba(245, 137, 31, 0.16);
+      --note-edge: #c46a08;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--glow), var(--bg); background-repeat: no-repeat; color: var(--fg); font: 300 1.125rem/1.65 var(--body); -webkit-text-size-adjust: 100%; overflow-x: clip; }
+  a { color: var(--link); }
+  a:focus-visible { outline: 3px solid var(--link); outline-offset: 3px; border-radius: 6px; }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 0 22px; }
+  .top { display: flex; align-items: center; justify-content: space-between; padding: 26px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 400 1.75rem/1 var(--display); color: var(--fg); text-decoration: none; letter-spacing: -0.01em; }
+  .brand img { width: 40px; height: 40px; border-radius: 10px; }
+  .back { color: var(--fg); text-decoration: none; font-weight: 500; font-size: 1rem; padding: 12px 0; }
+  .back:hover { text-decoration: underline; text-underline-offset: 6px; }
+  h1, h2 { font-family: var(--display); font-weight: 400; letter-spacing: -0.015em; margin: 0; }
+  h1 { font-size: clamp(2.3rem, 9vw, 3.6rem); line-height: 1.06; margin: 28px 0 10px; }
+  h2 { font-size: 1.5rem; line-height: 1.2; margin: 40px 0 10px; }
+  p { margin: 0 0 16px; }
+  .muted { color: var(--muted); }
+  .updated { color: var(--muted); font-size: 1rem; margin-bottom: 30px; }
+
+  .glass { position: relative; background: var(--glass); border-radius: 28px; -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
+  .glass::before {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: var(--edge); pointer-events: none;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+    mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  }
+  .short { padding: 26px 24px; }
+  .short h2 { margin: 0 0 8px; font-size: 1.375rem; }
+  .short p:last-child { margin-bottom: 0; }
+  .note { background: var(--note); border-left: 4px solid var(--note-edge); border-radius: 12px; padding: 16px 18px; margin: 0 0 16px; }
+  .note p { margin: 0; }
+  .contact a { font-size: 1.25rem; word-break: break-word; }
+  footer { border-top: 1px solid var(--line); margin-top: 56px; padding: 28px 0 56px; font-size: 1rem; color: var(--muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 6px 22px; }
+
+  @media (min-width: 820px) {
+    body { font-size: 1.1875rem; }
+    .short { padding: 34px 36px; border-radius: 36px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/AttendWise/"><img src="/AttendWise/favicon.svg" alt="" width="40" height="40">AttendWise</a>
+    <a class="back" href="/AttendWise/">Back to home</a>
+  </header>
+
+  <main>
+    <h1>Terms and conditions</h1>
+    <p class="updated">Last updated 5 November 2026</p>
+
+    <div class="glass short">
+      <h2>The short version</h2>
+      <p>AttendWise is an attendance tracker. It does not encourage anyone to skip classes. When it says a class is safe to skip, it is only doing arithmetic on the numbers you entered. Whether you attend is your decision, and so are the consequences.</p>
+    </div>
+
+    <h2>1. About AttendWise</h2>
+    <p class="muted">AttendWise is an Android app, built by Priyanshu Debnath, that helps students record their attendance and see where they stand against an attendance requirement. By downloading or using the app or this website you agree to these terms. If you do not agree, please do not use them.</p>
+
+    <h2>2. AttendWise does not encourage skipping classes</h2>
+    <div class="note"><p>Attend your classes. Nothing in AttendWise is advice, a recommendation or encouragement to miss any class.</p></div>
+    <p class="muted">Features such as safe skips, Can I bunk today, the day-off planner and the verdicts they show only calculate what your recorded attendance allows against the requirement you set. They exist so that you can avoid falling short by accident, not to tell you to stay away. The humorous tone of some notifications and messages is a joke and should not be read as encouragement to skip.</p>
+
+    <h2>3. Your responsibility</h2>
+    <p class="muted">Your institute, department and course instructors set the attendance rules that apply to you. These can differ between courses and can change during a semester. You alone are responsible for knowing and following them, and for checking your attendance against the official records your institute keeps. AttendWise is not an official record, and you should not present its figures as proof of attendance.</p>
+
+    <h2>4. Accuracy</h2>
+    <p class="muted">The numbers in the app depend on what you enter: your timetable, courses, the institute calendar, day swaps and the attendance you mark. Mistakes, missed updates or a rule the app does not model can make its results wrong. Treat every figure as an estimate and leave yourself a safety margin.</p>
+
+    <h2>5. No warranty</h2>
+    <p class="muted">The app and this website are provided as they are and as available, without warranties of any kind, express or implied. This includes accuracy, reliability, fitness for a particular purpose and uninterrupted availability. The app may contain bugs, may change, and may stop working.</p>
+
+    <h2>6. Limit of liability</h2>
+    <p class="muted">To the fullest extent permitted by law, the developer is not liable for any loss or consequence arising from using, or relying on, AttendWise. This includes, without limit, attendance shortage, being barred from examinations, reduced or withheld grades, fines, disciplinary action, missed classes, missed opportunities and loss of data. You use AttendWise at your own risk.</p>
+
+    <h2>7. Not affiliated with any institute</h2>
+    <p class="muted">AttendWise is an independent project made for IIT Guwahati students. It is not affiliated with, endorsed by or operated by IIT Guwahati or any other institute.</p>
+
+    <h2>8. Accounts and your data</h2>
+    <p class="muted">You sign in with Google or an email address. The courses, timetable and attendance marks you enter are stored on your device and synced to a backend service so they are backed up and available when you sign in again. You are responsible for what you enter and for keeping your sign-in secure. If you have a question about your account or data, email the address below.</p>
+
+    <h2>9. Acceptable use</h2>
+    <p class="muted">Do not use AttendWise to deceive anyone, to falsify attendance records, or to interfere with the app or the service behind it.</p>
+
+    <h2>10. Changes to these terms</h2>
+    <p class="muted">These terms may be updated from time to time. The date at the top shows when they last changed. If you keep using AttendWise after a change, you accept the updated terms.</p>
+
+    <h2>11. Contact</h2>
+    <p class="contact"><a href="mailto:priyanshuib01@gmail.com">priyanshuib01@gmail.com</a></p>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <a href="/AttendWise/">Home</a>
+    <a href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">All releases</a>
+  </div>
+</footer>
+
+<script>
+  // Turn off the old website's offline cache so returning visitors see this page.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
+  }
+  if (window.caches) caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); }).catch(function () {});
+</script>
+</body>
+</html>
