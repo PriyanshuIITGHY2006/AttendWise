@@ -193,6 +193,18 @@
   .contact-list .label { display: block; font: 400 1.75rem/1.2 var(--display); margin-bottom: 4px; }
   .contact-list a { font-size: 1.25rem; font-weight: 400; word-break: break-word; color: var(--fg); text-underline-offset: 5px; }
 
+  /* Retired notice, shown only inside the old app */
+  #retired { display: none; }
+  .retired main, .retired footer { display: none !important; }
+  .retired #retired {
+    display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; z-index: 1000;
+    overflow-y: auto; padding: 24px 18px; background: var(--maker-glow), var(--bg);
+  }
+  .retired-card { width: 100%; max-width: 34rem; padding: 32px 26px; margin: auto; }
+  .retired-card img { width: 52px; height: 52px; border-radius: 13px; margin-bottom: 18px; }
+  .retired-card h1 { font-size: clamp(2rem, 8vw, 2.8rem); margin-bottom: 14px; }
+  .retired-card ol { margin: 18px 0 22px; }
+  .retired-card .meta { margin-top: 4px; }
   footer .wrap { display: flex; flex-wrap: wrap; gap: 6px 22px; }
   footer { border-top: 1px solid var(--line); padding: 28px 0 48px; font-size: 1rem; color: var(--muted); background: var(--bg); }
 
@@ -244,9 +256,33 @@
     .btn:hover { transform: translateY(-2px); }
   }
 </style>
-<script>document.documentElement.className += ' js';</script>
+<script>
+  document.documentElement.className += ' js';
+  // The old app was a shell around this website, or an installed copy of it. Mark that case so the page shows a retired notice.
+  (function () {
+    var standalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
+    if (/[?&]retired=1/.test(location.search) || window.Capacitor || window.androidBridge || standalone) {
+      document.documentElement.className += ' retired';
+    }
+  })();
+</script>
 </head>
 <body>
+
+<div id="retired" role="alert">
+  <div class="glass retired-card">
+    <img src="/AttendWise/favicon.svg" alt="" width="52" height="52">
+    <h1>This app has been retired</h1>
+    <p class="muted">AttendWise is now a native Android app. This old version no longer works.</p>
+    <ol>
+      <li>Press and hold the old AttendWise icon on your home screen, then choose Uninstall or Remove.</li>
+      <li>Download and install the new app.</li>
+      <li>Data from the old version doesn't carry over, so add your courses again.</li>
+    </ol>
+    <a class="btn" data-download href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download the new app</a>
+    <p class="meta" data-meta></p>
+  </div>
+</div>
 
 <main>
 <section class="hero slide">
@@ -266,8 +302,8 @@
         <h1>Know which classes you can skip.</h1>
         <p class="muted lead">AttendWise is now an Android app. The website version has been retired. The new app is faster, works offline, and adds home-screen widgets and class reminders you can mark from the notification.</p>
 
-        <a class="btn" id="download" href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download for Android</a>
-        <p class="meta" id="meta"></p>
+        <a class="btn" id="download" data-download href="https://github.com/PriyanshuIITGHY2006/AttendWise/releases">Download for Android</a>
+        <p class="meta" id="meta" data-meta></p>
       </div>
 
       <div class="duo" data-speed="0.05">
@@ -496,6 +532,11 @@
     }
   })();
 
+  // The app shell can inject its bridge after the page starts, so check again once loaded.
+  window.addEventListener('load', function () {
+    if (window.Capacitor || window.androidBridge) document.documentElement.classList.add('retired');
+  });
+
   // Turn off the old website's offline cache so returning visitors see this page.
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.getRegistrations().then(function (rs) { rs.forEach(function (r) { r.unregister(); }); }).catch(function () {});
@@ -516,11 +557,11 @@
         });
       });
       if (!pick) return;
-      document.getElementById('download').href = pick.browser_download_url;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-download]'), function (a) { a.href = pick.browser_download_url; });
       var mb = (pick.size / 1048576).toFixed(0);
       var date = new Date(pickRel.published_at).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
       var test = /test/.test(pick.name) ? ' (test build)' : '';
-      document.getElementById('meta').textContent = 'Released ' + date + ', ' + mb + ' MB' + test;
+      Array.prototype.forEach.call(document.querySelectorAll('[data-meta]'), function (m) { m.textContent = 'Released ' + date + ', ' + mb + ' MB' + test; });
     })
     .catch(function () {});
 </script>
