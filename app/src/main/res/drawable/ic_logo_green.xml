@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The logo's 256-unit artwork scaled into the adaptive icon's 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="419" android:viewportHeight="419">
+    <group android:translateX="81.5" android:translateY="81.5">
+        <path android:pathData="M62,192 L116,65 Q121,53 127,65 L148,115"
+            android:strokeColor="#169B62" android:strokeWidth="21"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+        <path android:pathData="M111,151 l25,24 l62,-77"
+            android:strokeColor="#169B62" android:strokeWidth="21"
+            android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>
