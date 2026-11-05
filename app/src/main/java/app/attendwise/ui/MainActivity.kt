@@ -61,6 +61,7 @@ import app.attendwise.ui.screens.StepTitle
 import app.attendwise.ui.screens.TodayScreen
 import app.attendwise.ui.theme.AttendWiseTheme
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
 
 class MainActivity : ComponentActivity() {
@@ -171,6 +172,8 @@ private fun MainScaffold(vm: AppViewModel, snackbar: SnackbarHostState, pendingR
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (tabs.any { it.route == current } || current == null) {
+              Column {
+                UpdateBar(vm)
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(
@@ -181,6 +184,7 @@ private fun MainScaffold(vm: AppViewModel, snackbar: SnackbarHostState, pendingR
                         )
                     }
                 }
+              }
             }
         },
     ) { padding ->
@@ -228,6 +232,36 @@ private fun navigateTo(nav: NavHostController, route: String) {
             popUpTo("today") { saveState = true }
             launchSingleTop = true
             restoreState = true
+        }
+    }
+}
+
+/** Shown above the tabs while a newer build is available, downloading or ready to install. */
+@Composable
+private fun UpdateBar(vm: AppViewModel) {
+    val state by vm.update.collectAsState()
+    val (text, button, progress) = when (val s = state) {
+        is AppViewModel.UpdateState.Available -> Triple("Build ${s.update.build} is available", "Update", null)
+        is AppViewModel.UpdateState.Downloading -> Triple("Downloading build ${s.update.build}", null, s.progress)
+        is AppViewModel.UpdateState.Ready -> Triple("Build ${s.update.build} is ready", "Install", null)
+        else -> return
+    }
+    androidx.compose.material3.Surface(color = MaterialTheme.colorScheme.secondaryContainer) {
+        Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 6.dp, bottom = 6.dp)) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(
+                    text, modifier = Modifier.weight(1f),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,
+                )
+                if (button != null) {
+                    androidx.compose.material3.TextButton(onClick = { vm.installUpdate() }) { Text(button) }
+                } else if (progress != null) {
+                    Text("${(progress * 100).toInt()}%", color = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.padding(end = 12.dp, top = 12.dp, bottom = 12.dp))
+                }
+            }
+            if (progress != null) {
+                androidx.compose.material3.LinearProgressIndicator(progress = { progress }, modifier = Modifier.fillMaxWidth().padding(bottom = 4.dp))
+            }
         }
     }
 }

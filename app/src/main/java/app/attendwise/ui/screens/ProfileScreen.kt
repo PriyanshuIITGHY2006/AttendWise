@@ -204,18 +204,11 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSemest
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp)) {
                         Text("Version $versionName", modifier = Modifier.weight(1f), fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        TextButton(onClick = {
-                            scope.launch {
-                                val update = runCatching { UpdateChecker.check(versionCode) }.getOrNull()
-                                if (update == null) {
-                                    vm.say("You're on the latest version.")
-                                } else {
-                                    vm.say("Build ${update.build} is available", "Download") {
-                                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(update.pageUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-                                    }
-                                }
-                            }
-                        }) { Text("Check for updates") }
+                        val up by vm.update.collectAsState()
+                        TextButton(
+                            onClick = { vm.checkForUpdate(userAsked = true) },
+                            enabled = up is AppViewModel.UpdateState.Idle || up is AppViewModel.UpdateState.Available,
+                        ) { Text(if (up is AppViewModel.UpdateState.Checking) "Checking…" else "Check for updates") }
                     }
                     TextButton(onClick = { confirmSignOut = true }, modifier = Modifier.padding(horizontal = 0.dp)) {
                         Text("Sign out", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.SemiBold)

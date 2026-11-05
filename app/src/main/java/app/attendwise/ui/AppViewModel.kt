@@ -6,6 +6,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import app.attendwise.data.AppData
 import app.attendwise.data.Derived
+import app.attendwise.data.Update
+import app.attendwise.data.UpdateChecker
 import app.attendwise.data.db.CourseEntity
 import app.attendwise.data.db.NotificationSettingsEntity
 import app.attendwise.data.db.SemesterEntity
@@ -72,7 +74,67 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val _authBusy = MutableStateFlow(false)
     val authBusy: StateFlow<Boolean> = _authBusy
 
+    // Self-update ---------------------------------------------------------------
+
+    sealed interface UpdateState {
+        data object Idle : UpdateState
+        data object Checking : UpdateState
+        data class Available(val update: Update) : UpdateState
+        data class Downloading(val update: Update, val progress: Float) : UpdateState
+        data class Ready(val update: Update, val apk: java.io.File) : UpdateState
+    }
+
+    private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val update: StateFlow<UpdateState> = _update
+
+    val currentBuild: Long = runCatching {
+        val info = app.packageManager.getPackageInfo(app.packageName, 0)
+        if (android.os.Build.VERSION.SDK_INT >= 28) info.longVersionCode else @Suppress("DEPRECATION") info.versionCode.toLong()
+    }.getOrDefault(0L)
+
+    /** Looks for a newer build. Quiet on launch; says the result when the user asked. */
+    fun checkForUpdate(userAsked: Boolean) = viewModelScope.launch {
+        val s = _update.value
+        if (s is UpdateState.Checking || s is UpdateState.Downloading) return@launch
+        if (!userAsked && s !is UpdateState.Idle) return@launch
+        _update.value = UpdateState.Checking
+        val found = runCatching { UpdateChecker.check(getApplication(), currentBuild) }
+        _update.value = found.getOrNull()?.let { UpdateState.Available(it) } ?: UpdateState.Idle
+        if (userAsked) when {
+            found.isFailure -> say("Couldn't check for updates. Check your connection.")
+            found.getOrNull() == null -> say("You're on the latest version.")
+        }
+    }
+
+    /** Downloads the update in the app, then opens the system install prompt. */
+    fun installUpdate() = viewModelScope.launch {
+        val ctx = getApplication<Application>()
+        val s = _update.value
+        if (UpdateChecker.needsInstallPermission(ctx)) {
+            say("Allow AttendWise to install updates, then tap Update again.")
+            UpdateChecker.openInstallPermission(ctx)
+            return@launch
+        }
+        when (s) {
+            is UpdateState.Ready -> if (s.apk.exists()) UpdateChecker.install(ctx, s.apk) else _update.value = UpdateState.Available(s.update)
+            is UpdateState.Available -> {
+                _update.value = UpdateState.Downloading(s.update, 0f)
+                runCatching {
+                    UpdateChecker.download(ctx, s.update) { p -> _update.value = UpdateState.Downloading(s.update, p) }
+                }.onSuccess { apk ->
+                    _update.value = UpdateState.Ready(s.update, apk)
+                    UpdateChecker.install(ctx, apk)
+                }.onFailure {
+                    _update.value = UpdateState.Available(s.update)
+                    say("Download failed. Check your connection and try again.")
+                }
+            }
+            else -> Unit
+        }
+    }
+
     init {
+        checkForUpdate(userAsked = false)
         if (api.userId != null) bootstrap()
         // A session that expires for good (refresh rejected) sends the user back to sign-in.
         viewModelScope.launch {
