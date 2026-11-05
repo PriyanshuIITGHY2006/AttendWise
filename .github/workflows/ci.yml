@@ -50,9 +50,30 @@ jobs:
       - name: App unit tests
         run: ./gradlew :app:testDebugUnitTest --stacktrace
 
+      - name: App unit test summary
+        if: always()
+        run: |
+          python3 - <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import glob
+          import xml.etree.ElementTree as ET
+          tests = failures = errors = skipped = 0
+          for path in glob.glob('app/build/test-results/testDebugUnitTest/*.xml'):
+              root = ET.parse(path).getroot()
+              tests += int(root.get('tests', 0))
+              failures += int(root.get('failures', 0))
+              errors += int(root.get('errors', 0))
+              skipped += int(root.get('skipped', 0))
+          print(f'App unit tests: {tests} run, {failures} failed, {errors} errors, {skipped} skipped')
+          if tests == 0:
+              raise SystemExit('No app unit tests ran')
+          PY
+
       - name: Android lint
         run: ./gradlew :app:lintDebug --stacktrace
-        continue-on-error: true
+
+      - name: Lint findings
+        if: failure()
+        run: cat app/build/reports/lint-results-debug.txt || true
 
       - name: Unpack release signing key
         if: env.SIGNING_KEY != ''
