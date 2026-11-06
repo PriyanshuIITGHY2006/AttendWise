@@ -37,3 +37,8 @@ app/signing/
 /site/changelog.json
 /site/sitemap.xml
 /site/help/
+
+# Web app
+webapp/node_modules/
+webapp/dist/
+site/app/

@@ -3,7 +3,7 @@ name: Website
 on:
   push:
     branches: [v2-native]
-    paths: ['site/**', 'web/**', 'CHANGELOG.md', '.github/scripts/**', '.github/workflows/pages.yml']
+    paths: ['site/**', 'web/**', 'webapp/**', 'CHANGELOG.md', '.github/scripts/**', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -25,6 +25,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build the pages written in Markdown
         run: python3 .github/scripts/build_site.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: webapp/package-lock.json
+      - name: Web app tests
+        working-directory: webapp
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+      - name: Build the web app
+        working-directory: webapp
+        env:
+          APP_BASE: /AttendWise/app/
+        run: |
+          npm run build
+          rm -rf ../site/app
+          mkdir -p ../site/app
+          cp -r dist/. ../site/app/
       - run: |
           cp site/index.html site/404.html
       - uses: actions/upload-pages-artifact@v3

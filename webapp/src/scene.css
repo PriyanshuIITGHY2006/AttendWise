@@ -1,0 +1,21 @@
+.rays{transform-origin:150px 62px;animation:spin 40s linear infinite}
+.glow{transform-box:fill-box;transform-origin:center;animation:pulse 5s ease-in-out infinite}
+.rise{animation:rise 7s cubic-bezier(.2,.7,.2,1) both,bob 6s 7s ease-in-out infinite}
+.beams{transform-origin:150px 62px;animation:sway 9s ease-in-out infinite alternate}
+.set{animation:sink 14s ease-in-out infinite alternate}
+.c1{animation:drift 18s ease-in-out infinite alternate}.c2{animation:drift 24s ease-in-out infinite alternate-reverse}.c3{animation:drift 30s ease-in-out infinite alternate}
+.bird{animation:fly 10s linear infinite}.bird.b{animation-delay:-3.5s}.bird.c{animation-delay:-6.5s}
+.tw{transform-box:fill-box;transform-origin:center;animation:tw 3.2s ease-in-out infinite}.tw.b{animation-delay:.9s}.tw.c{animation-delay:1.8s}.tw.d{animation-delay:2.4s}
+.shoot{stroke-dasharray:40;stroke-dashoffset:40;opacity:0;animation:shoot 8s 2s linear infinite}
+.moon{animation:bob 7s ease-in-out infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{50%{opacity:.55;transform:scale(1.07)}}
+@keyframes rise{from{transform:translateY(46px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes bob{50%{transform:translateY(-3px)}}
+@keyframes sway{to{transform:rotate(5deg)}}
+@keyframes sink{from{transform:translateY(-6px)}to{transform:translateY(16px)}}
+@keyframes drift{from{transform:translateX(-12px)}to{transform:translateX(14px)}}
+@keyframes fly{from{transform:translate(46px,10px);opacity:0}15%{opacity:1}85%{opacity:1}to{transform:translate(-96px,-16px);opacity:0}}
+@keyframes tw{50%{opacity:.2;transform:scale(.7)}}
+@keyframes shoot{0%{opacity:0;stroke-dashoffset:40;transform:translate(0,0)}4%{opacity:1}12%{opacity:0;stroke-dashoffset:-10;transform:translate(-30px,22px)}100%{opacity:0}}
+@media (prefers-reduced-motion:reduce){.scene *{animation:none!important}}
