@@ -81,6 +81,7 @@ class MainActivity : ComponentActivity() {
                 Surface(
                     Modifier.fillMaxSize().background(backdrop(LocalDarkTheme.current)),
                     color = androidx.compose.ui.graphics.Color.Transparent,
+                    contentColor = MaterialTheme.colorScheme.onBackground,
                 ) {
                     Root(vm, pendingRoute, onRouteConsumed = { pendingRoute = null }, onGoogle = ::openGoogle)
                 }
@@ -181,6 +182,7 @@ private fun MainScaffold(vm: AppViewModel, snackbar: SnackbarHostState, pendingR
 
     Scaffold(
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
+        contentColor = MaterialTheme.colorScheme.onBackground,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (tabs.any { it.route == current } || current == null) {
