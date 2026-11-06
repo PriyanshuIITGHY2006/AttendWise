@@ -55,9 +55,10 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+html { background: var(--bg); }
+html, body, #root { min-height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font: 400 16px/1.4 var(--body); -webkit-font-smoothing: antialiased; }
-#root { background: var(--backdrop); background-attachment: fixed; }
+body { background: var(--backdrop) fixed; min-height: 100vh; }
 h1, h2, h3, p { margin: 0; }
 button { font: inherit; color: inherit; cursor: pointer; }
 input, select { font: inherit; color: inherit; }
