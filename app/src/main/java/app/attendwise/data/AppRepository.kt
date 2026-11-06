@@ -54,7 +54,7 @@ data class AppData(
         return buildSchedule(sem, courses, slots, dayResolver(), marks, now, extras)
     }
 
-    fun color(courseId: String): String = courseInfo[courseId]?.color ?: "#4F46E5"
+    fun color(courseId: String): String = courseInfo[courseId]?.color ?: "#2463EB"
     fun code(courseId: String): String = courseInfo[courseId]?.code ?: "?"
 
     companion object {

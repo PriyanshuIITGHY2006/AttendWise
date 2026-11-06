@@ -67,7 +67,7 @@ internal fun CourseEntity.toJson(userId: String) = buildJsonObject {
 
 internal fun courseFrom(j: JsonObject) = CourseEntity(
     id = j.req("id"), semesterId = j.req("semester_id"), code = j.req("code"), name = j.req("name"),
-    color = j.str("color") ?: "#4F46E5", thresholdPercent = j.int("threshold_percent") ?: 75,
+    color = j.str("color") ?: "#2463EB", thresholdPercent = j.int("threshold_percent") ?: 75,
     strictNoSkip = j.bool("strict_no_skip"), term = j.str("term") ?: "full",
     archived = j.bool("archived"), deleted = j.isDeleted(),
 )

@@ -86,7 +86,7 @@ private val RiskBg = ColorProvider(Color(0xFFFBE4E1))
 private val PresentBg = ColorProvider(Color(0xFF1E7A46))
 private val White = ColorProvider(Color.White)
 
-private fun hex(color: String): Color = runCatching { Color(android.graphics.Color.parseColor(color)) }.getOrDefault(Color(0xFF4F46E5))
+private fun hex(color: String): Color = runCatching { Color(android.graphics.Color.parseColor(color)) }.getOrDefault(Color(0xFF2463EB))
 
 private fun fg(s: CourseStatus) = when (s) { CourseStatus.SAFE -> SafeFg; CourseStatus.TIGHT -> TightFg; CourseStatus.AT_RISK -> RiskFg }
 private fun bg(s: CourseStatus) = when (s) { CourseStatus.SAFE -> SafeBg; CourseStatus.TIGHT -> TightBg; CourseStatus.AT_RISK -> RiskBg }

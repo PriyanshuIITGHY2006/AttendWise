@@ -15,49 +15,53 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import app.attendwise.R
 import app.attendwise.domain.attendance.CourseStatus
 
+// Brand colours match the website (site/css/page.css): accent #2463EB, black and #F2F5FB grounds.
 private val Light = lightColorScheme(
-    primary = Color(0xFF4F46E5),
+    primary = Color(0xFF2463EB),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFE6E5FC),
-    onPrimaryContainer = Color(0xFF231E7A),
-    secondary = Color(0xFF565667),
-    background = Color(0xFFF6F6FA),
-    onBackground = Color(0xFF17171F),
-    surface = Color(0xFFF6F6FA),
-    onSurface = Color(0xFF17171F),
-    surfaceVariant = Color(0xFFECECF3),
-    onSurfaceVariant = Color(0xFF565667),
+    primaryContainer = Color(0xFFDCE7FD),
+    onPrimaryContainer = Color(0xFF0E2E7A),
+    secondary = Color(0xFF46506A),
+    background = Color(0xFFF2F5FB),
+    onBackground = Color(0xFF0B1020),
+    surface = Color(0xFFF2F5FB),
+    onSurface = Color(0xFF0B1020),
+    surfaceVariant = Color(0xFFE4EAF6),
+    onSurfaceVariant = Color(0xFF46506A),
     surfaceContainerLowest = Color.White,
     surfaceContainerLow = Color.White,
     surfaceContainer = Color.White,
-    surfaceContainerHigh = Color(0xFFF1F1F7),
-    outline = Color(0xFFD4D4E0),
-    outlineVariant = Color(0xFFE2E2EC),
+    surfaceContainerHigh = Color(0xFFE9EEF9),
+    outline = Color(0xFFC9D2E6),
+    outlineVariant = Color(0xFFDCE3F1),
     error = Color(0xFFB3261E),
 )
 
 private val Dark = darkColorScheme(
-    primary = Color(0xFFA5A0FF),
-    onPrimary = Color(0xFF16133F),
-    primaryContainer = Color(0xFF2D2A63),
-    onPrimaryContainer = Color(0xFFDCDAFF),
-    secondary = Color(0xFFA6A6B8),
-    background = Color(0xFF111117),
-    onBackground = Color(0xFFECECF3),
-    surface = Color(0xFF111117),
-    onSurface = Color(0xFFECECF3),
-    surfaceVariant = Color(0xFF26262F),
-    onSurfaceVariant = Color(0xFFA6A6B8),
-    surfaceContainerLowest = Color(0xFF1B1B23),
-    surfaceContainerLow = Color(0xFF1B1B23),
-    surfaceContainer = Color(0xFF1B1B23),
-    surfaceContainerHigh = Color(0xFF24242E),
-    outline = Color(0xFF3A3A48),
-    outlineVariant = Color(0xFF2C2C38),
+    primary = Color(0xFF2463EB),
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF0D1424),
+    onPrimaryContainer = Color(0xFF9CC0FF),
+    secondary = Color(0xFFC9D0DF),
+    background = Color(0xFF000000),
+    onBackground = Color(0xFFFFFFFF),
+    surface = Color(0xFF000000),
+    onSurface = Color(0xFFFFFFFF),
+    surfaceVariant = Color(0xFF1A2030),
+    onSurfaceVariant = Color(0xFFC9D0DF),
+    surfaceContainerLowest = Color(0xFF080A10),
+    surfaceContainerLow = Color(0xFF10141C),
+    surfaceContainer = Color(0xFF10141C),
+    surfaceContainerHigh = Color(0xFF171C27),
+    outline = Color(0xFF2A3347),
+    outlineVariant = Color(0xFF1D2434),
     error = Color(0xFFFF8A80),
 )
 
@@ -80,32 +84,51 @@ private val LightStatus = StatusColors(
     safeFg = Color(0xFF1E6B3F), safeBg = Color(0xFFE3F4EA),
     tightFg = Color(0xFF7A3E00), tightBg = Color(0xFFFDEFD9),
     riskFg = Color(0xFFA1231B), riskBg = Color(0xFFFBE4E1),
-    neutralFg = Color(0xFF3F3F52), neutralBg = Color(0xFFECECF3),
-    swapFg = Color(0xFF6B3A00), swapBg = Color(0xFFFFF4E5),
+    neutralFg = Color(0xFF3B4660), neutralBg = Color(0xFFE4EAF6),
+    swapFg = Color(0xFF1A4FC7), swapBg = Color(0xFFE3ECFD),
     present = Color(0xFF1E7A46), onPresent = Color.White,
 )
 
 private val DarkStatus = StatusColors(
-    safeFg = Color(0xFF7EDBA3), safeBg = Color(0xFF163322),
-    tightFg = Color(0xFFFFC37A), tightBg = Color(0xFF3A2810),
-    riskFg = Color(0xFFFF9C92), riskBg = Color(0xFF3D1714),
-    neutralFg = Color(0xFFC9C9D6), neutralBg = Color(0xFF26262F),
-    swapFg = Color(0xFFFFD9A8), swapBg = Color(0xFF33240F),
+    safeFg = Color(0xFF7EDBA3), safeBg = Color(0xFF0E2A1C),
+    tightFg = Color(0xFFFFC37A), tightBg = Color(0xFF2E2110),
+    riskFg = Color(0xFFFF9C92), riskBg = Color(0xFF331513),
+    neutralFg = Color(0xFFC9D0DF), neutralBg = Color(0xFF1A2030),
+    swapFg = Color(0xFF9CC0FF), swapBg = Color(0xFF0D1424),
     present = Color(0xFF2E9E5E), onPresent = Color(0xFF08140D),
 )
 
 val LocalStatusColors = staticCompositionLocalOf { LightStatus }
 
+/** Questrial for headings and Hind for text, the same pair as the website. Questrial has one weight, so headings stay Normal. */
+private val Questrial = FontFamily(Font(R.font.questrial_regular, FontWeight.Normal))
+private val Hind = FontFamily(
+    Font(R.font.hind_light, FontWeight.Light),
+    Font(R.font.hind_regular, FontWeight.Normal),
+    Font(R.font.hind_medium, FontWeight.Medium),
+    Font(R.font.hind_semibold, FontWeight.SemiBold),
+    Font(R.font.hind_bold, FontWeight.Bold),
+)
+
 private val AppTypography = Typography().let { t ->
+    fun TextStyle.display() = copy(fontFamily = Questrial, fontWeight = FontWeight.Normal)
+    fun TextStyle.text() = copy(fontFamily = Hind)
     t.copy(
-        headlineMedium = t.headlineMedium.copy(fontWeight = FontWeight.Bold, fontSize = 28.sp, letterSpacing = (-0.5).sp),
-        titleLarge = t.titleLarge.copy(fontWeight = FontWeight.Bold),
-        titleMedium = t.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-        labelLarge = t.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+        displayLarge = t.displayLarge.display(), displayMedium = t.displayMedium.display(), displaySmall = t.displaySmall.display(),
+        headlineLarge = t.headlineLarge.display(),
+        headlineMedium = t.headlineMedium.display().copy(fontSize = 28.sp, letterSpacing = (-0.5).sp),
+        headlineSmall = t.headlineSmall.display(),
+        titleLarge = t.titleLarge.display(),
+        titleMedium = t.titleMedium.display().copy(fontSize = 17.sp),
+        titleSmall = t.titleSmall.text().copy(fontWeight = FontWeight.SemiBold),
+        bodyLarge = t.bodyLarge.text(), bodyMedium = t.bodyMedium.text(), bodySmall = t.bodySmall.text(),
+        labelLarge = t.labelLarge.text().copy(fontWeight = FontWeight.SemiBold),
+        labelMedium = t.labelMedium.text().copy(fontWeight = FontWeight.Medium),
+        labelSmall = t.labelSmall.text().copy(fontWeight = FontWeight.Medium),
     )
 }
 
-val CaptionStyle = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
+val CaptionStyle = TextStyle(fontFamily = Hind, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
 
 @Composable
 fun AttendWiseTheme(themePref: String = "system", dynamic: Boolean = false, content: @Composable () -> Unit) {
@@ -121,11 +144,11 @@ fun AttendWiseTheme(themePref: String = "system", dynamic: Boolean = false, cont
     }
 }
 
-/** Parses a course colour like "#4F46E5". */
+/** Parses a course colour like "#2463EB". */
 fun courseColor(hex: String): Color =
-    runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(Color(0xFF4F46E5))
+    runCatching { Color(android.graphics.Color.parseColor(hex)) }.getOrDefault(Color(0xFF2463EB))
 
 val CoursePalette = listOf(
-    "#4F46E5", "#0F8B8D", "#E8590C", "#C2255C", "#7C3AED", "#2F9E44",
+    "#2463EB", "#0F8B8D", "#E8590C", "#C2255C", "#7C3AED", "#2F9E44",
     "#1C7ED6", "#8D6E63", "#D9480F", "#5C7CFA", "#E64980", "#495057",
 )
