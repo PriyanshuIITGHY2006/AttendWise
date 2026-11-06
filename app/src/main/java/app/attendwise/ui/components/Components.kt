@@ -89,7 +89,7 @@ fun Chip(text: String, fg: Color, bg: Color, icon: Int? = null, modifier: Modifi
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (icon != null) AppIcon(icon, null, tint = fg, size = 14.dp)
-        Text(text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
+        Text(text, color = fg, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
     }
 }
 
@@ -143,14 +143,44 @@ fun statusLine(s: AttendanceStats): String = when {
     else -> "${s.safeSkipsLeft} safe skip${if (s.safeSkipsLeft == 1) "" else "s"} left" + if (s.counts.plannedSkips > 0) ", ${s.counts.plannedSkips} planned" else ""
 }
 
+/** The same status in as few words as possible, for lists where several courses sit one above the other. */
+fun shortStatus(s: AttendanceStats): String = when {
+    s.strictNoSkip && s.status != CourseStatus.AT_RISK -> "Never skip"
+    s.status == CourseStatus.AT_RISK && !s.canReachThreshold -> "Can't reach ${s.thresholdPercent}%"
+    s.status == CourseStatus.AT_RISK && s.overBudget > 0 -> "Over by ${s.overBudget}"
+    s.status == CourseStatus.AT_RISK && s.recoveryClasses != null -> "Attend the next ${s.recoveryClasses}"
+    s.status == CourseStatus.AT_RISK -> "At risk"
+    s.status == CourseStatus.TIGHT -> "No skips left"
+    s.counts.marked == 0 && s.counts.remaining == 0 -> "No classes yet"
+    else -> "${s.safeSkipsLeft} safe skip${if (s.safeSkipsLeft == 1) "" else "s"}"
+}
+
+/** Status as one short coloured line with a small icon and no box around it. */
+@Composable
+fun StatusText(s: AttendanceStats, modifier: Modifier = Modifier) {
+    val c = LocalStatusColors.current
+    val neutral = s.strictNoSkip && s.status != CourseStatus.AT_RISK
+    val fg = if (neutral) c.neutralFg else c.fg(s.status)
+    val icon = when {
+        neutral -> R.drawable.ic_lock
+        s.status == CourseStatus.SAFE -> R.drawable.ic_check
+        s.status == CourseStatus.AT_RISK -> R.drawable.ic_alert
+        else -> null
+    }
+    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        if (icon != null) AppIcon(icon, null, tint = fg, size = 14.dp)
+        Text(shortStatus(s), color = fg, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
 @Composable
 fun StatusChip(s: AttendanceStats, modifier: Modifier = Modifier) {
     val c = LocalStatusColors.current
     if (s.strictNoSkip && s.status != CourseStatus.AT_RISK) {
-        Chip(statusLine(s), c.neutralFg, c.neutralBg, R.drawable.ic_lock, modifier)
+        Chip(shortStatus(s), c.neutralFg, c.neutralBg, R.drawable.ic_lock, modifier)
     } else {
         val icon = when (s.status) { CourseStatus.SAFE -> R.drawable.ic_check; CourseStatus.TIGHT -> null; CourseStatus.AT_RISK -> R.drawable.ic_alert }
-        Chip(statusLine(s), c.fg(s.status), c.bg(s.status), icon, modifier)
+        Chip(shortStatus(s), c.fg(s.status), c.bg(s.status), icon, modifier)
     }
 }
 
@@ -286,7 +316,7 @@ fun ClassCard(
                     val meta = listOfNotNull(occ.kind.name.lowercase().replaceFirstChar { it.uppercase() }.takeIf { occ.kind.name != "LECTURE" }, occ.room).joinToString(", ")
                     if (meta.isNotEmpty()) Text(meta, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
-                if (occ.mark == null) derived.stats[occ.courseId]?.let { StatusChip(it) }
+                if (occ.mark == null) derived.stats[occ.courseId]?.let { StatusText(it) }
             }
             if (occ.mark == null) {
                 MarkButtons(onAbsent = { onMark(MarkStatus.ABSENT) }, onPresent = { onMark(MarkStatus.PRESENT) })

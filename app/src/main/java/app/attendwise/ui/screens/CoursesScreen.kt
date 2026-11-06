@@ -37,7 +37,7 @@ import app.attendwise.ui.components.AppIcon
 import app.attendwise.ui.components.CourseDot
 import app.attendwise.ui.components.Panel
 import app.attendwise.ui.components.Ring
-import app.attendwise.ui.components.StatusChip
+import app.attendwise.ui.components.StatusText
 import app.attendwise.ui.theme.LocalStatusColors
 
 @Composable
@@ -86,13 +86,13 @@ fun CoursesScreen(d: Derived, padding: PaddingValues, onOpen: (String) -> Unit, 
                         Text(s?.currentPercentFloor?.let { "$it%" } ?: "—", fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                     Spacer(Modifier.width(14.dp))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             CourseDot(d.data.color(course.id))
-                            Text(course.code, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text(course.code, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, lineHeight = 20.sp)
                         }
-                        Text(course.name, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        s?.let { StatusChip(it) }
+                        Text(course.name, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        s?.let { StatusText(it) }
                     }
                     AppIcon(R.drawable.ic_chevron_right, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, size = 20.dp)
                 }
