@@ -59,7 +59,10 @@ import app.attendwise.ui.screens.ProfileScreen
 import app.attendwise.ui.screens.SemesterForm
 import app.attendwise.ui.screens.StepTitle
 import app.attendwise.ui.screens.TodayScreen
+import androidx.compose.foundation.background
 import app.attendwise.ui.theme.AttendWiseTheme
+import app.attendwise.ui.theme.LocalDarkTheme
+import app.attendwise.ui.theme.backdrop
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Arrangement
@@ -75,7 +78,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             val theme by vm.theme.collectAsState()
             AttendWiseTheme(themePref = theme) {
-                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                Surface(
+                    Modifier.fillMaxSize().background(backdrop(LocalDarkTheme.current)),
+                    color = androidx.compose.ui.graphics.Color.Transparent,
+                ) {
                     Root(vm, pendingRoute, onRouteConsumed = { pendingRoute = null }, onGoogle = ::openGoogle)
                 }
             }
@@ -174,6 +180,7 @@ private fun MainScaffold(vm: AppViewModel, snackbar: SnackbarHostState, pendingR
     }
 
     Scaffold(
+        containerColor = androidx.compose.ui.graphics.Color.Transparent,
         snackbarHost = { SnackbarHost(snackbar) },
         bottomBar = {
             if (tabs.any { it.route == current } || current == null) {

@@ -12,6 +12,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
@@ -29,9 +30,11 @@ private val Light = lightColorScheme(
     primaryContainer = Color(0xFFDCE7FD),
     onPrimaryContainer = Color(0xFF0E2E7A),
     secondary = Color(0xFF46506A),
-    background = Color(0xFFF2F5FB),
+    secondaryContainer = Color(0xFFD3E1FC),
+    onSecondaryContainer = Color(0xFF0E2E7A),
+    background = Color(0xFFEBF1FC),
     onBackground = Color(0xFF0B1020),
-    surface = Color(0xFFF2F5FB),
+    surface = Color(0xFFEBF1FC),
     onSurface = Color(0xFF0B1020),
     surfaceVariant = Color(0xFFE4EAF6),
     onSurfaceVariant = Color(0xFF46506A),
@@ -39,31 +42,40 @@ private val Light = lightColorScheme(
     surfaceContainerLow = Color.White,
     surfaceContainer = Color.White,
     surfaceContainerHigh = Color(0xFFE9EEF9),
-    outline = Color(0xFFC9D2E6),
-    outlineVariant = Color(0xFFDCE3F1),
+    outline = Color(0xFF8C99B8),
+    outlineVariant = Color(0xFFCBD5EA),
     error = Color(0xFFB3261E),
 )
 
 private val Dark = darkColorScheme(
-    primary = Color(0xFF2463EB),
+    primary = Color(0xFF3B74F0),
     onPrimary = Color.White,
-    primaryContainer = Color(0xFF0D1424),
-    onPrimaryContainer = Color(0xFF9CC0FF),
+    primaryContainer = Color(0xFF16254A),
+    onPrimaryContainer = Color(0xFFB4D0FF),
     secondary = Color(0xFFC9D0DF),
-    background = Color(0xFF000000),
+    secondaryContainer = Color(0xFF1F3160),
+    onSecondaryContainer = Color(0xFFD6E4FF),
+    background = Color(0xFF070B16),
     onBackground = Color(0xFFFFFFFF),
-    surface = Color(0xFF000000),
+    surface = Color(0xFF070B16),
     onSurface = Color(0xFFFFFFFF),
-    surfaceVariant = Color(0xFF1A2030),
+    surfaceVariant = Color(0xFF222C47),
     onSurfaceVariant = Color(0xFFC9D0DF),
-    surfaceContainerLowest = Color(0xFF080A10),
-    surfaceContainerLow = Color(0xFF10141C),
-    surfaceContainer = Color(0xFF10141C),
-    surfaceContainerHigh = Color(0xFF171C27),
-    outline = Color(0xFF2A3347),
-    outlineVariant = Color(0xFF1D2434),
+    surfaceContainerLowest = Color(0xFF0B1224),
+    surfaceContainerLow = Color(0xFF111A2F),
+    surfaceContainer = Color(0xFF131C33),
+    surfaceContainerHigh = Color(0xFF1B2745),
+    outline = Color(0xFF6B7BA3),
+    outlineVariant = Color(0xFF2E3B5C),
     error = Color(0xFFFF8A80),
 )
+
+/** A still gradient behind every screen, so the app is never flat black or flat white. */
+fun backdrop(dark: Boolean): Brush = if (dark) {
+    Brush.verticalGradient(listOf(Color(0xFF0F1D44), Color(0xFF0A1226), Color(0xFF070B16)))
+} else {
+    Brush.verticalGradient(listOf(Color(0xFFD9E6FF), Color(0xFFE8EFFC), Color(0xFFF1F5FC)))
+}
 
 /** Status colours: always paired with a label, never colour alone. */
 @Immutable
@@ -93,12 +105,13 @@ private val DarkStatus = StatusColors(
     safeFg = Color(0xFF7EDBA3), safeBg = Color(0xFF0E2A1C),
     tightFg = Color(0xFFFFC37A), tightBg = Color(0xFF2E2110),
     riskFg = Color(0xFFFF9C92), riskBg = Color(0xFF331513),
-    neutralFg = Color(0xFFC9D0DF), neutralBg = Color(0xFF1A2030),
-    swapFg = Color(0xFF9CC0FF), swapBg = Color(0xFF0D1424),
+    neutralFg = Color(0xFFC9D0DF), neutralBg = Color(0xFF222C47),
+    swapFg = Color(0xFF9CC0FF), swapBg = Color(0xFF16254A),
     present = Color(0xFF2E9E5E), onPresent = Color(0xFF08140D),
 )
 
 val LocalStatusColors = staticCompositionLocalOf { LightStatus }
+val LocalDarkTheme = staticCompositionLocalOf { false }
 
 /** Questrial for headings and Hind for text, the same pair as the website. Questrial has one weight, so headings stay Normal. */
 private val Questrial = FontFamily(Font(R.font.questrial_regular, FontWeight.Normal))
@@ -139,7 +152,7 @@ fun AttendWiseTheme(themePref: String = "system", dynamic: Boolean = false, cont
         dark -> Dark
         else -> Light
     }
-    androidx.compose.runtime.CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatus else LightStatus) {
+    androidx.compose.runtime.CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatus else LightStatus, LocalDarkTheme provides dark) {
         MaterialTheme(colorScheme = scheme, typography = AppTypography, content = content)
     }
 }
