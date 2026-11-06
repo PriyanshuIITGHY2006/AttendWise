@@ -89,7 +89,7 @@ fun Chip(text: String, fg: Color, bg: Color, icon: Int? = null, modifier: Modifi
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (icon != null) AppIcon(icon, null, tint = fg, size = 14.dp)
-        Text(text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        Text(text, color = fg, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f, fill = false))
     }
 }
 

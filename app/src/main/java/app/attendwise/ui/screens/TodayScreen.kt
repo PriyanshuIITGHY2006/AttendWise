@@ -34,6 +34,9 @@ import app.attendwise.R
 import app.attendwise.data.Derived
 import app.attendwise.domain.model.MarkStatus
 import app.attendwise.domain.schedule.ClassOccurrence
+import app.attendwise.domain.time.DayPeriod
+import app.attendwise.domain.time.firstNameOf
+import app.attendwise.domain.time.greeting
 import app.attendwise.ui.AppViewModel
 import app.attendwise.ui.components.AppIcon
 import app.attendwise.ui.components.ClassCard
@@ -41,6 +44,7 @@ import app.attendwise.ui.components.DayBanner
 import app.attendwise.ui.components.DayFmt
 import app.attendwise.ui.components.LongDayFmt
 import app.attendwise.ui.components.SectionHeader
+import app.attendwise.ui.components.TodayHeader
 import app.attendwise.ui.components.TimeFmt
 import app.attendwise.ui.theme.LocalStatusColors
 
@@ -56,21 +60,14 @@ fun TodayScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onPlan: ()
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         item {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp), verticalAlignment = Alignment.Bottom) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        if (d.today.isEmpty()) "No classes" else "$markedToday of ${d.today.size} marked",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium,
-                    )
-                    Text(d.now.date.format(LongDayFmt), style = MaterialTheme.typography.headlineMedium)
-                }
-                d.overall.percentFloor?.let { p ->
-                    Column(horizontalAlignment = Alignment.End) {
-                        Text("Overall", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("$p%", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                    }
-                }
-            }
+            val period = DayPeriod.of(d.now.time)
+            val name = firstNameOf(d.data.profile?.fullName ?: vm.api.session.value?.user?.displayName)
+            TodayHeader(
+                greeting = greeting(period, name),
+                date = d.now.date.format(LongDayFmt),
+                marked = if (d.today.isEmpty()) "No classes" else "$markedToday of ${d.today.size} marked",
+                period = period,
+            )
         }
         if (sem != null && d.now.date.isBefore(sem.start)) {
             item { InfoCard("${sem.name} starts ${sem.start.format(DayFmt)}", "Your classes will appear here from then.") }
