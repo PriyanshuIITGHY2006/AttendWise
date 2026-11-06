@@ -14,7 +14,11 @@ export function AuthScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  // A failed Google sign-in comes back with the reason in the address.
+  const [message, setMessage] = useState<string | null>(() => {
+    const m = /[?&#]error_description=([^&]+)/.exec(location.search + location.hash)
+    return m ? decodeURIComponent(m[1].replace(/\+/g, ' ')) : null
+  })
 
   const go = async () => {
     setBusy(true)

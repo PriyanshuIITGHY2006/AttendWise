@@ -323,6 +323,12 @@
       document.documentElement.className += ' retired';
     }
   })();
+  // Coming back from Google sign-in (or a password reset link) lands here when the web app's address is not on
+  // the sign-in provider's allowed list. Hand the sign-in to the web app, which finishes it.
+  (function () {
+    var back = location.search + location.hash;
+    if (/[?&#](code|access_token|error_description)=/.test(back)) location.replace('/AttendWise/app/' + back);
+  })();
   // Signed in to the web app on this browser: open the home screen. Everyone else sees this page.
   // Add ?landing=1 to the address to see this page while signed in.
   (function () {
