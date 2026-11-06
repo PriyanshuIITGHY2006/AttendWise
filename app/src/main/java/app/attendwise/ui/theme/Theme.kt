@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -19,6 +20,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import app.attendwise.R
 import app.attendwise.domain.attendance.CourseStatus
@@ -153,7 +155,11 @@ fun AttendWiseTheme(themePref: String = "system", dynamic: Boolean = false, cont
         else -> Light
     }
     androidx.compose.runtime.CompositionLocalProvider(LocalStatusColors provides if (dark) DarkStatus else LightStatus, LocalDarkTheme provides dark) {
-        MaterialTheme(colorScheme = scheme, typography = AppTypography, content = content)
+        MaterialTheme(colorScheme = scheme, typography = AppTypography) {
+            // Texts that only change fontSize would otherwise keep bodyLarge's fixed 24sp line height,
+            // which stretches small labels and pills. A line height in em follows the size instead.
+            ProvideTextStyle(TextStyle(lineHeight = 1.4.em), content)
+        }
     }
 }
 
