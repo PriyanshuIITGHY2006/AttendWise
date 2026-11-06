@@ -36,6 +36,8 @@ import app.attendwise.R
 import app.attendwise.data.Derived
 import app.attendwise.domain.model.ExtraClass
 import app.attendwise.domain.schedule.ClassOccurrence
+import app.attendwise.domain.schedule.IitgSlots
+import app.attendwise.domain.schedule.SlotTime
 import app.attendwise.ui.AppViewModel
 import app.attendwise.ui.components.AppIcon
 import app.attendwise.ui.components.CourseDot
@@ -72,6 +74,7 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
     val upcomingSkips = all.filter { d.isPlannedSkip(it) }
     val today = d.now.date
     val slots = d.data.slots.filter { it.courseId == courseId && (it.validTo == null || !it.validTo!!.isBefore(today)) }
+    val slotLabel = IitgSlots.matching(slots.map { SlotTime(it.dayOfWeek, it.start, it.end, it.kind) }).joinToString(" and ")
         .sortedWith(compareBy({ it.dayOfWeek }, { it.start }))
 
     LazyColumn(
@@ -101,6 +104,7 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
                             Text("${slots.size} class${if (slots.size == 1) "" else "es"} a week", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Text(course.name, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        if (slotLabel.isNotEmpty()) Text("Slot $slotLabel", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         s?.let { StatusChip(it) }
                     }
                 }

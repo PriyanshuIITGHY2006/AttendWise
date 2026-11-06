@@ -46,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -73,6 +74,8 @@ import app.attendwise.ui.components.TimeField
 import app.attendwise.ui.theme.CoursePalette
 import app.attendwise.ui.theme.LocalStatusColors
 import app.attendwise.ui.theme.courseColor
+import app.attendwise.domain.schedule.IitgSlots
+import app.attendwise.domain.schedule.SlotTime
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -223,6 +226,28 @@ fun CourseEditor(vm: AppViewModel, semester: SemesterEntity, existingCount: Int,
             Switch(checked = strict, onCheckedChange = { strict = it })
         }
 
+        val chosenSlots = IitgSlots.matching(drafts.map { SlotTime(DayOfWeek.of(it.day), it.start, it.end, it.kind) })
+        fun setSlot(group: List<String>, name: String?) {
+            // Replace whichever slot of this group is filled in now with the new one.
+            group.filter { it in chosenSlots }.forEach { old ->
+                val times = IitgSlots.times(old) ?: return@forEach
+                drafts.removeAll { d -> times.any { it.day.value == d.day && it.start == d.start && it.end == d.end } }
+            }
+            val times = name?.let { IitgSlots.times(it) } ?: return
+            val room = drafts.firstOrNull { it.room.isNotBlank() }?.room ?: ""
+            times.forEach { drafts += SlotDraft(nextKey++, null, it.day.value, it.start, it.end, room, it.kind) }
+            drafts.sortWith(compareBy({ it.day }, { it.start }))
+        }
+        Text("Slot", style = MaterialTheme.typography.titleMedium)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            SlotMenu("Slot", IitgSlots.theoryNames, IitgSlots.theoryNames.firstOrNull { it in chosenSlots }, Modifier.weight(1f)) { setSlot(IitgSlots.theoryNames, it) }
+            SlotMenu("Lab", IitgSlots.labNames, IitgSlots.labNames.firstOrNull { it in chosenSlots }, Modifier.weight(1f)) { setSlot(IitgSlots.labNames, it) }
+        }
+        Text(
+            "Pick a slot and its class times fill in. The class at 8:00 is a tutorial. You can change anything below.",
+            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
         Text("Weekly timetable", style = MaterialTheme.typography.titleMedium)
         drafts.forEachIndexed { index, draft ->
             SlotRow(
@@ -276,6 +301,38 @@ fun CourseEditor(vm: AppViewModel, semester: SemesterEntity, existingCount: Int,
         }
     }
 }
+
+/** A drop-down that picks one slot, or none. Each entry shows the days it meets. */
+@Composable
+private fun SlotMenu(label: String, names: List<String>, current: String?, modifier: Modifier = Modifier, onPick: (String?) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    Box(modifier) {
+        OutlinedButton(onClick = { open = true }, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+            Text("$label: ${current ?: "none"}", maxLines = 1)
+        }
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            DropdownMenuItem(text = { Text("None") }, onClick = { onPick(null); open = false })
+            names.forEach { n ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(n, fontWeight = if (n == current) FontWeight.Bold else FontWeight.Medium)
+                            Text(slotDays(n), fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    },
+                    onClick = { onPick(n); open = false },
+                )
+            }
+        }
+    }
+}
+
+/** "Mon 11, Wed 8, Thu 9, Fri 10": the day and start hour of each class in a slot. */
+private fun slotDays(name: String): String =
+    IitgSlots.times(name).orEmpty().joinToString(", ") { t ->
+        val day = dayNames[t.day.value - 1]
+        if (t.kind == SlotKind.LAB) "$day ${t.start.hour} to ${t.end.hour + 1}" else "$day ${t.start.hour}"
+    }
 
 @Composable
 private fun SlotRow(draft: SlotDraft, invalid: Boolean, onChange: (SlotDraft) -> Unit, onRemove: () -> Unit) {
