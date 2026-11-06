@@ -20,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +55,7 @@ fun TodayScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onPlan: ()
     val c = LocalStatusColors.current
     val markedToday = d.today.count { it.mark != null }
     val sem = d.data.semester
+    val session by vm.api.session.collectAsState()
 
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 20.dp, bottom = padding.calculateBottomPadding() + 24.dp),
@@ -61,7 +63,7 @@ fun TodayScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onPlan: ()
     ) {
         item {
             val period = DayPeriod.of(d.now.time)
-            val name = firstNameOf(d.data.profile?.fullName ?: vm.api.session.value?.user?.displayName)
+            val name = firstNameOf(d.data.profile?.fullName ?: session?.user?.displayName)
             TodayHeader(
                 greeting = greeting(period, name),
                 date = d.now.date.format(LongDayFmt),
