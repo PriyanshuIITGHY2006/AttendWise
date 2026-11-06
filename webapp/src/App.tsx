@@ -27,9 +27,31 @@ function useRoute(): [string, (route: string) => void] {
   return [route, go]
 }
 
+const RAIL = 'attendwise.rail'
+
+/** The sidebar can fold down to icons. The choice is remembered, and Ctrl+B (Cmd+B on a Mac) toggles it. */
+function useRail(): [boolean, () => void] {
+  const [collapsed, setCollapsed] = useState(() => {
+    try { return localStorage.getItem(RAIL) === 'collapsed' } catch { return false }
+  })
+  const toggle = useCallback(() => {
+    setCollapsed((c) => {
+      try { localStorage.setItem(RAIL, c ? 'open' : 'collapsed') } catch { /* private window */ }
+      return !c
+    })
+  }, [])
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'b') { e.preventDefault(); toggle() } }
+    window.addEventListener('keydown', on)
+    return () => window.removeEventListener('keydown', on)
+  }, [toggle])
+  return [collapsed, toggle]
+}
+
 function Shell() {
   const s = useStore()
   const [route, go] = useRoute()
+  const [collapsed, toggleRail] = useRail()
   const [path, query] = route.split('?')
   const [head, arg] = path.split('/')
 
@@ -49,16 +71,21 @@ function Shell() {
   else page = <Today go={go} />
 
   return (
-    <div className="shell">
+    <div className={`shell${collapsed ? ' collapsed' : ''}`}>
       <nav className="rail" aria-label="Main">
-        <div className="brand"><img src={`${base}favicon.svg`} alt="" />AttendWise</div>
+        <div className="rail-top">
+          <div className="brand"><img src={`${base}favicon.svg`} alt="" /><span className="label">AttendWise</span></div>
+          <button type="button" className="rail-toggle" onClick={toggleRail} aria-label={collapsed ? 'Open sidebar' : 'Close sidebar'} aria-expanded={!collapsed} title={`${collapsed ? 'Open' : 'Close'} sidebar (Ctrl+B)`}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3.5" /><path d="M9.5 4v16" /></svg>
+          </button>
+        </div>
         {TABS.map(([key, label, icon]) => (
-          <button key={key} type="button" className="nav-item" aria-current={tab === key || (key === 'today' && !TABS.some(([k]) => k === tab)) ? 'page' : undefined} onClick={() => go(key)}>
-            <Icon name={icon} size={24} />{label}
+          <button key={key} type="button" className="nav-item" title={collapsed ? label : undefined} aria-label={label} aria-current={tab === key || (key === 'today' && !TABS.some(([k]) => k === tab)) ? 'page' : undefined} onClick={() => go(key)}>
+            <Icon name={icon} size={24} /><span className="label">{label}</span>
           </button>
         ))}
         <div className="grow" />
-        <div className="update">Web version. Reminders are in the Android app.</div>
+        <div className="update label">Web version. Reminders are in the Android app.</div>
       </nav>
       <main className="content">{page}</main>
       {s.toast && (
