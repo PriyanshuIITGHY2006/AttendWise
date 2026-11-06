@@ -74,8 +74,8 @@ fun CourseDetailScreen(vm: AppViewModel, d: Derived, courseId: String, padding: 
     val upcomingSkips = all.filter { d.isPlannedSkip(it) }
     val today = d.now.date
     val slots = d.data.slots.filter { it.courseId == courseId && (it.validTo == null || !it.validTo!!.isBefore(today)) }
-    val slotLabel = IitgSlots.matching(slots.map { SlotTime(it.dayOfWeek, it.start, it.end, it.kind) }).joinToString(" and ")
         .sortedWith(compareBy({ it.dayOfWeek }, { it.start }))
+    val slotLabel = IitgSlots.matching(slots.map { SlotTime(it.dayOfWeek, it.start, it.end, it.kind) }).joinToString(" and ")
 
     LazyColumn(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 8.dp, bottom = padding.calculateBottomPadding() + 24.dp),
