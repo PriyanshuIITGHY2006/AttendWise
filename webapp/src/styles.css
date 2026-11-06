@@ -87,6 +87,8 @@ input, select { font: inherit; color: inherit; }
 .nav-item[aria-current="page"] { background: var(--secondary-bg); color: var(--on-secondary-bg); font-weight: 600; }
 .rail .grow { flex: 1; }
 .update { font-size: 12px; color: var(--muted); padding: 8px 14px; }
+.update a { color: var(--primary); font-weight: 600; text-decoration: none; }
+.update a:hover { text-decoration: underline; }
 .content { min-width: 0; padding: 28px 32px 56px; }
 .page { max-width: 760px; margin: 0 auto; display: grid; gap: 12px; }
 @media (max-width: 860px) {

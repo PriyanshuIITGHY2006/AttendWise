@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { StoreProvider, useStore } from './data/store'
 import { Icon, type IconName } from './ui/Icon'
-import { AuthScreen, LoadingScreen } from './ui/screens/Auth'
+import { AuthScreen, LoadingScreen, WEBSITE } from './ui/screens/Auth'
 import { Calendar } from './ui/screens/Calendar'
 import { CourseDetail } from './ui/screens/CourseDetail'
 import { CourseEditor } from './ui/screens/CourseEditor'
@@ -85,7 +85,7 @@ function Shell() {
           </button>
         ))}
         <div className="grow" />
-        <div className="update label">Web version. Reminders are in the Android app.</div>
+        <div className="update label">Web version. Reminders are in the Android app.<br /><a href={WEBSITE}>Website</a></div>
       </nav>
       <main className="content">{page}</main>
       {s.toast && (

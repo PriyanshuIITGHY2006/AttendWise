@@ -4,6 +4,8 @@ import { Ring } from '../common'
 import { Icon } from '../Icon'
 
 const base = import.meta.env.BASE_URL
+/** The landing page, one level up from the web app. */
+export const WEBSITE = `${base.replace(/app\/$/, '')}?landing=1`
 
 export function AuthScreen() {
   const s = useStore()
@@ -25,7 +27,10 @@ export function AuthScreen() {
   return (
     <div className="center">
       <form className="auth" onSubmit={(e) => { e.preventDefault(); if (email.includes('@') && password.length >= 6) void go() }}>
-        <div className="brand"><img src={`${base}favicon.svg`} alt="" />AttendWise</div>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <div className="brand"><img src={`${base}favicon.svg`} alt="" />AttendWise</div>
+          <a className="link" href={WEBSITE}>Back to the website</a>
+        </div>
         <div className="demo">
           <Ring percent={85} color="var(--primary)" size={160} stroke={16} thresholdPercent={75}>
             <div className="h1" style={{ fontWeight: 700, fontFamily: 'var(--body)', fontSize: 40 }}>85%</div>
