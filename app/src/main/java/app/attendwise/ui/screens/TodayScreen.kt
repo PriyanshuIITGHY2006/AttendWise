@@ -69,6 +69,7 @@ fun TodayScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onPlan: ()
                 date = d.now.date.format(LongDayFmt),
                 marked = if (d.today.isEmpty()) "No classes" else "$markedToday of ${d.today.size} marked",
                 period = period,
+                streak = d.streak.current,
             )
         }
         if (sem != null && d.now.date.isBefore(sem.start)) {

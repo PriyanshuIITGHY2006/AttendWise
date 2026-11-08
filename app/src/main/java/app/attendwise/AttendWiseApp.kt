@@ -64,6 +64,15 @@ class AppPrefs(context: Context) {
         get() = prefs.getBoolean("onboarded", false)
         set(value) = prefs.edit().putBoolean("onboarded", value).apply()
 
+    /** Badges this person has already been congratulated for, or null on the first run on this device. */
+    fun seenBadges(userId: String): Set<String>? = prefs.getStringSet("seen_badges_$userId", null)?.toSet()
+
+    fun seenStreak(userId: String): Int = prefs.getInt("seen_streak_$userId", 0)
+
+    fun saveSeen(userId: String, badges: Set<String>, streak: Int) {
+        prefs.edit().putStringSet("seen_badges_$userId", badges.toSet()).putInt("seen_streak_$userId", streak).apply()
+    }
+
     var askedNotificationPermission: Boolean
         get() = prefs.getBoolean("asked_notif", false)
         set(value) = prefs.edit().putBoolean("asked_notif", value).apply()

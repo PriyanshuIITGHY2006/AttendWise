@@ -6,6 +6,10 @@ import app.attendwise.domain.attendance.OverallAttendance
 import app.attendwise.domain.attendance.courseStats
 import app.attendwise.domain.attendance.overallAttendance
 import app.attendwise.domain.calendar.DayInfo
+import app.attendwise.domain.gamify.Badge
+import app.attendwise.domain.gamify.Streak
+import app.attendwise.domain.gamify.classStreak
+import app.attendwise.domain.gamify.evaluateBadges
 import app.attendwise.domain.model.CourseId
 import app.attendwise.domain.model.MarkStatus
 import app.attendwise.domain.planner.NextClass
@@ -51,6 +55,12 @@ class Derived(val data: AppData, val now: Now) {
     val verdict: TodayVerdict = todayVerdict(data.activeCourses, schedule, now)
 
     val next: NextClass? = nextClass(schedule, now)
+
+    /** Classes attended in a row, now and at best. */
+    val streak: Streak = classStreak(schedule, now)
+
+    /** Every badge with its progress. */
+    val badges: List<Badge> = evaluateBadges(schedule, data.activeCourses, stats, now)
 
     /** Courses that are tight or at risk, worst first. */
     val danger: List<Pair<CourseId, AttendanceStats>> =

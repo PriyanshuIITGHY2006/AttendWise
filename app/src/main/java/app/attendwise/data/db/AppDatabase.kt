@@ -7,6 +7,8 @@ import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -110,7 +112,7 @@ interface AppDao {
         ProfileEntity::class,
         NotificationSettingsEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -118,6 +120,13 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         fun create(context: Context): AppDatabase =
-            Room.databaseBuilder(context, AppDatabase::class.java, "attendwise.db").build()
+            Room.databaseBuilder(context, AppDatabase::class.java, "attendwise.db").addMigrations(MIGRATION_1_2).build()
+
+        /** Version 2 adds the chosen avatar to the profile. */
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE profile ADD COLUMN avatar TEXT")
+            }
+        }
     }
 }

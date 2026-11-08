@@ -45,7 +45,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.attendwise.R
 import app.attendwise.domain.time.DayPeriod
+import app.attendwise.ui.theme.LocalStatusColors
 import app.attendwise.ui.theme.LocalDarkTheme
 import kotlin.math.cos
 import kotlin.math.sin
@@ -55,10 +57,14 @@ import kotlin.math.sin
  * time of day, drawn straight onto the app background with no card behind it.
  */
 @Composable
-fun TodayHeader(greeting: String, date: String, marked: String, period: DayPeriod, modifier: Modifier = Modifier) {
+fun TodayHeader(greeting: String, date: String, marked: String, period: DayPeriod, modifier: Modifier = Modifier, streak: Int = 0) {
     Box(modifier.fillMaxWidth().heightIn(min = 164.dp)) {
         DayScene(period, Modifier.align(Alignment.TopEnd).offset(x = 6.dp).size(230.dp, 170.dp))
         Column(Modifier.align(Alignment.BottomStart).fillMaxWidth(0.64f).padding(start = 4.dp, top = 40.dp)) {
+            if (streak > 0) {
+                val c = LocalStatusColors.current
+                Chip("$streak in a row", c.tightFg, c.tightBg, icon = R.drawable.ic_flame, modifier = Modifier.padding(bottom = 6.dp))
+            }
             Text(marked, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             Text(greeting, style = MaterialTheme.typography.headlineMedium)
             Text(date, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))

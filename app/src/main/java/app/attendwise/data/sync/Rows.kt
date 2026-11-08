@@ -121,12 +121,12 @@ internal fun markFrom(j: JsonObject) = MarkEntity(
 // Profile and settings
 
 internal fun ProfileEntity.toJson() = buildJsonObject {
-    put("id", id); put("full_name", fullName); put("is_first_year_ug", isFirstYearUg); put("humor_level", humorLevel)
+    put("id", id); put("full_name", fullName); put("is_first_year_ug", isFirstYearUg); put("humor_level", humorLevel); put("avatar", avatar)
 }
 
 internal fun profileFrom(j: JsonObject) = ProfileEntity(
     id = j.req("id"), fullName = j.str("full_name"), isFirstYearUg = j.bool("is_first_year_ug"),
-    humorLevel = j.str("humor_level") ?: "roast",
+    humorLevel = j.str("humor_level") ?: "roast", avatar = j.str("avatar"),
 )
 
 internal fun NotificationSettingsEntity.toJson() = buildJsonObject {

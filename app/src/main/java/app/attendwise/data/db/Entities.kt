@@ -102,6 +102,8 @@ data class ProfileEntity(
     val fullName: String?,
     val isFirstYearUg: Boolean,
     val humorLevel: String,
+    /** The chosen profile picture, an id from the avatar list. */
+    val avatar: String? = null,
     val dirty: Boolean = false,
     val version: Long = 0,
 )

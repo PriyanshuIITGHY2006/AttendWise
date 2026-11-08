@@ -272,6 +272,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         graph.repo.saveProfile(name, firstYear, humor)
     }
 
+    fun saveAvatar(id: String?) = viewModelScope.launch { graph.repo.saveAvatar(id) }
+
     fun saveSettings(update: (NotificationSettingsEntity) -> NotificationSettingsEntity) = viewModelScope.launch {
         graph.repo.saveSettings(update)
     }

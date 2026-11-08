@@ -153,7 +153,16 @@ class AppRepository(
 
     suspend fun saveProfile(fullName: String?, firstYear: Boolean, humor: String) {
         val id = api.userId ?: return
-        dao.upsertProfile(ProfileEntity(id, fullName?.trim()?.ifBlank { null }, firstYear, humor, dirty = true, version = stamp()))
+        val avatar = dao.profileNow()?.avatar
+        dao.upsertProfile(ProfileEntity(id, fullName?.trim()?.ifBlank { null }, firstYear, humor, avatar, dirty = true, version = stamp()))
+        onWrite()
+    }
+
+    /** Saves the chosen avatar, leaving the rest of the profile as it is. */
+    suspend fun saveAvatar(avatar: String?) {
+        val id = api.userId ?: return
+        val current = dao.profileNow() ?: ProfileEntity(id, null, false, "roast")
+        dao.upsertProfile(current.copy(avatar = avatar, dirty = true, version = stamp()))
         onWrite()
     }
 
