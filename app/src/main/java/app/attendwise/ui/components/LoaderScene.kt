@@ -94,7 +94,7 @@ fun LoaderScene(modifier: Modifier = Modifier) {
         label = label,
     )
     Canvas(modifier.width(300.dp).aspectRatio(1.5f).clip(RoundedCornerShape(22.dp))) {
-        val t = seconds.floatValue
+        val t = seconds.value
         scale(size.width / 240f, pivot = Offset.Zero) {
             when (scene) {
                 0 -> boat(t, p)
