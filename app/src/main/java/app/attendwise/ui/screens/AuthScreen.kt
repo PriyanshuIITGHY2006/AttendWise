@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import app.attendwise.R
 import app.attendwise.ui.AppViewModel
 import app.attendwise.ui.components.AppIcon
+import app.attendwise.ui.components.LoaderScene
 import app.attendwise.ui.components.Ring
 import app.attendwise.ui.theme.LocalStatusColors
 
@@ -116,7 +117,7 @@ fun LoadingScreen(text: String, onRetry: (() -> Unit)? = null, onContinue: (() -
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (onRetry == null) CircularProgressIndicator()
+        if (onRetry == null) LoaderScene()
         Spacer(Modifier.height(16.dp))
         Text(text, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
         if (onRetry != null) {

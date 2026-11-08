@@ -73,6 +73,11 @@ class AppPrefs(context: Context) {
         prefs.edit().putStringSet("seen_badges_$userId", badges.toSet()).putInt("seen_streak_$userId", streak).apply()
     }
 
+    /** The loading scene shown last time, so the next launch shows a different one. */
+    var loaderScene: Int
+        get() = prefs.getInt("loader_scene", -1)
+        set(value) = prefs.edit().putInt("loader_scene", value).apply()
+
     var askedNotificationPermission: Boolean
         get() = prefs.getBoolean("asked_notif", false)
         set(value) = prefs.edit().putBoolean("asked_notif", value).apply()
