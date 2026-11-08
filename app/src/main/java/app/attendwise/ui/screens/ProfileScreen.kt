@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -166,10 +168,10 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSettin
         }
         d.badges.chunked(3).forEach { row ->
             item {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     row.forEach { b ->
-                        Panel(Modifier.weight(1f), onClick = { detail = b }) {
-                            Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Panel(Modifier.weight(1f).fillMaxHeight(), onClick = { detail = b }) {
+                            Column(Modifier.fillMaxWidth().fillMaxHeight().padding(horizontal = 4.dp, vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                 BadgeImage(b.id, locked = !b.unlocked, size = 64.dp)
                                 Text(b.title, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp))
                                 Text(if (b.unlocked) "Unlocked" else "${b.value} of ${b.goal}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -201,12 +203,12 @@ fun ProfileScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onSettin
             text = {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     AVATARS.chunked(2).forEach { pair ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             pair.forEach { a ->
                                 val chosen = profile?.avatar == a.id
                                 val shape = RoundedCornerShape(18.dp)
                                 Column(
-                                    Modifier.weight(1f).clip(shape)
+                                    Modifier.weight(1f).fillMaxHeight().clip(shape)
                                         .background(if (chosen) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
                                         .border(2.dp, if (chosen) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, shape)
                                         .clickable { vm.saveAvatar(a.id); picking = false }
