@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../../data/store'
 import { Ring } from '../common'
-import { Icon } from '../Icon'
+import { LoaderScene } from '../LoaderScene'
 
 const base = import.meta.env.BASE_URL
 /** The landing page, one level up from the web app. */
@@ -63,7 +63,7 @@ export function LoadingScreen({ text, onRetry }: { text: string; onRetry?: () =>
   return (
     <div className="center" style={{ textAlign: 'center' }}>
       <div style={{ display: 'grid', gap: 16, justifyItems: 'center' }}>
-        {!onRetry && <Icon name="sync" size={32} />}
+        {!onRetry && <LoaderScene />}
         <div>{text}</div>
         {onRetry && <button className="btn" onClick={onRetry}>Try again</button>}
       </div>

@@ -248,7 +248,7 @@ button.panel:hover { border-color: var(--outline); }
 .menu b.sel { font-weight: 700; }
 
 /* Sign in and set up */
-.center { min-height: 100%; display: grid; place-items: center; padding: 24px 16px; }
+.center { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; }
 .auth { width: min(440px, 100%); display: grid; gap: 14px; }
 .auth .brand { padding: 0 0 6px; }
 .demo { display: grid; place-items: center; padding: 18px; border-radius: 24px; background: var(--card); border: 1px solid var(--outline-soft); gap: 6px; }
@@ -351,3 +351,42 @@ button.panel:hover { border-color: var(--outline); }
 @keyframes cspin { to { transform: rotate(360deg); } }
 @keyframes cfall { 0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; } 100% { transform: translate3d(var(--drift), 105vh, 0) rotate(var(--spin)); opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .confetti { display: none; } .rays, .celebrate-card, .celebrate-art > :not(.rays), .celebrate { animation: none; } }
+
+/* Loading scenes: drawn with the app's own colours, so they follow light and dark. Movement is plain transforms. */
+.ls { --ls-cloud: var(--cloud-top); --ls-shade: var(--cloud-bot); --ls-sea: var(--primary); --ls-sea2: var(--secondary-bg);
+  --ls-paper: var(--cloud-top); --ls-paper-shade: var(--cloud-bot); --ls-fold: var(--outline); --ls-ink: var(--on-primary-bg); --ls-ok: var(--present); --ls-flame: #e8870b; --ls-flame-line: var(--ring-tight);
+  width: min(300px, 78vw); aspect-ratio: 3 / 2; overflow: hidden; border-radius: 22px; }
+.ls svg { display: block; }
+.ls-cl { fill: var(--ls-cloud); } .ls-cl-shade { fill: var(--ls-shade); opacity: .8; }
+.ls-p-lit { fill: var(--ls-paper); } .ls-p-shade { fill: var(--ls-paper-shade); }
+.ls-fold { stroke: var(--ls-fold); stroke-width: 1.2; fill: none; stroke-linecap: round; }
+.ls-trail { fill: none; stroke: var(--ls-ink); stroke-opacity: .5; stroke-width: 1.6; stroke-linecap: round; stroke-dasharray: 1 6; animation: ls-dash 1.2s linear infinite; }
+.ls-b-main { fill: var(--ls-sea); } .ls-b-stripe { fill: var(--ls-cloud); opacity: .85; }
+.ls-rope { stroke: var(--ls-ink); stroke-width: 1.2; fill: none; } .ls-basket { fill: var(--ls-paper-shade); stroke: var(--ls-ink); stroke-width: 1; }
+.ls-dot { fill: var(--primary-bg); stroke: var(--ls-sea); stroke-opacity: .35; stroke-width: 1.5; transform-box: fill-box; transform-origin: center; animation: ls-dotfill 4.6s ease-in-out infinite both; }
+.ls-dl { fill: var(--muted); font: 600 9px var(--body); }
+.ls-flame { fill: var(--ls-flame); stroke: var(--ls-flame-line); stroke-width: .8; }
+.ls-face { fill: var(--card); stroke: var(--ls-sea); stroke-width: 3; }
+.ls-arc { fill: none; stroke: var(--ls-ok); stroke-width: 3.5; stroke-linecap: round; stroke-dasharray: 30 70; transform: rotate(-90deg); transform-box: fill-box; transform-origin: center; animation: ls-ring 2.6s linear infinite; }
+.ls-tk { stroke: var(--muted); stroke-width: 1.6; stroke-linecap: round; } .ls-hh, .ls-hm { stroke: var(--ls-ink); stroke-linecap: round; } .ls-hh { stroke-width: 3.4; } .ls-hm { stroke-width: 2.4; } .ls-hub { fill: var(--ls-sea); }
+.ls-drift { animation: ls-drift var(--dur) linear infinite; }
+.ls-fall { animation: ls-fall var(--dur) linear infinite; }
+.ls-still { animation: none; }
+.ls-wave { animation: ls-slide 2.6s linear infinite; } .ls-w2 { animation-duration: 1.7s; animation-direction: reverse; }
+.ls-bob { animation: ls-bob 2.6s ease-in-out infinite; transform-origin: 0 10px; }
+.ls-sway { animation: ls-sway 3.2s ease-in-out infinite; transform-origin: 0 40px; }
+.ls-flame-grow { animation: ls-grow 4.6s ease-in-out infinite both; transform-origin: 0 14px; }
+.ls-flicker { animation: ls-flick .55s ease-in-out infinite alternate; transform-origin: 0 14px; }
+.ls-hand-m { animation: ls-spin 2.6s linear infinite; } .ls-hand-h { animation: ls-spin 31.2s linear infinite; }
+@keyframes ls-drift { from { transform: translateX(-90px); } to { transform: translateX(270px); } }
+@keyframes ls-fall { from { transform: translateY(-50px); } to { transform: translateY(190px); } }
+@keyframes ls-slide { from { transform: translateX(0); } to { transform: translateX(calc(var(--p) * -1)); } }
+@keyframes ls-bob { 0%, 100% { transform: translateY(1px) rotate(-3.5deg); } 50% { transform: translateY(-3px) rotate(3.5deg); } }
+@keyframes ls-sway { 0%, 100% { transform: translateY(2px) rotate(-3deg); } 50% { transform: translateY(-4px) rotate(3deg); } }
+@keyframes ls-dash { to { stroke-dashoffset: -14; } }
+@keyframes ls-dotfill { 0%, 100% { fill: var(--primary-bg); transform: scale(.85); } 6% { fill: var(--ls-ok); transform: scale(1.2); } 11%, 84% { fill: var(--ls-ok); transform: scale(1); } 94% { fill: var(--primary-bg); transform: scale(.85); } }
+@keyframes ls-grow { 0% { transform: scale(.45); opacity: .5; } 68% { transform: scale(1.05); opacity: 1; } 86% { transform: scale(1); opacity: 1; } 96%, 100% { transform: scale(.45); opacity: .5; } }
+@keyframes ls-flick { from { transform: scale(1, .96) rotate(-1.5deg); } to { transform: scale(.97, 1.04) rotate(1.5deg); } }
+@keyframes ls-ring { from { stroke-dashoffset: 0; } to { stroke-dashoffset: -100; } }
+@keyframes ls-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ls * { animation-play-state: paused !important; } }
