@@ -60,7 +60,7 @@ function Shell() {
   if (s.boot === 'signed_out') return <AuthScreen />
   if (!s.onboarded) return <Onboarding />
 
-  const tab = head === 'course' || head === 'edit' ? 'courses' : head === 'settings' ? 'profile' : head
+  const tab = head === 'course' || head === 'edit' ? 'courses' : head
   let page
   if (head === 'courses') page = <Courses go={go} />
   else if (head === 'course' && arg) page = <CourseDetail courseId={arg} go={go} />
@@ -81,11 +81,15 @@ function Shell() {
           </button>
         </div>
         {TABS.map(([key, label, icon]) => (
-          <button key={key} type="button" className="nav-item" title={collapsed ? label : undefined} aria-label={label} aria-current={tab === key || (key === 'today' && !TABS.some(([k]) => k === tab)) ? 'page' : undefined} onClick={() => go(key)}>
+          <button key={key} type="button" className="nav-item" title={collapsed ? label : undefined} aria-label={label} aria-current={tab === key || (key === 'today' && tab !== 'settings' && !TABS.some(([k]) => k === tab)) ? 'page' : undefined} onClick={() => go(key)}>
             <Icon name={icon} size={24} /><span className="label">{label}</span>
           </button>
         ))}
         <div className="grow" />
+        <button type="button" className="nav-item nav-settings" title={collapsed ? 'Settings' : undefined} aria-label="Settings" aria-current={head === 'settings' ? 'page' : undefined} onClick={() => go('settings')}>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>
+          <span className="label">Settings</span>
+        </button>
         <div className="update label">Web version. Reminders are in the Android app.<br /><a href={WEBSITE}>Website</a></div>
       </nav>
       <main className="content">{page}</main>

@@ -2,12 +2,9 @@ import { useState } from 'react'
 import { AVATARS, avatarById, dayFmt, hasStarted, type Badge } from '../../domain'
 import { thresholdPreview } from '../../copy'
 import { useStore } from '../../data/store'
+import { Icon } from '../Icon'
 import { Avatar, BadgeArt, Dialog, Flame, Panel, Segmented, Toggle } from '../common'
 import { SemesterForm } from './Onboarding'
-
-function Tabs({ active, go }: { active: 'profile' | 'settings'; go: (route: string) => void }) {
-  return <Segmented value={active} options={[['profile', 'Profile'], ['settings', 'Settings']]} onChange={(v) => go(v)} />
-}
 
 function useIdentity() {
   const s = useStore()
@@ -42,8 +39,6 @@ export function Profile({ go }: { go: (route: string) => void }) {
 
   return (
     <div className="page">
-      <Tabs active="profile" go={go} />
-
       <section className="hero">
         <button className="avatar-btn" aria-label="Change avatar" onClick={() => setPicking(true)}>
           <Avatar id={profile?.avatar} name={name || email} size={104} />
@@ -88,6 +83,13 @@ export function Profile({ go }: { go: (route: string) => void }) {
         ))}
       </div>
 
+      <Panel onClick={() => go('settings')}>
+        <div className="set-row">
+          <div className="grow"><div>Settings</div><div className="small">Name, semester, voice, appearance and sign out</div></div>
+          <Icon name="chevron_right" size={22} />
+        </div>
+      </Panel>
+
       {picking && (
         <Dialog title="Choose your avatar" onClose={() => setPicking(false)} actions={<button className="link" onClick={() => setPicking(false)}>Close</button>}>
           <div className="avatar-grid">
@@ -125,7 +127,10 @@ export function Settings({ go }: { go: (route: string) => void }) {
 
   return (
     <div className="page">
-      <Tabs active="settings" go={go} />
+      <div className="row">
+        <button className="icon-btn" aria-label="Back to profile" onClick={() => go('profile')}><Icon name="back" size={24} /></button>
+        <h1 className="title grow">Settings</h1>
+      </div>
 
       <div className="caps">Account</div>
       <Panel>
