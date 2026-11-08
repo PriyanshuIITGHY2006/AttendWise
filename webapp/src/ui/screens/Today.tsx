@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { dayPeriodOf, firstNameOf, greeting, longDay, dayFmt, type ClassOccurrence } from '../../domain'
 import { useStore } from '../../data/store'
-import { ClassCard, DayBanner, MarkDialog, SectionHeader } from '../common'
+import { ClassCard, DayBanner, Flame, MarkDialog, SectionHeader } from '../common'
 import { Icon } from '../Icon'
 import { SCENE_SVG } from '../scene'
 
@@ -14,6 +14,7 @@ export function TodayHeader() {
     <div className="today-head" data-period={period}>
       <svg className="scene" viewBox="0 0 230 170" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SCENE_SVG.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '') }} />
       <div className="hello">
+        {d.streak.current > 0 && <div className="streak-chip" title={`Best: ${d.streak.best}`}><Flame size={14} />{d.streak.current} in a row</div>}
         <div className="caption">{d.today.length === 0 ? 'No classes' : `${marked} of ${d.today.length} marked`}</div>
         <h1 className="h1">{greeting(period, name)}</h1>
         <div className="muted">{longDay(d.now.date)}</div>

@@ -1,7 +1,7 @@
 import {
-  courseStats, DayResolver, buildSchedule, forCourse, hasEnded, hasStarted, isNeutral, nextClass, overallAttendance, todayVerdict,
-  type AttendanceStats, type ClassOccurrence, type Course, type CourseId, type DayInfo, type ExtraClass, type InstituteDay, type Mark, type Now,
-  type Schedule, type Semester, type TimetableSlot,
+  classStreak, courseStats, evaluateBadges, DayResolver, buildSchedule, forCourse, hasEnded, hasStarted, isNeutral, nextClass, overallAttendance, todayVerdict,
+  type AttendanceStats, type Badge, type ClassOccurrence, type Course, type CourseId, type DayInfo, type ExtraClass, type InstituteDay, type Mark, type Now,
+  type Schedule, type Semester, type Streak, type TimetableSlot,
 } from './domain'
 import type { CalendarRow, CourseRow, ExtraRow, MarkRow, ProfileRow, SemesterRow, SlotRow } from './data/rows'
 import { todayVerdictCopy } from './copy'
@@ -68,6 +68,8 @@ export class Derived {
   readonly unmarkedPast: ClassOccurrence[]
   readonly verdict
   readonly next
+  readonly streak: Streak
+  readonly badges: Badge[]
   private readonly resolver: DayResolver
 
   constructor(readonly data: AppData, readonly now: Now) {
@@ -85,6 +87,8 @@ export class Derived {
       .sort((a, b) => (a.key.date === b.key.date ? (a.key.start < b.key.start ? 1 : -1) : a.key.date < b.key.date ? 1 : -1))
     this.verdict = todayVerdict(data.courses, this.schedule, now)
     this.next = nextClass(this.schedule, now)
+    this.streak = classStreak(this.schedule, now)
+    this.badges = evaluateBadges({ schedule: this.schedule, courses: data.courses.filter((c) => !c.archived), stats: this.stats, now })
   }
 
   dayInfo(date: string): DayInfo {

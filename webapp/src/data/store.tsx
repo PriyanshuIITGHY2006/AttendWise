@@ -29,7 +29,7 @@ export interface Store {
   markAll: (items: Array<{ key: ClassKey; end: string | null }>, status: MarkStatus) => void
   applyPlan: (selection: Set<string>, allowOverBudget: boolean) => void
   undoPlan: (planId: string) => void
-  saveProfile: (fullName: string | null, firstYear: boolean, humor: ProfileRow['humor_level']) => void
+  saveProfile: (patch: { fullName?: string | null; firstYear?: boolean; humor?: ProfileRow['humor_level']; avatar?: string | null }) => void
   saveSemester: (row: SemesterRow) => Promise<boolean>
   saveCourse: (course: CourseRow, slotsToSave: SlotRow[], slotIdsToDelete: string[]) => Promise<boolean>
   setArchived: (courseId: string, archived: boolean) => void
@@ -234,9 +234,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       writeMarks(markRows(keys.map((key) => ({ key, end: null, status: null })), null))
     },
 
-    saveProfile: (fullName, firstYear, humor) => {
+    saveProfile: (patch) => {
       if (!userId) return
-      const row: ProfileRow = { id: userId, full_name: fullName?.trim() ? fullName.trim() : null, is_first_year_ug: firstYear, humor_level: humor }
+      const cur = rawRef.current.profile
+      const name = 'fullName' in patch ? patch.fullName : cur?.full_name
+      const row: ProfileRow = {
+        id: userId,
+        full_name: name?.trim() ? name.trim() : null,
+        is_first_year_ug: patch.firstYear ?? cur?.is_first_year_ug ?? false,
+        humor_level: patch.humor ?? cur?.humor_level ?? 'roast',
+        avatar: 'avatar' in patch ? patch.avatar : cur?.avatar ?? null,
+      }
       void commit((r) => ({ ...r, profile: row }), () => write('profiles', [row], 'id'))
     },
 

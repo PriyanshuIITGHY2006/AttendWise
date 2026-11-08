@@ -294,3 +294,26 @@ button.panel:hover { border-color: var(--outline); }
 @keyframes tw{50%{opacity:.2;transform:scale(.7)}}
 @keyframes shoot{0%{opacity:0;stroke-dashoffset:40;transform:translate(0,0)}4%{opacity:1}12%{opacity:0;stroke-dashoffset:-10;transform:translate(-30px,22px)}100%{opacity:0}}
 @media (prefers-reduced-motion:reduce){.scene *{animation:none!important}}
+/* Profile: avatar, streak, badges */
+.avatar { display: block; object-fit: cover; background: var(--primary-bg); flex: none; }
+.avatar.initials { background: var(--primary); color: var(--on-primary); display: grid; place-items: center; font-weight: 700; }
+.avatar-btn { padding: 0; border-radius: 26px; line-height: 0; border: 2px solid transparent; }
+.avatar-btn:hover, .avatar-btn:focus-visible { border-color: var(--primary); }
+.avatar-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; max-height: min(60vh, 520px); overflow-y: auto; padding: 2px; }
+.avatar-opt { display: grid; justify-items: center; gap: 4px; padding: 10px 8px; border-radius: 18px; border: 2px solid var(--outline-soft); background: var(--card); text-align: center; }
+.avatar-opt:hover { border-color: var(--outline); }
+.avatar-opt.on { border-color: var(--primary); background: var(--primary-bg); }
+.avatar-opt b { font-size: 14px; }
+.streak-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; }
+.flame { width: 48px; height: 48px; border-radius: 16px; display: grid; place-items: center; background: var(--neutral-bg); color: var(--muted); flex: none; }
+.flame.on { background: var(--tight-bg); color: var(--ring-tight); }
+.streak-n { font-size: 18px; font-weight: 700; }
+.streak-n .num { font-size: 26px; }
+.streak-best { display: grid; justify-items: center; line-height: 1.1; }
+.streak-best b { font-size: 22px; }
+.streak-chip { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 3px 10px; border-radius: 99px; font-size: 12px; font-weight: 600; background: var(--tight-bg); color: var(--ring-tight); margin-bottom: 4px; }
+.badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.badge-tile { display: grid; justify-items: center; gap: 2px; padding: 12px 6px; border-radius: 18px; background: var(--card); border: 1px solid var(--outline-soft); text-align: center; }
+.badge-tile:hover { border-color: var(--outline); }
+.badge-title { font-size: 13px; font-weight: 600; line-height: 1.2; }
+.badge-art.locked { filter: grayscale(1); opacity: 0.4; }

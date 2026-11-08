@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AttendanceStats, ClassOccurrence, CourseStatus, DayInfo, MarkStatus } from '../domain'
-import { dayFmt, hasEnded, hasStarted, WEEKDAY_LONG } from '../domain'
+import { avatarById, dayFmt, hasEnded, hasStarted, WEEKDAY_LONG } from '../domain'
 import type { Derived } from '../derived'
 import { Icon, type IconName } from './Icon'
 
@@ -248,3 +248,27 @@ export function Menu({ label, children }: { label: string; children: (close: () 
 
 export const initials = (text: string): string =>
   text.split(/[ .@]/).filter((p) => p.trim()).slice(0, 2).map((p) => p[0].toUpperCase()).join('') || '?'
+
+const assetBase = import.meta.env.BASE_URL
+
+/** A profile picture: the chosen avatar, or the person's initials until they pick one. */
+export function Avatar({ id, name, size = 52 }: { id?: string | null; name: string; size?: number }) {
+  const known = id ? avatarById(id) : null
+  const radius = Math.round(size * 0.35)
+  if (known) {
+    return <img className="avatar" src={`${assetBase}avatars/${known.id}.svg`} alt={known.title} width={size} height={size} style={{ width: size, height: size, borderRadius: radius }} />
+  }
+  return <div className="avatar initials" style={{ width: size, height: size, borderRadius: radius, fontSize: Math.round(size * 0.35) }}>{initials(name)}</div>
+}
+
+export function BadgeArt({ id, locked, size = 56 }: { id: string; locked?: boolean; size?: number }) {
+  return <img className={locked ? 'badge-art locked' : 'badge-art'} src={`${assetBase}badges/${id}.svg`} alt="" width={size} height={size} />
+}
+
+export function Flame({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z" />
+    </svg>
+  )
+}

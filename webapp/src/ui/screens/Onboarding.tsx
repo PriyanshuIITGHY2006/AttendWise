@@ -73,7 +73,7 @@ export function Onboarding() {
             <div><div className="caption">Step 1 of 3</div><h1 className="h1">About you</h1></div>
             <label className="field"><span>Your name</span><input className="input" value={name} maxLength={120} onChange={(e) => setName(e.target.value)} /></label>
             <Toggle title="First-year UG" subtitle="Follow the day swaps that apply only to first-year students." checked={firstYear} onChange={setFirstYear} />
-            <button className="btn block" style={{ minHeight: 52 }} onClick={() => { s.saveProfile(name, firstYear, data.humor); setStep(1) }}>Next</button>
+            <button className="btn block" style={{ minHeight: 52 }} onClick={() => { s.saveProfile({ fullName: name, firstYear }); setStep(1) }}>Next</button>
           </>
         )}
         {step === 1 && (

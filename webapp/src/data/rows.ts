@@ -11,7 +11,7 @@ export interface CourseRow { id: string; semester_id: string; code: string; name
 export interface SlotRow { id: string; course_id: string; day_of_week: number; start_time: string; end_time: string; room: string | null; kind: SlotKind; valid_from: string | null; valid_to: string | null; deleted_at: string | null }
 export interface ExtraRow { id: string; course_id: string; date: string; start_time: string; end_time: string; room: string | null; kind: SlotKind; deleted_at: string | null }
 export interface MarkRow { course_id: string; date: string; start_time: string; end_time: string | null; status: MarkStatus; plan_id: string | null; deleted_at: string | null }
-export interface ProfileRow { id: string; full_name: string | null; is_first_year_ug: boolean; humor_level: 'roast' | 'plain' | 'kuchupuchu' }
+export interface ProfileRow { id: string; full_name: string | null; is_first_year_ug: boolean; humor_level: 'roast' | 'plain' | 'kuchupuchu'; avatar?: string | null }
 export interface CalendarRow { date: string; day_type: DayType; description: string | null; follows_day_of_week: number | null; audience: Audience }
 
 /** "09:00:00" to "09:00". */
