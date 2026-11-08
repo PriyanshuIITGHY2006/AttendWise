@@ -8,7 +8,7 @@ import { CourseEditor } from './ui/screens/CourseEditor'
 import { Courses } from './ui/screens/Courses'
 import { Onboarding } from './ui/screens/Onboarding'
 import { Plan } from './ui/screens/Plan'
-import { Profile } from './ui/screens/Profile'
+import { Profile, Settings } from './ui/screens/Profile'
 import { Today } from './ui/screens/Today'
 
 const TABS: Array<[string, string, IconName]> = [['today', 'Today', 'today'], ['courses', 'Courses', 'courses'], ['plan', 'Plan', 'plan'], ['calendar', 'Calendar', 'calendar'], ['profile', 'Profile', 'profile']]
@@ -60,14 +60,15 @@ function Shell() {
   if (s.boot === 'signed_out') return <AuthScreen />
   if (!s.onboarded) return <Onboarding />
 
-  const tab = head === 'course' || head === 'edit' ? 'courses' : head
+  const tab = head === 'course' || head === 'edit' ? 'courses' : head === 'settings' ? 'profile' : head
   let page
   if (head === 'courses') page = <Courses go={go} />
   else if (head === 'course' && arg) page = <CourseDetail courseId={arg} go={go} />
   else if (head === 'edit') page = <div className="page"><h1 className="h1">{arg === 'new' ? 'New course' : 'Edit course'}</h1><CourseEditor courseId={arg === 'new' ? null : arg} onDone={() => go(arg === 'new' ? 'courses' : `course/${arg}`)} onCancel={() => go(arg === 'new' ? 'courses' : `course/${arg}`)} /></div>
   else if (head === 'plan') page = <Plan key={query} preselectToday={query === 'today=1'} />
   else if (head === 'calendar') page = <Calendar />
-  else if (head === 'profile') page = <Profile />
+  else if (head === 'profile') page = <Profile go={go} />
+  else if (head === 'settings') page = <Settings go={go} />
   else page = <Today go={go} />
 
   return (

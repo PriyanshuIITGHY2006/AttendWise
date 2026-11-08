@@ -1,39 +1,63 @@
 import { useState } from 'react'
-import { AVATARS, avatarById, dayFmt, type Badge } from '../../domain'
+import { AVATARS, avatarById, dayFmt, hasStarted, type Badge } from '../../domain'
 import { thresholdPreview } from '../../copy'
 import { useStore } from '../../data/store'
 import { Avatar, BadgeArt, Dialog, Flame, Panel, Segmented, Toggle } from '../common'
 import { SemesterForm } from './Onboarding'
 
-export function Profile() {
+function Tabs({ active, go }: { active: 'profile' | 'settings'; go: (route: string) => void }) {
+  return <Segmented value={active} options={[['profile', 'Profile'], ['settings', 'Settings']]} onChange={(v) => go(v)} />
+}
+
+function useIdentity() {
   const s = useStore()
-  const d = s.derived
-  const profile = d.data.profile
+  const profile = s.derived.data.profile
   const name = profile?.full_name ?? (s.session?.user.user_metadata?.full_name as string | undefined) ?? (s.session?.user.user_metadata?.name as string | undefined) ?? ''
   const email = s.session?.user.email ?? ''
-  const [editingName, setEditingName] = useState(false)
-  const [value, setValue] = useState(name)
-  const [signOut, setSignOut] = useState(false)
-  const [semester, setSemester] = useState(false)
+  return { s, d: s.derived, profile, name, email }
+}
+
+/** The last classes you attended or missed, newest on the right, as a row of dots. */
+function RecentDots() {
+  const { d } = useIdentity()
+  const recent = d.schedule.occurrences
+    .filter((o) => hasStarted(o, d.now) && (o.mark?.status === 'present' || o.mark?.status === 'absent'))
+    .slice(-16)
+  if (recent.length === 0) return null
+  return (
+    <div className="dots" aria-label="Recent classes">
+      {recent.map((o) => <i key={o.key.date + o.key.start + o.key.courseId} className={o.mark?.status === 'present' ? 'p' : 'a'} title={`${dayFmt(o.key.date)} ${o.key.start}`} />)}
+    </div>
+  )
+}
+
+export function Profile({ go }: { go: (route: string) => void }) {
+  const { s, d, profile, name, email } = useIdentity()
   const [picking, setPicking] = useState(false)
   const [badge, setBadge] = useState<Badge | null>(null)
   const avatar = avatarById(profile?.avatar)
   const streak = d.streak
   const unlocked = d.badges.filter((b) => b.unlocked).length
-  const sem = d.data.semester
+  const next = d.badges.filter((b) => !b.unlocked).sort((a, b) => b.value / b.goal - a.value / a.goal)[0]
 
   return (
     <div className="page">
-      <div className="row" style={{ padding: 4 }}>
-        <button className="avatar-btn" aria-label="Change avatar" onClick={() => setPicking(true)}><Avatar id={profile?.avatar} name={name || email} size={72} /></button>
-        <div className="grow" style={{ marginLeft: 6 }}>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{name || 'Add your name'}</div>
-          <div className="caption">{avatar ? `${avatar.title}. ${avatar.line}` : email}</div>
-        </div>
-        <button className="link" onClick={() => { setValue(name); setEditingName(true) }}>Edit</button>
-      </div>
+      <Tabs active="profile" go={go} />
 
-      <div className="caps">Class streak</div>
+      <section className="hero">
+        <button className="avatar-btn" aria-label="Change avatar" onClick={() => setPicking(true)}>
+          <Avatar id={profile?.avatar} name={name || email} size={104} />
+          <span className="avatar-edit">Change</span>
+        </button>
+        <h1 className="hero-name">{name || 'Add your name'}</h1>
+        <div className="hero-line">{avatar ? `${avatar.title}. ${avatar.line}` : 'Pick an avatar that fits you.'}</div>
+        <div className="hero-stats">
+          <div><b className="num">{streak.current}</b><span>streak</span></div>
+          <div><b className="num">{d.overall.percentFloor != null ? `${d.overall.percentFloor}%` : '-'}</b><span>attendance</span></div>
+          <div><b className="num">{unlocked}/{d.badges.length}</b><span>badges</span></div>
+        </div>
+      </section>
+
       <Panel>
         <div className="streak-card">
           <span className={streak.current > 0 ? 'flame on' : 'flame'}><Flame size={28} /></span>
@@ -43,9 +67,17 @@ export function Profile() {
           </div>
           <div className="streak-best"><b className="num">{streak.best}</b><span className="small">best</span></div>
         </div>
+        <RecentDots />
       </Panel>
 
       <div className="caps">{`Badges, ${unlocked} of ${d.badges.length}`}</div>
+      {next && (
+        <button className="next-badge" onClick={() => setBadge(next)}>
+          <BadgeArt id={next.id} locked size={44} />
+          <span className="grow"><b>Next up: {next.title}</b><span className="small">{next.how}</span></span>
+          <span className="next-bar" aria-hidden><i style={{ width: `${Math.round((next.value / next.goal) * 100)}%` }} /></span>
+        </button>
+      )}
       <div className="badge-grid">
         {d.badges.map((b) => (
           <button key={b.id} className={b.unlocked ? 'badge-tile' : 'badge-tile locked'} onClick={() => setBadge(b)}>
@@ -55,6 +87,54 @@ export function Profile() {
           </button>
         ))}
       </div>
+
+      {picking && (
+        <Dialog title="Choose your avatar" onClose={() => setPicking(false)} actions={<button className="link" onClick={() => setPicking(false)}>Close</button>}>
+          <div className="avatar-grid">
+            {AVATARS.map((a) => (
+              <button key={a.id} className={profile?.avatar === a.id ? 'avatar-opt on' : 'avatar-opt'} onClick={() => { s.saveProfile({ avatar: a.id }); setPicking(false) }}>
+                <Avatar id={a.id} name={a.title} size={64} />
+                <b>{a.title}</b>
+                <span className="small">{a.line}</span>
+              </button>
+            ))}
+          </div>
+        </Dialog>
+      )}
+      {badge && (
+        <Dialog title={badge.title} onClose={() => setBadge(null)} actions={<button className="link" onClick={() => setBadge(null)}>Close</button>}>
+          <div style={{ display: 'grid', placeItems: 'center', gap: 10, textAlign: 'center' }}>
+            <BadgeArt id={badge.id} locked={!badge.unlocked} size={96} />
+            <div className="muted">{badge.how}</div>
+            <div className="small">{badge.unlocked ? 'Unlocked' : `Progress ${badge.value} of ${badge.goal}`}</div>
+          </div>
+        </Dialog>
+      )}
+    </div>
+  )
+}
+
+export function Settings({ go }: { go: (route: string) => void }) {
+  const { s, d, profile, name } = useIdentity()
+  const email = s.session?.user.email ?? ''
+  const [editingName, setEditingName] = useState(false)
+  const [value, setValue] = useState(name)
+  const [signOut, setSignOut] = useState(false)
+  const [semester, setSemester] = useState(false)
+  const sem = d.data.semester
+
+  return (
+    <div className="page">
+      <Tabs active="settings" go={go} />
+
+      <div className="caps">Account</div>
+      <Panel>
+        <div className="set-row" style={{ gap: 12 }}>
+          <Avatar id={profile?.avatar} name={name || email} size={44} />
+          <div className="grow"><div>{name || 'Add your name'}</div><div className="small">{email}</div></div>
+          <button className="link" onClick={() => { setValue(name); setEditingName(true) }}>Edit name</button>
+        </div>
+      </Panel>
 
       <div className="caps">Semester</div>
       <Panel onClick={() => setSemester(true)}>
@@ -77,7 +157,7 @@ export function Profile() {
       <div className="caps">Appearance</div>
       <Segmented value={s.theme} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} onChange={s.setTheme} />
 
-      <div className="caps">Account</div>
+      <div className="caps">Sync</div>
       <Panel>
         <div style={{ padding: '4px 8px' }}>
           <div className="row" style={{ padding: '0 8px' }}>
@@ -91,28 +171,6 @@ export function Profile() {
       {editingName && (
         <Dialog title="Your name" onClose={() => setEditingName(false)} actions={<><button className="link" onClick={() => setEditingName(false)}>Cancel</button><button className="link" onClick={() => { s.saveProfile({ fullName: value }); setEditingName(false) }}>Save</button></>}>
           <input className="input" autoFocus value={value} maxLength={120} onChange={(e) => setValue(e.target.value)} aria-label="Your name" />
-        </Dialog>
-      )}
-      {picking && (
-        <Dialog title="Choose your avatar" onClose={() => setPicking(false)} actions={<button className="link" onClick={() => setPicking(false)}>Close</button>}>
-          <div className="avatar-grid">
-            {AVATARS.map((a) => (
-              <button key={a.id} className={profile?.avatar === a.id ? 'avatar-opt on' : 'avatar-opt'} onClick={() => { s.saveProfile({ avatar: a.id }); setPicking(false) }}>
-                <Avatar id={a.id} name={a.title} size={64} />
-                <b>{a.title}</b>
-                <span className="small">{a.line}</span>
-              </button>
-            ))}
-          </div>
-        </Dialog>
-      )}
-      {badge && (
-        <Dialog title={badge.title} onClose={() => setBadge(null)} actions={<button className="link" onClick={() => setBadge(null)}>Close</button>}>
-          <div style={{ display: 'grid', placeItems: 'center', gap: 10, textAlign: 'center' }}>
-            <BadgeArt id={badge.id} locked={!badge.unlocked} size={96} />
-            <div className="muted">{badge.how}</div>
-            <div className="small">{badge.unlocked ? 'Unlocked' : `Progress ${badge.value} of ${badge.goal}`}</div>
-          </div>
         </Dialog>
       )}
       {signOut && (
