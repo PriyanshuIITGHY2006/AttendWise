@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { StoreProvider, useStore } from './data/store'
+import { Celebration } from './ui/Celebration'
 import { Icon, type IconName } from './ui/Icon'
 import { AuthScreen, LoadingScreen, WEBSITE } from './ui/screens/Auth'
 import { Calendar } from './ui/screens/Calendar'
@@ -93,6 +94,7 @@ function Shell() {
         <div className="update label">Web version. Reminders are in the Android app.<br /><a href={WEBSITE}>Website</a></div>
       </nav>
       <main className="content">{page}</main>
+      <Celebration />
       {s.toast && (
         <div className="toast" role="status" key={s.toast.id}>
           <span>{s.toast.text}</span>

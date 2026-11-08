@@ -46,11 +46,7 @@ export function Profile({ go }: { go: (route: string) => void }) {
         </button>
         <h1 className="hero-name">{name || 'Add your name'}</h1>
         <div className="hero-line">{avatar ? `${avatar.title}. ${avatar.line}` : 'Pick an avatar that fits you.'}</div>
-        <div className="hero-stats">
-          <div><b className="num">{streak.current}</b><span>streak</span></div>
-          <div><b className="num">{d.overall.percentFloor != null ? `${d.overall.percentFloor}%` : '-'}</b><span>attendance</span></div>
-          <div><b className="num">{unlocked}/{d.badges.length}</b><span>badges</span></div>
-        </div>
+        <div className="hero-meta">{d.overall.percentFloor != null ? `${d.overall.percentFloor}% attendance` : 'No classes marked yet'}<span aria-hidden="true"> / </span>{unlocked} of {d.badges.length} badges</div>
       </section>
 
       <Panel>

@@ -300,13 +300,9 @@ button.panel:hover { border-color: var(--outline); }
 .avatar-btn { position: relative; padding: 0; border-radius: 36px; line-height: 0; border: 3px solid var(--card); box-shadow: 0 6px 20px rgba(36, 99, 235, 0.35); }
 .avatar-btn:hover, .avatar-btn:focus-visible { border-color: var(--primary); }
 .avatar-edit { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); background: var(--primary); color: var(--on-primary); font: 600 11px/1 var(--body); padding: 5px 10px; border-radius: 99px; }
-.hero { display: grid; justify-items: center; gap: 6px; text-align: center; padding: 26px 16px 18px; border-radius: 28px; background: radial-gradient(120% 90% at 50% 0%, var(--primary-bg), var(--card)); border: 1px solid var(--outline-soft); }
+.hero { display: grid; justify-items: center; gap: 4px; text-align: center; padding: 24px 16px 20px; border-radius: 28px; background: radial-gradient(120% 90% at 50% 0%, var(--primary-bg), var(--card)); border: 1px solid var(--outline-soft); }
 .hero-name { font: 400 26px/1.15 var(--display); margin: 12px 0 0; }
 .hero-line { color: var(--muted); font-size: 14px; max-width: 420px; }
-.hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; max-width: 420px; margin-top: 12px; }
-.hero-stats div { display: grid; gap: 1px; padding: 10px 6px; border-radius: 16px; background: var(--card); border: 1px solid var(--outline-soft); }
-.hero-stats b { font-size: 22px; }
-.hero-stats span { font-size: 12px; color: var(--muted); }
 .dots { display: flex; gap: 5px; flex-wrap: wrap; padding: 0 16px 14px; }
 .dots i { width: 14px; height: 14px; border-radius: 5px; background: var(--present); }
 .dots i.a { background: var(--risk-bg); border: 1.5px solid var(--ring-risk); }
@@ -333,3 +329,25 @@ button.panel:hover { border-color: var(--outline); }
 .badge-tile:hover { border-color: var(--outline); }
 .badge-title { font-size: 13px; font-weight: 600; line-height: 1.2; }
 .badge-art.locked { filter: grayscale(1); opacity: 0.4; }
+
+.hero-meta { font-size: 13px; font-weight: 600; color: var(--on-primary-bg); margin-top: 6px; }
+.hero-meta span { opacity: 0.5; }
+
+/* Celebration */
+.celebrate { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; padding: 20px; background: rgba(7, 11, 22, 0.55); backdrop-filter: blur(3px); animation: cfade 0.25s ease both; }
+.celebrate-card { position: relative; z-index: 1; width: min(360px, 100%); display: grid; justify-items: center; gap: 8px; text-align: center; padding: 26px 22px 22px; border-radius: 28px; background: var(--card); border: 1px solid var(--outline-soft); box-shadow: var(--shadow); animation: cpop 0.55s cubic-bezier(.2, 1.4, .4, 1) both; }
+.celebrate-title { font: 400 26px/1.15 var(--display); margin: 2px 0 0; }
+.celebrate-card .btn { margin-top: 10px; }
+.celebrate-art { position: relative; width: 170px; height: 150px; display: grid; place-items: center; }
+.celebrate-art > :not(.rays) { position: relative; animation: cbadge 0.9s 0.1s cubic-bezier(.2, 1.5, .4, 1) both; }
+.rays { position: absolute; width: 190px; height: 190px; border-radius: 50%; background: repeating-conic-gradient(from 0deg, rgba(245, 183, 0, 0.35) 0 9deg, transparent 9deg 24deg); -webkit-mask: radial-gradient(circle, #000 28%, transparent 68%); mask: radial-gradient(circle, #000 28%, transparent 68%); animation: cspin 14s linear infinite; }
+.celebrate-flame { display: grid; place-items: center; color: var(--ring-tight); }
+.celebrate-flame b { position: absolute; bottom: 4px; font-size: 30px; color: var(--fg); }
+.confetti { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+.confetti i { position: absolute; top: -16px; width: 9px; height: 14px; opacity: 0; animation: cfall linear forwards; }
+@keyframes cfade { from { opacity: 0; } }
+@keyframes cpop { from { opacity: 0; transform: translateY(24px) scale(0.86); } }
+@keyframes cbadge { 0% { transform: scale(0.2) rotate(-25deg); opacity: 0; } 100% { transform: none; opacity: 1; } }
+@keyframes cspin { to { transform: rotate(360deg); } }
+@keyframes cfall { 0% { transform: translate3d(0, 0, 0) rotate(0); opacity: 1; } 100% { transform: translate3d(var(--drift), 105vh, 0) rotate(var(--spin)); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .confetti { display: none; } .rays, .celebrate-card, .celebrate-art > :not(.rays), .celebrate { animation: none; } }
