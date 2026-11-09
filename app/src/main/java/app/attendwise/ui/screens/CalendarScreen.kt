@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -18,7 +19,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -55,9 +60,31 @@ import java.time.format.DateTimeFormatter
 
 private val TitleFmt = DateTimeFormatter.ofPattern("MMMM")
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CalendarScreen(vm: AppViewModel, d: Derived, padding: PaddingValues) {
+    var view by remember { mutableStateOf(vm.prefs.calendarView) }
+    Column(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding() + 20.dp)) {
+        val options = listOf("week" to "Week", "month" to "Month")
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            options.forEachIndexed { i, (key, label) ->
+                SegmentedButton(
+                    selected = view == key,
+                    onClick = { view = key; vm.prefs.calendarView = key },
+                    shape = SegmentedButtonDefaults.itemShape(i, options.size),
+                    icon = {},
+                ) { Text(label, maxLines = 1, softWrap = false) }
+            }
+        }
+        val bottom = PaddingValues(bottom = padding.calculateBottomPadding())
+        if (view == "week") WeekView(vm, d, Modifier.weight(1f).padding(bottom = padding.calculateBottomPadding()))
+        else MonthView(vm, d, bottom, Modifier.weight(1f))
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MonthView(vm: AppViewModel, d: Derived, padding: PaddingValues, modifier: Modifier = Modifier) {
     val c = LocalStatusColors.current
     var month by remember { mutableStateOf(YearMonth.from(d.now.date)) }
     var selected by remember { mutableStateOf(d.now.date) }
@@ -66,7 +93,8 @@ fun CalendarScreen(vm: AppViewModel, d: Derived, padding: PaddingValues) {
     val dayClasses = byDate[selected].orEmpty()
 
     LazyColumn(
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 20.dp, bottom = padding.calculateBottomPadding() + 24.dp),
+        modifier,
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = padding.calculateTopPadding() + 12.dp, bottom = padding.calculateBottomPadding() + 24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {

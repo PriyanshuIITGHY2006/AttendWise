@@ -73,6 +73,11 @@ class AppPrefs(context: Context) {
         prefs.edit().putStringSet("seen_badges_$userId", badges.toSet()).putInt("seen_streak_$userId", streak).apply()
     }
 
+    /** "week" or "month", the view Calendar opens in. */
+    var calendarView: String
+        get() = prefs.getString("calendar_view", "week") ?: "week"
+        set(value) = prefs.edit().putString("calendar_view", value).apply()
+
     /** The loading scene shown last time, so the next launch shows a different one. */
     var loaderScene: Int
         get() = prefs.getInt("loader_scene", -1)

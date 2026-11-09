@@ -144,12 +144,13 @@ fun InfoCard(title: String, body: String) {
 
 /** Choose what happened in a class. */
 @Composable
-fun MarkDialog(title: String, current: MarkStatus?, onPick: (MarkStatus?) -> Unit, onDismiss: () -> Unit) {
+fun MarkDialog(title: String, current: MarkStatus?, onPick: (MarkStatus?) -> Unit, onDismiss: () -> Unit, details: (@Composable () -> Unit)? = null) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
             Column {
+                details?.invoke()
                 listOf(
                     MarkStatus.PRESENT to "Present",
                     MarkStatus.ABSENT to "Absent (or skip it, if it's later)",
