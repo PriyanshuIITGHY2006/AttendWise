@@ -393,7 +393,7 @@ button.panel:hover { border-color: var(--outline); }
 
 /* Week timetable: a soft lane per day, quiet white cards for classes, like Today and Courses */
 .page.wide { max-width: 1120px; }
-.wk-wrap { display: flex; gap: 6px; align-items: flex-start; min-width: 0; max-width: 100%; }
+.wk-wrap { display: flex; gap: 10px; align-items: flex-start; min-width: 0; max-width: 100%; }
 .wk-gutter { flex: none; width: 40px; padding-top: 2px; }
 .wk-scroll { flex: 1; min-width: 0; overflow-x: auto; padding: 2px 2px 14px; scroll-behavior: smooth; overscroll-behavior-x: contain; }
 .wk { display: grid; grid-template-columns: repeat(var(--cols), minmax(132px, 1fr)); gap: 10px; min-width: max-content; width: 100%; }

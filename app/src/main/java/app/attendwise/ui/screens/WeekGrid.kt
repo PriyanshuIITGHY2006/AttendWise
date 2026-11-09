@@ -76,6 +76,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 private val HourHeight = 56.dp
 private val Gutter = 44.dp
 private val LaneGap = 10.dp
+private val GutterGap = 10.dp
 private val HeaderHeight = 86.dp
 private val DayMonth = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
 
@@ -128,7 +129,7 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
             TextButton(onClick = { monday = monday.plusWeeks(1) }) { AppIcon(R.drawable.ic_chevron_right, "Next week", size = 20.dp) }
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-            val colWidth = maxOf(132.dp, (maxWidth - Gutter - LaneGap * (days.size - 1)) / days.size)
+            val colWidth = maxOf(132.dp, (maxWidth - Gutter - GutterGap - LaneGap * (days.size - 1)) / days.size)
             val horizontal = rememberScrollState()
             val density = LocalDensity.current
             // On a phone the week is wider than the screen, so bring today's column into view.
@@ -141,7 +142,7 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
             val line = MaterialTheme.colorScheme.outlineVariant
             val laneShape = RoundedCornerShape(22.dp)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Row {
+                Row(horizontalArrangement = Arrangement.spacedBy(GutterGap)) {
                     Column(Modifier.width(Gutter)) {
                         Spacer(Modifier.height(HeaderHeight))
                         Box(Modifier.fillMaxWidth().height(gridHeight)) {
