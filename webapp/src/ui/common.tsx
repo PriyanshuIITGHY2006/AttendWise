@@ -187,7 +187,7 @@ export function Dialog({ title, children, onClose, actions }: { title: string; c
 }
 
 /** Choose what happened in a class. */
-export function MarkDialog({ title, current, onPick, onClose }: { title: string; current: MarkStatus | undefined; onPick: (s: MarkStatus | null) => void; onClose: () => void }) {
+export function MarkDialog({ title, current, onPick, onClose, details }: { title: string; current: MarkStatus | undefined; onPick: (s: MarkStatus | null) => void; onClose: () => void; details?: ReactNode }) {
   const options: Array<[MarkStatus, string]> = [
     ['present', 'Present'],
     ['absent', "Absent (or skip it, if it's later)"],
@@ -196,6 +196,7 @@ export function MarkDialog({ title, current, onPick, onClose }: { title: string;
   ]
   return (
     <Dialog title={title} onClose={onClose} actions={<button className="link" onClick={onClose}>Close</button>}>
+      {details}
       <div>
         {options.map(([s, label]) => (
           <button key={s} className="opt" onClick={() => onPick(s)}>{(s === current ? '✓  ' : '') + label}</button>

@@ -1,11 +1,31 @@
 import { useMemo, useState } from 'react'
 import { dayFmt, hasEnded, hasStarted, isNeutral, longDay, type ClassOccurrence } from '../../domain'
 import { useStore } from '../../data/store'
-import { ClassCard, DayBanner, MarkDialog, Panel } from '../common'
+import { ClassCard, DayBanner, MarkDialog, Panel, Segmented } from '../common'
 import { Icon } from '../Icon'
 import { MonthGrid, monthOf, monthTitle, shiftMonth } from './MonthGrid'
+import { WeekGrid } from './WeekGrid'
+
+const VIEW = 'attendwise.calview'
+type View = 'week' | 'month'
 
 export function Calendar() {
+  const [view, setViewState] = useState<View>(() => {
+    try { return localStorage.getItem(VIEW) === 'month' ? 'month' : 'week' } catch { return 'week' }
+  })
+  const setView = (v: View) => {
+    setViewState(v)
+    try { localStorage.setItem(VIEW, v) } catch { /* private window */ }
+  }
+  return (
+    <div className={view === 'week' ? 'page wide' : 'page'}>
+      <Segmented value={view} options={[['week', 'Week'], ['month', 'Month']]} onChange={setView} />
+      {view === 'week' ? <WeekGrid /> : <MonthView />}
+    </div>
+  )
+}
+
+function MonthView() {
   const s = useStore()
   const d = s.derived
   const [month, setMonth] = useState(monthOf(d.now.date))
@@ -20,7 +40,7 @@ export function Calendar() {
   const thisYear = d.now.date.slice(0, 4)
 
   return (
-    <div className="page">
+    <>
       <div className="row" style={{ padding: '0 4px' }}>
         <h1 className="h1 grow">{monthTitle(month, month.slice(0, 4) !== thisYear)}</h1>
         <button className="icon-btn" aria-label="Previous month" onClick={() => setMonth(shiftMonth(month, -1))}><Icon name="back" size={20} /></button>
@@ -66,6 +86,6 @@ export function Calendar() {
       {editing && (
         <MarkDialog title={`${d.code(editing.key.courseId)}, ${dayFmt(editing.key.date)} at ${editing.key.start}`} current={editing.mark?.status} onPick={(st) => { s.mark(editing.key, editing.end, st); setEditing(null) }} onClose={() => setEditing(null)} />
       )}
-    </div>
+    </>
   )
 }
