@@ -59,23 +59,13 @@ export function WeekGrid() {
         <button className="icon-btn" aria-label="Next week" onClick={() => setMonday(addDays(monday, 7))}><Icon name="chevron_right" size={20} /></button>
       </div>
 
-      <div className="wk-scroll panel">
+      <div className="wk-scroll">
         <div className="wk" style={{ ['--cols' as string]: days.length }}>
-          <div className="wk-head wk-corner" />
-          {days.map((date) => {
-            const info = d.dayInfo(date)
-            const today = date === d.now.date
-            return (
-              <div key={date} className={`wk-head${today ? ' today' : ''}`}>
-                <span className="wk-dow">{WEEKDAY_SHORT[weekdayOf(date) - 1]}</span>
-                <span className="wk-date">{Number(date.slice(8))}</span>
-                {info.kind === 'swapped' && <span className="wk-swap" title={`Follows the ${WEEKDAY_LONG[info.follows - 1]} timetable`}>{'↻ ' + WEEKDAY_SHORT[info.follows - 1]}</span>}
-              </div>
-            )
-          })}
-
-          <div className="wk-gutter" style={{ height }}>
-            {hours.map((h) => <span key={h} style={{ top: (h - from) * HOUR_PX }}>{hourLabel(h)}</span>)}
+          <div className="wk-gutter">
+            <div className="wk-gh" />
+            <div className="wk-gbody" style={{ height }}>
+              {hours.map((h) => <span key={h} style={{ top: (h - from) * HOUR_PX }}>{hourLabel(h)}</span>)}
+            </div>
           </div>
 
           {days.map((date) => {
@@ -83,45 +73,63 @@ export function WeekGrid() {
             const today = date === d.now.date
             const placed = layoutDay(byDate.get(date) ?? [])
             return (
-              <div key={date} className={`wk-col${today ? ' today' : ''}`} style={{ height }}>
-                {hours.map((h) => <i key={h} className="wk-line" style={{ top: (h - from) * HOUR_PX }} />)}
-                {info.kind === 'none' && (
-                  <div className="wk-off"><b>{noClassTitle(info)}</b>{info.description && <span>{info.description}</span>}</div>
-                )}
-                {placed.map(({ occ, lane, lanes }) => {
-                  const start = toMinutes(occ.key.start)
-                  const end = toMinutes(occ.end)
-                  const color = d.color(occ.key.courseId)
-                  const status = occ.mark?.status
-                  const off = status === 'cancelled' || status === 'on_duty'
-                  const planned = d.isPlannedSkip(occ)
-                  const label = `${d.course(occ.key.courseId)?.name ?? d.code(occ.key.courseId)}, ${occ.key.start} to ${occ.end}${occ.room ? `, ${occ.room}` : ''}, ${statusText(occ, planned)}`
-                  return (
-                    <button
-                      key={occ.key.courseId + occ.key.start}
-                      type="button"
-                      className={`wk-block${off ? ' off' : ''}${planned ? ' planned' : ''}${status === 'cancelled' ? ' cancelled' : ''}`}
-                      title={label}
-                      aria-label={label}
-                      style={{
-                        top: ((start - from * 60) / 60) * HOUR_PX + 1,
-                        height: Math.max(((end - start) / 60) * HOUR_PX - 2, 22),
-                        left: `calc(${(lane / lanes) * 100}% + 2px)`,
-                        width: `calc(${100 / lanes}% - 4px)`,
-                        ['--c' as string]: color,
-                      }}
-                      onClick={() => setEditing(occ)}
-                    >
-                      <span className="wk-name">{d.course(occ.key.courseId)?.name ?? d.code(occ.key.courseId)}</span>
-                      <span className="wk-kind">{cap(occ.kind)}</span>
-                      {status === 'present' && hasStarted(occ, d.now) && <span className="wk-mark ok" aria-hidden>✓</span>}
-                      {status === 'absent' && hasStarted(occ, d.now) && <span className="wk-mark no" aria-hidden>✕</span>}
-                      {!status && hasEnded(occ, d.now) && <span className="wk-mark un" aria-hidden>?</span>}
-                    </button>
-                  )
-                })}
-                {today && showNow && <div className="wk-now" style={{ top: ((nowMinutes - from * 60) / 60) * HOUR_PX }} />}
-              </div>
+              <section key={date} className={`wk-lane${today ? ' today' : ''}`} aria-label={dayFmt(date)}>
+                <header className="wk-gh">
+                  <span className="wk-dow">{WEEKDAY_SHORT[weekdayOf(date) - 1]}</span>
+                  <span className="wk-date">{Number(date.slice(8))}</span>
+                  {info.kind === 'swapped' && <span className="wk-swap" title={`Follows the ${WEEKDAY_LONG[info.follows - 1]} timetable`}>{'↻ ' + WEEKDAY_SHORT[info.follows - 1]}</span>}
+                </header>
+                <div className="wk-body" style={{ height }}>
+                  {hours.map((h) => <i key={h} className="wk-line" style={{ top: (h - from) * HOUR_PX }} />)}
+                  {info.kind === 'none' && (
+                    <div className="wk-off"><Icon name="swap" size={22} /><b>{noClassTitle(info)}</b>{info.description && <span>{info.description}</span>}</div>
+                  )}
+                  {placed.map(({ occ, lane, lanes }) => {
+                    const start = toMinutes(occ.key.start)
+                    const end = toMinutes(occ.end)
+                    const color = d.color(occ.key.courseId)
+                    const status = occ.mark?.status
+                    const off = status === 'cancelled' || status === 'on_duty'
+                    const planned = d.isPlannedSkip(occ)
+                    const px = ((end - start) / 60) * HOUR_PX - 4
+                    const name = d.course(occ.key.courseId)?.name ?? d.code(occ.key.courseId)
+                    const label = `${name}, ${occ.key.start} to ${occ.end}${occ.room ? `, ${occ.room}` : ''}, ${statusText(occ, planned)}`
+                    const badge = hasStarted(occ, d.now)
+                      ? status === 'present' ? 'ok' : status === 'absent' ? 'no' : !status && hasEnded(occ, d.now) ? 'un' : null
+                      : null
+                    return (
+                      <button
+                        key={occ.key.courseId + occ.key.start}
+                        type="button"
+                        className={`wk-block${off ? ' off' : ''}${planned ? ' planned' : ''}${status === 'cancelled' ? ' cancelled' : ''}${px < 40 ? ' tiny' : ''}`}
+                        title={label}
+                        aria-label={label}
+                        style={{
+                          top: ((start - from * 60) / 60) * HOUR_PX + 2,
+                          height: Math.max(px, 24),
+                          left: `calc(${(lane / lanes) * 100}% + 6px)`,
+                          width: `calc(${100 / lanes}% - 12px)`,
+                          ['--c' as string]: color,
+                        }}
+                        onClick={() => setEditing(occ)}
+                      >
+                        <span className="wk-top">
+                          <i className="wk-sq" />
+                          <b className="wk-code">{d.code(occ.key.courseId)}</b>
+                          {badge === 'ok' && <span className="wk-st ok"><Icon name="check" size={14} /></span>}
+                          {badge === 'no' && <span className="wk-st no"><Icon name="close" size={14} /></span>}
+                          {badge === 'un' && <span className="wk-st un">?</span>}
+                          {planned && <span className="wk-skip">Skip</span>}
+                        </span>
+                        {px >= 44 && <span className="wk-name">{name}</span>}
+                        {px >= 74 && <span className="wk-time">{occ.key.start} to {occ.end}</span>}
+                        {px >= 96 && <span className="wk-kind">{[cap(occ.kind), occ.room].filter(Boolean).join(', ')}</span>}
+                      </button>
+                    )
+                  })}
+                  {today && showNow && <div className="wk-now" style={{ top: ((nowMinutes - from * 60) / 60) * HOUR_PX }} />}
+                </div>
+              </section>
             )
           })}
         </div>

@@ -10,12 +10,13 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,10 +34,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -64,7 +67,9 @@ import java.time.format.TextStyle
 import java.util.Locale
 
 private val HourHeight = 56.dp
-private val Gutter = 48.dp
+private val Gutter = 44.dp
+private val LaneGap = 10.dp
+private val HeaderHeight = 86.dp
 private val DayMonth = DateTimeFormatter.ofPattern("d MMM", Locale.ENGLISH)
 
 private fun weekLabel(days: List<LocalDate>): String {
@@ -115,59 +120,57 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
             TextButton(onClick = { monday = monday.plusWeeks(1) }) { AppIcon(R.drawable.ic_chevron_right, "Next week", size = 20.dp) }
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-            val colWidth = maxOf(118.dp, (maxWidth - Gutter) / days.size)
+            val colWidth = maxOf(132.dp, (maxWidth - Gutter - LaneGap * days.size) / days.size)
             val horizontal = rememberScrollState()
             val line = MaterialTheme.colorScheme.outlineVariant
-            Column(Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).background(MaterialTheme.colorScheme.surfaceContainer).border(1.dp, line, RoundedCornerShape(20.dp))) {
-                // Day headers, scrolling sideways together with the grid.
-                Row(Modifier.horizontalScroll(horizontal)) {
-                    Spacer(Modifier.width(Gutter))
-                    days.forEach { date ->
-                        val info = d.dayInfo(date)
-                        val today = date == d.now.date
-                        Column(
-                            Modifier.width(colWidth).height(72.dp).background(if (today) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainer)
-                                .padding(top = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).uppercase(), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            Text("${date.dayOfMonth}", fontSize = 20.sp, color = if (today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                            if (info is DayInfo.Swapped) {
+            val laneShape = RoundedCornerShape(22.dp)
+            Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                Row(Modifier.horizontalScroll(horizontal), horizontalArrangement = Arrangement.spacedBy(LaneGap)) {
+                    Column(Modifier.width(Gutter)) {
+                        Spacer(Modifier.height(HeaderHeight))
+                        Box(Modifier.fillMaxWidth().height(gridHeight)) {
+                            for (h in range.from until range.to) {
                                 Text(
-                                    "↻ " + info.follows.getDisplayName(TextStyle.SHORT, Locale.ENGLISH), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = c.tightFg,
-                                    modifier = Modifier.clip(RoundedCornerShape(50)).background(c.tightBg).padding(horizontal = 7.dp, vertical = 1.dp),
+                                    hourLabel(h), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.align(Alignment.TopEnd).offset(y = HourHeight * (h - range.from) - (if (h == range.from) 0.dp else 8.dp)).padding(end = 2.dp),
                                 )
                             }
                         }
                     }
-                }
-                Box(Modifier.fillMaxWidth().height(1.dp).background(line))
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                    Row(Modifier.horizontalScroll(horizontal)) {
-                        Box(Modifier.width(Gutter).height(gridHeight)) {
-                            for (h in range.from until range.to) {
-                                Text(
-                                    hourLabel(h), fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.align(Alignment.TopEnd).offset(y = HourHeight * (h - range.from) - (if (h == range.from) 0.dp else 8.dp)).padding(end = 6.dp),
-                                )
+                    days.forEach { date ->
+                        val info = d.dayInfo(date)
+                        val today = date == d.now.date
+                        Column(
+                            Modifier.width(colWidth).clip(laneShape)
+                                .background(if (today) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.7f) else MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.55f))
+                                .border(1.dp, if (today) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else line, laneShape),
+                        ) {
+                            Column(Modifier.fillMaxWidth().height(HeaderHeight).padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(date.dayOfWeek.getDisplayName(TextStyle.SHORT, Locale.ENGLISH).uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Box(
+                                    Modifier.defaultMinSize(minWidth = 34.dp).height(34.dp).clip(RoundedCornerShape(50))
+                                        .background(if (today) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Text("${date.dayOfMonth}", fontSize = 21.sp, color = if (today) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(horizontal = 6.dp))
+                                }
+                                if (info is DayInfo.Swapped) {
+                                    Text(
+                                        "↻ " + info.follows.getDisplayName(TextStyle.SHORT, Locale.ENGLISH), fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = c.tightFg,
+                                        modifier = Modifier.padding(top = 2.dp).clip(RoundedCornerShape(50)).background(c.tightBg).padding(horizontal = 8.dp, vertical = 1.dp),
+                                    )
+                                }
                             }
-                        }
-                        days.forEach { date ->
-                            val info = d.dayInfo(date)
-                            val today = date == d.now.date
                             Box(
-                                Modifier.width(colWidth).height(gridHeight)
-                                    .background(if (today) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f) else androidx.compose.ui.graphics.Color.Transparent)
-                                    .drawBehind {
-                                        val hourPx = HourHeight.toPx()
-                                        for (i in 0 until hours) drawLine(line, Offset(0f, i * hourPx), Offset(size.width, i * hourPx), 1.dp.toPx())
-                                        drawLine(line, Offset(0f, 0f), Offset(0f, size.height), 1.dp.toPx())
-                                    },
+                                Modifier.fillMaxWidth().height(gridHeight).drawBehind {
+                                    val hourPx = HourHeight.toPx()
+                                    for (i in 0 until hours) drawLine(line, Offset(10.dp.toPx(), i * hourPx), Offset(size.width - 10.dp.toPx(), i * hourPx), 1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)))
+                                },
                             ) {
                                 if (info is DayInfo.NoClasses) {
-                                    Column(Modifier.fillMaxSize().background(c.swapBg).padding(horizontal = 8.dp, vertical = 14.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        Text(noClassTitle(info.type), color = c.swapFg, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                                        if (!info.description.isNullOrBlank()) Text(info.description!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                                    Column(Modifier.fillMaxSize().background(c.swapBg.copy(alpha = 0.6f)).padding(horizontal = 8.dp, vertical = 22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                        Text(noClassTitle(info.type), color = c.swapFg, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        if (!info.description.isNullOrBlank()) Text(info.description!!, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, textAlign = TextAlign.Center)
                                     }
                                 }
                                 layoutDay(byDate[date].orEmpty()).forEach { placed ->
@@ -180,38 +183,43 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
                                     val off = status?.isNeutral == true
                                     val accent = if (off) MaterialTheme.colorScheme.outline else courseColor(d.data.color(occ.courseId))
                                     val name = d.data.courseInfo[occ.courseId]?.name ?: d.data.code(occ.courseId)
-                                    val height = maxOf(HourHeight * ((endMin - startMin) / 60f) - 2.dp, 22.dp)
-                                    val shape = RoundedCornerShape(8.dp)
-                                    Row(
-                                        Modifier.offset(x = laneWidth * placed.lane + 2.dp, y = HourHeight * ((startMin - range.from * 60) / 60f) + 1.dp)
-                                            .width(laneWidth - 4.dp).height(height).clip(shape)
-                                            .background(accent.copy(alpha = if (off) 0.14f else 0.18f).compositeOver(MaterialTheme.colorScheme.surfaceContainer))
-                                            .then(if (planned) Modifier.border(1.5.dp, c.riskFg, shape) else Modifier)
+                                    val height = maxOf(HourHeight * ((endMin - startMin) / 60f) - 4.dp, 24.dp)
+                                    val shape = RoundedCornerShape(14.dp)
+                                    val muted = MaterialTheme.colorScheme.onSurfaceVariant
+                                    Column(
+                                        Modifier.offset(x = laneWidth * placed.lane + 6.dp, y = HourHeight * ((startMin - range.from * 60) / 60f) + 2.dp)
+                                            .width(laneWidth - 12.dp).height(height).clip(shape)
+                                            .background(if (off) MaterialTheme.colorScheme.surfaceVariant else if (planned) c.riskBg.copy(alpha = 0.55f).compositeOver(MaterialTheme.colorScheme.surfaceContainer) else accent.copy(alpha = 0.08f).compositeOver(MaterialTheme.colorScheme.surfaceContainer))
+                                            .border(if (planned) 1.5.dp else 1.dp, if (planned) c.riskFg else line, shape)
                                             .clickable { editing = occ }
+                                            .padding(horizontal = 9.dp, vertical = 6.dp)
                                             .semantics { contentDescription = "$name, ${occ.start.format(TimeFmt)} to ${occ.end.format(TimeFmt)}, ${statusText(occ, planned)}" },
                                     ) {
-                                        Box(Modifier.width(4.dp).fillMaxHeight().background(accent))
-                                        Box(Modifier.weight(1f).fillMaxHeight()) {
-                                            Column(Modifier.padding(start = 6.dp, end = 16.dp, top = 4.dp)) {
-                                                Text(
-                                                    name, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, lineHeight = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                                    color = if (off) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface,
-                                                    textDecoration = if (status == MarkStatus.CANCELLED) TextDecoration.LineThrough else null,
-                                                )
-                                                Text(kindText(occ), fontSize = 10.5.sp, lineHeight = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                            }
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(Modifier.size(9.dp).clip(RoundedCornerShape(3.dp)).background(accent))
+                                            Spacer(Modifier.width(6.dp))
+                                            Text(
+                                                d.data.code(occ.courseId), fontSize = 13.sp, fontWeight = FontWeight.SemiBold, lineHeight = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                                                color = if (off) muted else MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f, fill = false),
+                                                textDecoration = if (status == MarkStatus.CANCELLED) TextDecoration.LineThrough else null,
+                                            )
+                                            Spacer(Modifier.weight(1f))
                                             val glyph = when {
+                                                planned -> "SKIP" to c.riskFg
                                                 status == MarkStatus.PRESENT && occ.hasStarted(d.now) -> "✓" to c.present
                                                 status == MarkStatus.ABSENT && occ.hasStarted(d.now) -> "✕" to c.riskFg
                                                 status == null && occ.hasEnded(d.now) -> "?" to c.tightFg
                                                 else -> null
                                             }
-                                            if (glyph != null) Text(glyph.first, color = glyph.second, fontSize = 11.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.TopEnd).padding(top = 3.dp, end = 5.dp))
+                                            if (glyph != null) Text(glyph.first, color = glyph.second, fontSize = if (glyph.first == "SKIP") 10.sp else 12.sp, fontWeight = FontWeight.Bold)
                                         }
+                                        if (height >= 44.dp) Text(name, fontSize = 11.5.sp, lineHeight = 14.sp, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                        if (height >= 74.dp) Text("${occ.start.format(TimeFmt)} to ${occ.end.format(TimeFmt)}", fontSize = 11.sp, lineHeight = 14.sp, color = muted, maxLines = 1)
+                                        if (height >= 96.dp) Text(listOfNotNull(kindText(occ), occ.room?.takeIf { it.isNotBlank() }).joinToString(", "), fontSize = 11.sp, lineHeight = 14.sp, color = muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
                                     }
                                 }
                                 if (today && nowMinutes in (range.from * 60)..(range.to * 60)) {
-                                    Box(Modifier.offset(y = HourHeight * ((nowMinutes - range.from * 60) / 60f)).fillMaxWidth().height(2.dp).background(c.riskFg))
+                                    Box(Modifier.offset(y = HourHeight * ((nowMinutes - range.from * 60) / 60f)).padding(horizontal = 4.dp).fillMaxWidth().height(2.dp).clip(RoundedCornerShape(50)).background(c.riskFg))
                                 }
                             }
                         }

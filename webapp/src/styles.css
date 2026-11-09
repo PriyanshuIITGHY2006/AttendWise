@@ -391,34 +391,40 @@ button.panel:hover { border-color: var(--outline); }
 @keyframes ls-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .ls * { animation-play-state: paused !important; } }
 
-/* Week timetable */
+/* Week timetable: a soft lane per day, quiet white cards for classes, like Today and Courses */
 .page.wide { max-width: 1120px; }
-.wk-scroll { overflow-x: auto; }
-.wk { display: grid; grid-template-columns: 48px repeat(var(--cols), minmax(118px, 1fr)); min-width: max-content; width: 100%; }
-.wk-head { position: sticky; top: 0; z-index: 3; display: grid; justify-items: center; align-content: start; gap: 0; padding: 10px 4px 6px; min-height: 76px; border-bottom: 1px solid var(--outline-soft); border-left: 1px solid var(--outline-soft); background: var(--card); }
-.wk-corner { border-left: 0; }
-.wk-dow { font-size: 12px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-.wk-date { font: 400 20px/1.1 var(--display); }
-.wk-head.today { background: var(--primary-bg); }
-.wk-head.today .wk-date { color: var(--primary); }
-.wk-swap { margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--tight); background: var(--tight-bg); border-radius: 99px; padding: 0 7px; line-height: 17px; }
-.wk-gutter { position: relative; }
-.wk-gutter span { position: absolute; right: 6px; transform: translateY(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
-.wk-gutter span:first-child { transform: none; }
-.wk-col { position: relative; border-left: 1px solid var(--outline-soft); }
-.wk-col.today { background: color-mix(in srgb, var(--primary-bg) 55%, transparent); }
-.wk-line { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--outline-soft); opacity: 0.7; pointer-events: none; }
-.wk-off { position: absolute; inset: 0; z-index: 1; display: grid; align-content: start; gap: 4px; padding: 14px 8px; background: repeating-linear-gradient(135deg, transparent 0 10px, color-mix(in srgb, var(--swap) 10%, transparent) 10px 20px); background-color: var(--swap-bg); color: var(--swap); font-size: 13px; text-align: center; }
+.wk-scroll { overflow-x: auto; margin: 0 -4px; padding: 2px 4px 14px; }
+.wk { display: grid; grid-template-columns: 44px repeat(var(--cols), minmax(132px, 1fr)); gap: 10px; min-width: max-content; width: 100%; }
+.wk-gh { height: 86px; }
+.wk-gbody { position: relative; }
+.wk-gbody span { position: absolute; right: 2px; transform: translateY(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
+.wk-gbody span:first-child { transform: none; }
+.wk-lane { border-radius: 22px; background: color-mix(in srgb, var(--card) 38%, transparent); border: 1px solid var(--outline-soft); overflow: hidden; }
+.wk-lane.today { background: color-mix(in srgb, var(--primary-bg) 70%, transparent); border-color: color-mix(in srgb, var(--primary) 35%, var(--outline-soft)); }
+.wk-lane > .wk-gh { display: grid; justify-items: center; align-content: start; gap: 2px; padding: 12px 6px 0; }
+.wk-dow { font-size: 11px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+.wk-date { display: grid; place-items: center; min-width: 34px; height: 34px; padding: 0 6px; border-radius: 99px; font: 400 21px/1 var(--display); }
+.wk-lane.today .wk-date { background: var(--primary); color: var(--on-primary); }
+.wk-swap { margin-top: 1px; font-size: 11px; font-weight: 600; color: var(--tight); background: var(--tight-bg); border-radius: 99px; padding: 0 8px; line-height: 17px; }
+.wk-body { position: relative; }
+.wk-line { position: absolute; left: 10px; right: 10px; height: 0; border-top: 1px dashed color-mix(in srgb, var(--outline) 32%, transparent); pointer-events: none; }
+.wk-off { position: absolute; inset: 0; z-index: 1; display: grid; align-content: start; justify-items: center; gap: 6px; padding: 22px 10px; color: var(--swap); font-size: 14px; text-align: center; background: repeating-linear-gradient(135deg, transparent 0 9px, color-mix(in srgb, var(--swap) 8%, transparent) 9px 18px); }
 .wk-off span { color: var(--muted); font-size: 12px; }
-.wk-block { position: absolute; z-index: 2; display: grid; align-content: start; gap: 1px; text-align: left; overflow: hidden; padding: 4px 18px 4px 8px; border: 0; border-left: 4px solid var(--c); border-radius: 8px; background: color-mix(in srgb, var(--c) 18%, var(--card)); color: var(--fg); line-height: 1.2; }
-.wk-block:hover { background: color-mix(in srgb, var(--c) 28%, var(--card)); }
-.wk-name { font-size: 12.5px; font-weight: 600; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.wk-kind { font-size: 10.5px; color: var(--muted); }
-.wk-block.off { --c: var(--outline); background: color-mix(in srgb, var(--outline) 14%, var(--card)); color: var(--muted); }
-.wk-block.cancelled .wk-name { text-decoration: line-through; }
-.wk-block.planned { border-top: 1.5px dashed var(--risk); border-right: 1.5px dashed var(--risk); border-bottom: 1.5px dashed var(--risk); }
-.wk-mark { position: absolute; top: 3px; right: 5px; font-size: 11px; font-weight: 700; }
-.wk-mark.ok { color: var(--present); } .wk-mark.no { color: var(--risk); } .wk-mark.un { color: var(--tight); }
-.wk-now { position: absolute; z-index: 4; left: 0; right: 0; height: 2px; background: var(--risk); pointer-events: none; }
-.wk-now::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--risk); }
+.wk-block { position: absolute; z-index: 2; display: grid; align-content: start; gap: 1px; text-align: left; overflow: hidden; padding: 6px 9px; border: 1px solid var(--outline-soft); border-radius: 14px; color: var(--fg); line-height: 1.25;
+  background: color-mix(in srgb, var(--c) 8%, var(--card)); transition: border-color 0.12s ease; }
+.wk-block:hover { border-color: color-mix(in srgb, var(--c) 55%, var(--outline-soft)); }
+.wk-top { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.wk-sq { flex: none; width: 9px; height: 9px; border-radius: 3px; background: var(--c); }
+.wk-code { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-st { margin-left: auto; display: inline-flex; flex: none; }
+.wk-st.ok { color: var(--present); } .wk-st.no { color: var(--risk); } .wk-st.un { color: var(--tight); font-size: 12px; font-weight: 700; }
+.wk-skip { margin-left: auto; flex: none; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--risk); }
+.wk-name { font-size: 11.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wk-time, .wk-kind { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wk-block.planned { border: 1.5px dashed var(--risk); background: color-mix(in srgb, var(--risk-bg) 55%, var(--card)); }
+.wk-block.off { background: var(--variant); color: var(--muted); }
+.wk-block.off .wk-sq { background: var(--outline); }
+.wk-block.cancelled .wk-code { text-decoration: line-through; }
+.wk-now { position: absolute; z-index: 4; left: 4px; right: 4px; height: 2px; border-radius: 2px; background: var(--risk); pointer-events: none; }
+.wk-now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--risk); }
 .wk-detail { display: grid; gap: 2px; padding-bottom: 10px; }
