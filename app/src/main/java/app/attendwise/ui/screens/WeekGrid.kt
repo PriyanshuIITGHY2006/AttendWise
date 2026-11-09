@@ -25,10 +25,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +38,9 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -65,6 +70,8 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
 import java.util.Locale
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 private val HourHeight = 56.dp
 private val Gutter = 44.dp
@@ -111,6 +118,7 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
     val gridHeight = HourHeight * hours
     val isThisWeek = monday == mondayOf(d.now.date)
     val nowMinutes = d.now.time.hour * 60 + d.now.time.minute
+    val haptics = LocalHapticFeedback.current
 
     Column(modifier) {
         Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -120,12 +128,20 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
             TextButton(onClick = { monday = monday.plusWeeks(1) }) { AppIcon(R.drawable.ic_chevron_right, "Next week", size = 20.dp) }
         }
         BoxWithConstraints(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp)) {
-            val colWidth = maxOf(132.dp, (maxWidth - Gutter - LaneGap * days.size) / days.size)
+            val colWidth = maxOf(132.dp, (maxWidth - Gutter - LaneGap * (days.size - 1)) / days.size)
             val horizontal = rememberScrollState()
+            val density = LocalDensity.current
+            // On a phone the week is wider than the screen, so bring today's column into view.
+            LaunchedEffect(monday, colWidth) {
+                val index = days.indexOf(d.now.date)
+                val target = if (index >= 0) with(density) { ((colWidth + LaneGap) * index).roundToPx() } else 0
+                withTimeoutOrNull(300) { snapshotFlow { horizontal.maxValue }.first { it > 0 } }
+                horizontal.animateScrollTo(target)
+            }
             val line = MaterialTheme.colorScheme.outlineVariant
             val laneShape = RoundedCornerShape(22.dp)
             Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                Row(Modifier.horizontalScroll(horizontal), horizontalArrangement = Arrangement.spacedBy(LaneGap)) {
+                Row {
                     Column(Modifier.width(Gutter)) {
                         Spacer(Modifier.height(HeaderHeight))
                         Box(Modifier.fillMaxWidth().height(gridHeight)) {
@@ -137,6 +153,7 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
                             }
                         }
                     }
+                    Row(Modifier.weight(1f).horizontalScroll(horizontal), horizontalArrangement = Arrangement.spacedBy(LaneGap)) {
                     days.forEach { date ->
                         val info = d.dayInfo(date)
                         val today = date == d.now.date
@@ -224,6 +241,7 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
                             }
                         }
                     }
+                    }
                 }
             }
         }
@@ -234,7 +252,7 @@ fun WeekView(vm: AppViewModel, d: Derived, modifier: Modifier = Modifier) {
         MarkDialog(
             title = d.data.courseInfo[occ.courseId]?.name ?: d.data.code(occ.courseId),
             current = occ.mark?.status,
-            onPick = { vm.mark(occ.key, occ.end, it); editing = null },
+            onPick = { haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove); vm.mark(occ.key, occ.end, it); editing = null },
             onDismiss = { editing = null },
             details = {
                 Column(Modifier.padding(bottom = 10.dp)) {

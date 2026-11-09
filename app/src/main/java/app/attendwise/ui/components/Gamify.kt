@@ -44,7 +44,9 @@ import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -170,7 +172,9 @@ private fun CelebrationDialog(moment: Moment, more: Boolean, onNext: () -> Unit)
     val context = LocalContext.current
     val calm = remember { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f }
     val pop = remember { Animatable(0.2f) }
+    val haptics = LocalHapticFeedback.current
     LaunchedEffect(moment) {
+        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         pop.snapTo(0.2f)
         pop.animateTo(1f, spring(dampingRatio = 0.45f, stiffness = Spring.StiffnessLow))
     }

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   addDays, dayFmt, hasEnded, hasStarted, hourRange, isNeutral, layoutDay, mondayOf, toMinutes, weekdayOf, weekDates, weekLabel, WEEKDAY_LONG, WEEKDAY_SHORT,
   type ClassOccurrence, type DayInfo,
@@ -30,6 +30,7 @@ export function WeekGrid() {
   const d = s.derived
   const [monday, setMonday] = useState(mondayOf(d.now.date))
   const [editing, setEditing] = useState<ClassOccurrence | null>(null)
+  const scroller = useRef<HTMLDivElement>(null)
 
   const byDate = useMemo(() => {
     const m = new Map<string, ClassOccurrence[]>()
@@ -42,6 +43,14 @@ export function WeekGrid() {
   const hours = Array.from({ length: to - from }, (_, i) => from + i)
   const height = (to - from) * HOUR_PX
   const isThisWeek = monday === mondayOf(d.now.date)
+
+  // On a narrow screen the week is wider than the window, so bring today's column into view.
+  useEffect(() => {
+    const el = scroller.current
+    if (!el) return
+    const today = el.querySelector<HTMLElement>('.wk-lane.today')
+    el.scrollTo({ left: today ? Math.max(0, today.offsetLeft - (el.clientWidth - today.offsetWidth) / 2) : 0 })
+  }, [monday])
 
   // The "now" line moves with the clock, so keep it fresh.
   const [, tick] = useState(0)
@@ -59,14 +68,15 @@ export function WeekGrid() {
         <button className="icon-btn" aria-label="Next week" onClick={() => setMonday(addDays(monday, 7))}><Icon name="chevron_right" size={20} /></button>
       </div>
 
-      <div className="wk-scroll">
-        <div className="wk" style={{ ['--cols' as string]: days.length }}>
-          <div className="wk-gutter">
-            <div className="wk-gh" />
-            <div className="wk-gbody" style={{ height }}>
-              {hours.map((h) => <span key={h} style={{ top: (h - from) * HOUR_PX }}>{hourLabel(h)}</span>)}
-            </div>
+      <div className="wk-wrap">
+        <div className="wk-gutter">
+          <div className="wk-gh" />
+          <div className="wk-gbody" style={{ height }}>
+            {hours.map((h) => <span key={h} style={{ top: (h - from) * HOUR_PX }}>{hourLabel(h)}</span>)}
           </div>
+        </div>
+        <div className="wk-scroll" ref={scroller}>
+        <div className="wk" style={{ ['--cols' as string]: days.length }}>
 
           {days.map((date) => {
             const info = d.dayInfo(date)
@@ -132,6 +142,7 @@ export function WeekGrid() {
               </section>
             )
           })}
+        </div>
         </div>
       </div>
 

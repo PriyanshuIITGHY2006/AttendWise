@@ -393,10 +393,13 @@ button.panel:hover { border-color: var(--outline); }
 
 /* Week timetable: a soft lane per day, quiet white cards for classes, like Today and Courses */
 .page.wide { max-width: 1120px; }
-.wk-scroll { overflow-x: auto; margin: 0 -4px; padding: 2px 4px 14px; }
-.wk { display: grid; grid-template-columns: 44px repeat(var(--cols), minmax(132px, 1fr)); gap: 10px; min-width: max-content; width: 100%; }
+.wk-wrap { display: flex; gap: 6px; align-items: flex-start; min-width: 0; max-width: 100%; }
+.wk-gutter { flex: none; width: 40px; padding-top: 2px; }
+.wk-scroll { flex: 1; min-width: 0; overflow-x: auto; padding: 2px 2px 14px; scroll-behavior: smooth; overscroll-behavior-x: contain; }
+.wk { display: grid; grid-template-columns: repeat(var(--cols), minmax(132px, 1fr)); gap: 10px; min-width: max-content; width: 100%; }
 .wk-gh { height: 86px; }
 .wk-gbody { position: relative; }
+.wk-gutter .wk-gh { padding: 0; }
 .wk-gbody span { position: absolute; right: 2px; transform: translateY(-50%); font-size: 11px; color: var(--muted); white-space: nowrap; }
 .wk-gbody span:first-child { transform: none; }
 .wk-lane { border-radius: 22px; background: color-mix(in srgb, var(--card) 38%, transparent); border: 1px solid var(--outline-soft); overflow: hidden; }
