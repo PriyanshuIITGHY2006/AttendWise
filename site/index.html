@@ -50,7 +50,8 @@
     "https://priyanshuiitghy2006.github.io/AttendWise/img/today.webp",
     "https://priyanshuiitghy2006.github.io/AttendWise/img/courses.webp",
     "https://priyanshuiitghy2006.github.io/AttendWise/img/plan.webp",
-    "https://priyanshuiitghy2006.github.io/AttendWise/img/calendar.webp"
+    "https://priyanshuiitghy2006.github.io/AttendWise/img/calendar.webp",
+    "https://priyanshuiitghy2006.github.io/AttendWise/img/profile.webp"
   ],
   "author": {
     "@type": "Person",
@@ -197,6 +198,7 @@
   .duo .p2 { z-index: 1; width: 122px; left: calc(50% + 24px); top: 100px; rotate: 6deg; }
   .duo.flip .p1 { width: 200px; left: calc(50% - 60px); rotate: 4deg; }
   .duo.flip .p2 { width: 120px; left: calc(50% - 140px); top: 90px; rotate: -6deg; }
+  .duo.solo .p1 { width: 200px; left: calc(50% - 100px); rotate: 3deg; }
   .tag {
     position: absolute; z-index: 3; padding: 9px 16px; border-radius: 14px; border: 2px solid var(--tag-edge);
     font: 500 1.0625rem/1.1 var(--body); white-space: nowrap; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
@@ -279,6 +281,7 @@
     .duo .p2 { width: 230px; left: calc(50% + 20px); top: 130px; }
     .duo.flip .p1 { width: 290px; left: calc(50% - 30px); }
     .duo.flip .p2 { width: 230px; left: calc(50% - 290px); }
+    .duo.solo .p1 { width: 290px; left: calc(50% - 145px); }
     .phone { padding: 10px; border-radius: 46px; }
     .phone img { border-radius: 36px; }
     .split { grid-template-columns: 1fr 1fr; gap: 64px; }
@@ -385,11 +388,14 @@
         <div class="phone p1">
           <picture>
             <source srcset="/AttendWise/img/today-dark.webp" media="(prefers-color-scheme: dark)">
-            <img src="/AttendWise/img/today.webp" width="780" height="1688" fetchpriority="high" decoding="async" alt="The Today screen: five classes for Thursday 1 October with present and absent buttons, a day swap notice and a Can I bunk today card.">
+            <img src="/AttendWise/img/today.webp" width="780" height="1688" fetchpriority="high" decoding="async" alt="The Today screen: four classes for Tuesday 10 November, each with its status, and a Can I bunk today card.">
           </picture>
         </div>
         <div class="phone p2">
-          <img src="/AttendWise/img/courses.webp" width="780" height="1688" alt="The Courses screen: five courses with attendance rings and how many safe skips each has left.">
+          <picture>
+            <source srcset="/AttendWise/img/courses-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="/AttendWise/img/courses.webp" width="780" height="1688" alt="The Courses screen: courses with attendance rings and how many safe skips each has left.">
+          </picture>
         </div>
         <span class="tag orange t-hero-a"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 2l18 8-8 2-2 8z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"></path></svg>Safe to skip, 4 left</span>
         <span class="tag blue t-hero-b"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 2l18 8-8 2-2 8z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"></path></svg>Marked present</span>
@@ -403,14 +409,20 @@
       <div class="glass">
         <h2>What is AttendWise?</h2>
         <p class="muted">A native Android app for college attendance. It keeps your timetable, counts every class, and tells you how many classes you can still skip in each course before you drop under the requirement.</p>
-        <p class="muted">Today's classes, safe skips per course, a day-off planner, the institute calendar with day swaps, and home-screen widgets, all in one place.</p>
+        <p class="muted">Today's classes, safe skips per course, a day-off planner, a weekly timetable, the institute calendar with day swaps, and home-screen widgets, all in one place.</p>
       </div>
       <div class="duo flip" data-speed="0.04">
         <div class="phone p1">
-          <img src="/AttendWise/img/plan.webp" width="780" height="1688" loading="lazy" alt="The Plan screen: a month calendar with two days off chosen and a verdict for each course.">
+          <picture>
+            <source srcset="/AttendWise/img/plan-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="/AttendWise/img/plan.webp" width="780" height="1688" loading="lazy" alt="The Plan screen: a month calendar with days off chosen and a verdict for each course.">
+          </picture>
         </div>
         <div class="phone p2">
-          <img src="/AttendWise/img/calendar.webp" width="780" height="1688" loading="lazy" alt="The Calendar screen: a month with holidays, a day swap and the day's classes.">
+          <picture>
+            <source srcset="/AttendWise/img/calendar-dark.webp" media="(prefers-color-scheme: dark)">
+            <img src="/AttendWise/img/calendar.webp" width="780" height="1688" loading="lazy" alt="The weekly timetable: one column per day with each class at its real time, a holiday column and a day swap.">
+          </picture>
         </div>
         <span class="tag orange t-what"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 2l18 8-8 2-2 8z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"></path></svg>Runs Friday</span>
       </div>
@@ -454,6 +466,31 @@
           <h3>Reminders you can answer</h3>
           <p>Get a reminder before each class and a prompt after it. Tap Present, Absent or Cancelled right from the notification.</p>
         </div>
+        <div class="feat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="17" rx="3"></rect><path d="M9 4v17M15 4v17M3 10h18"></path></svg>
+          <h3>Your week on one screen</h3>
+          <p>A timetable with one column per day and every class at its real time. Holidays fill their column and swapped days are marked.</p>
+        </div>
+        <div class="feat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c1 3.5 5 5 5 9.5a5 5 0 0 1-10 0c0-1.7.7-3 1.8-4 .2 1.5 1 2.3 2 2.5C11 8.5 11 5.5 12 3z"></path></svg>
+          <h3>Streaks and badges</h3>
+          <p>Attend classes in a row to build a streak, earn badges along the way, and pick an avatar. A small celebration marks each new badge.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="what slide" id="streaks">
+    <div class="wrap split">
+      <div class="duo solo" data-speed="0.04">
+        <div class="phone p1">
+          <img src="/AttendWise/img/profile.webp" width="780" height="1688" loading="lazy" alt="The Profile screen: an avatar, a class streak with the last sixteen classes as dots, and a grid of badges with the next one to earn.">
+        </div>
+      </div>
+      <div class="glass">
+        <h2>Keep a streak going</h2>
+        <p class="muted">Every class you attend in a row adds to your streak, and your best streak is kept. Earn badges for long streaks, early mornings, lab days and perfect weeks, and choose one of twelve avatars for your profile.</p>
+        <p class="muted">Nothing here nudges you to skip. Cancelled and on-duty classes never break a streak.</p>
       </div>
     </div>
   </section>

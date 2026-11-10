@@ -33,14 +33,27 @@
 <br>
 
 <p align="center">
-  <img src="site/img/today.webp" alt="Today screen" width="23%">
-  <img src="site/img/courses.webp" alt="Courses screen" width="23%">
-  <img src="site/img/plan.webp" alt="Plan screen" width="23%">
-  <img src="site/img/calendar.webp" alt="Calendar screen" width="23%">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/img/today-dark.webp">
+    <img src="site/img/today.webp" alt="Today screen" width="18%">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/img/courses-dark.webp">
+    <img src="site/img/courses.webp" alt="Courses screen" width="18%">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/img/plan-dark.webp">
+    <img src="site/img/plan.webp" alt="Plan screen" width="18%">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="site/img/calendar-dark.webp">
+    <img src="site/img/calendar.webp" alt="Weekly timetable" width="18%">
+  </picture>
+  <img src="site/img/profile.webp" alt="Profile with streak and badges" width="18%">
 </p>
 
 <p align="center">
-  <sub>Today, Courses, Plan and Calendar. These are design mockups of the main screens.</sub>
+  <sub>Today, Courses, Plan, the weekly timetable and Profile, from the Android app. The screens follow your phone's light or dark theme.</sub>
 </p>
 
 <br>
@@ -57,21 +70,21 @@ AttendWise is an attendance tracker. It does not encourage anyone to skip classe
 - **Courses.** An attendance ring per course, how many safe skips are left, and zero-tolerance courses such as labs flagged so they are never skipped by accident. Each course has its own requirement.
 - **Course detail.** Attended, missed, left and planned classes, what you need to recover, a projection to the end of the semester, the course timetable and the marking history.
 - **Plan.** Pick the days you want off and see, per course, whether those classes are safe, risky or must be attended. Plans can be applied and undone.
-- **Calendar.** The institute calendar with holidays, exams and day swaps, so a Thursday that runs Friday's timetable shows Friday's classes.
+- **Calendar.** A weekly timetable with one column per day and every class at its real time and length, and a month view. Holidays fill their column and day swaps are marked, so a Thursday that runs Friday's timetable shows Friday's classes. Tap a class to see its room and mark it.
+- **Profile.** Pick one of twelve avatars, follow your class streak (classes attended in a row, with your best and your last sixteen classes), and unlock nine badges as you go, with a small celebration for each new one. Settings sit one tap away at the end of the page.
 - **Widgets.** Five home screen widgets: today's classes, next class, course ring, "Can I bunk today?" and courses that need attention. Classes can be marked from the widget.
 - **Notifications.** A reminder before each class and a prompt after it, with Present, Absent and Cancelled buttons on the notification. Reminders the evening before a planned skip, a daily digest of unmarked classes, quiet hours, and three wording styles (roast, plain, kuchupuchu).
 - **Works offline.** Everything runs from the on-device database. Sync happens in the background when there is a network.
-- **Themes.** Light, dark or follow the system, plus a launcher icon that changes colour with your attendance.
+- **Themes.** Light, dark or follow the system, plus a launcher icon that changes colour with your attendance. The loading screen shows a different small animated scene each launch.
 - **In-app updates.** The app checks GitHub Releases for a newer build and installs it from inside the app.
 
 <p align="center">
   <img src="site/img/widgets.webp" alt="Home screen widgets" width="30%">
   <img src="site/img/notifications.webp" alt="Notifications with action buttons" width="30%">
-  <img src="site/img/today-dark.webp" alt="Today screen in dark mode" width="30%">
 </p>
 
 <p align="center">
-  <sub>Widgets, notifications with action buttons, and dark mode.</sub>
+  <sub>Home screen widgets and notifications with action buttons. These two are design mockups.</sub>
 </p>
 
 ## Install
