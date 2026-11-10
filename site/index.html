@@ -316,6 +316,12 @@
     .btn { transition: filter 0.2s ease, transform 0.2s ease; }
     .btn:hover { transform: translateY(-2px); }
   }
+  /* Phones: the frosted blur is the most expensive thing to repaint while scrolling, so use a flat panel instead. */
+  @media (max-width: 819px) {
+    html { scroll-behavior: auto; }
+    .glass { -webkit-backdrop-filter: none; backdrop-filter: none; }
+    .arc { animation: none; }
+  }
 </style>
 <script>
   document.documentElement.className += ' js';
@@ -570,6 +576,10 @@
 </footer>
 
 <script>
+  // Phones and touch screens get a plain page: no slide stacking and no drifting. The browser's address bar slides in
+  // and out while scrolling there, which resizes the window on every flick and made the stacked slides jump.
+  var calm = !!(window.matchMedia && window.matchMedia('(max-width: 819px), (pointer: coarse)').matches);
+
   // Fade and slide things in as they scroll into view, and drift the phone pairs slightly.
   (function () {
     if (!('IntersectionObserver' in window)) return;
@@ -593,6 +603,7 @@
       io.observe(el);
     });
 
+    if (calm) return;
     var drift = document.querySelectorAll('[data-speed]');
     var ticking = false;
     function update() {
@@ -612,7 +623,7 @@
 
   // Stack the slides: the next slide slides up over the current one, which scales back and dims.
   (function () {
-    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    if (calm || (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
     var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
     if (slides.length < 2) return;
     var ticking = false;
