@@ -431,3 +431,24 @@ button.panel:hover { border-color: var(--outline); }
 .wk-now { position: absolute; z-index: 4; left: 4px; right: 4px; height: 2px; border-radius: 2px; background: var(--risk); pointer-events: none; }
 .wk-now::before { content: ""; position: absolute; left: -3px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--risk); }
 .wk-detail { display: grid; gap: 2px; padding-bottom: 10px; }
+
+/* Sign in */
+.signin-wrap { min-height: 100vh; min-height: 100dvh; display: flex; justify-content: center; padding: 0 16px 24px; overflow-x: clip; }
+.signin { width: min(440px, 100%); display: flex; flex-direction: column; min-height: 100dvh; }
+.signin-hero { position: relative; flex: 1 1 300px; min-height: 300px; margin: 0 -4px; }
+.signin-hero .scene { position: absolute; right: -10px; bottom: -14px; width: 300px; height: 222px; pointer-events: none; overflow: visible; }
+.signin-hero .brand { position: absolute; left: 4px; top: 26px; padding: 0; z-index: 2; }
+.signin-back { position: absolute; right: 8px; top: 38px; z-index: 2; font-size: 14px; font-weight: 600; color: var(--muted); text-decoration: none; padding: 6px 10px; border-radius: 99px; background: color-mix(in srgb, var(--card) 55%, transparent); }
+.signin-body { display: grid; gap: 12px; position: relative; padding-top: 6px; }
+.signin-body .h1 { font-size: 34px; line-height: 1.08; }
+.signin-body .caption { margin-bottom: -4px; }
+.g-btn { display: flex; align-items: center; justify-content: center; gap: 12px; min-height: 58px; width: 100%; margin-top: 8px; border-radius: 20px; border: 1px solid var(--outline-soft); background: var(--card); color: var(--fg); font: 600 17px var(--body); box-shadow: 0 8px 22px rgba(11, 16, 32, 0.1); transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.g-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(11, 16, 32, 0.14); }
+.g-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.signin-alt { justify-self: center; padding: 10px 14px; }
+.signin-form { display: grid; gap: 12px; }
+.signin-or { display: flex; align-items: center; gap: 12px; color: var(--muted); font-size: 13px; }
+.signin-or::before, .signin-or::after { content: ""; flex: 1; height: 1px; background: var(--outline-soft); }
+.signin-msg { padding: 10px 14px; border-radius: 14px; background: var(--risk-bg); color: var(--risk); font-size: 14px; }
+.signin-legal { color: var(--muted); text-align: center; margin-top: 6px; }
+.signin-legal a { color: var(--primary); }

@@ -122,7 +122,7 @@ private fun rememberSceneClock(period: DayPeriod): SceneClock {
 }
 
 @Composable
-private fun DayScene(period: DayPeriod, modifier: Modifier = Modifier) {
+internal fun DayScene(period: DayPeriod, modifier: Modifier = Modifier) {
     val clock = rememberSceneClock(period)
     val palette = ScenePalette(LocalDarkTheme.current, MaterialTheme.colorScheme.onBackground)
     Canvas(modifier) {

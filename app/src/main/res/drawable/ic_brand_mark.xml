@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The AttendWise mark on its own: a rising line with a tick, in the brand blue. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="40dp"
+    android:height="40dp"
+    android:viewportWidth="256"
+    android:viewportHeight="256">
+    <path
+        android:pathData="M62,192 L116,65 Q121,53 127,65 L148,115"
+        android:strokeColor="#2463EB"
+        android:strokeWidth="21"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <path
+        android:pathData="M111,151 l25,24 l62,-77"
+        android:strokeColor="#2463EB"
+        android:strokeWidth="21"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
