@@ -44,7 +44,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -160,7 +160,7 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
                     Image(
                         painterResource(DOODLES[i].let { if (dark) it.second else it.first }),
                         contentDescription = null, contentScale = ContentScale.Fit,
-                        modifier = Modifier.fillMaxSize().offset(y = bob.dp),
+                        modifier = Modifier.fillMaxSize().graphicsLayer { translationY = bob.dp.toPx() },
                     )
                 }
             }

@@ -102,7 +102,7 @@ fun ReportScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onBack: (
     val scope = rememberCoroutineScope()
     val theme by vm.theme.collectAsState()
     val colors = MaterialTheme.colorScheme
-    val session = vm.api.session.value
+    val session by vm.api.session.collectAsState()
     val name = d.data.profile?.fullName ?: session?.user?.displayName ?: ""
     val email = session?.user?.email ?: ""
     val versionName = remember { runCatching { context.packageManager.getPackageInfo(context.packageName, 0).versionName }.getOrNull() ?: "" }
