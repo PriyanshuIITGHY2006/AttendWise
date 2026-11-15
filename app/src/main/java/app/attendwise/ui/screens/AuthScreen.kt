@@ -72,6 +72,24 @@ import app.attendwise.domain.time.DayPeriod
 import app.attendwise.domain.time.greeting
 import app.attendwise.ui.components.DayScene
 import java.time.LocalTime
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import androidx.compose.ui.draw.scale
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.AnimatedVisibility
 import app.attendwise.ui.AppViewModel
 import app.attendwise.ui.components.AppIcon
 import app.attendwise.ui.components.LoaderScene
@@ -79,6 +97,14 @@ import app.attendwise.ui.components.Ring
 import app.attendwise.ui.theme.LocalStatusColors
 
 private const val SITE = "https://priyanshudebnath.me/AttendWise/"
+
+/** Open Doodles by Pablo Stanley (public domain). Light and dark drawings, in the order they take turns. */
+private val DOODLES = listOf(
+    R.drawable.doodle_reading_light to R.drawable.doodle_reading_dark,
+    R.drawable.doodle_running_light to R.drawable.doodle_running_dark,
+    R.drawable.doodle_float_light to R.drawable.doodle_float_dark,
+    R.drawable.doodle_laying_light to R.drawable.doodle_laying_dark,
+)
 
 /** Sign in: a scene for the time of day, one big Google button, and email tucked away until it is needed. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -94,13 +120,23 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
     val uri = LocalUriHandler.current
     val colors = MaterialTheme.colorScheme
     val buttonShape = RoundedCornerShape(20.dp)
+    val dark = LocalDarkTheme.current
+    var slide by rememberSaveable { mutableIntStateOf(0) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(4200)
+            slide = (slide + 1) % DOODLES.size
+        }
+    }
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
         val screenHeight = maxHeight
         Column(
-            Modifier.heightIn(min = screenHeight).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
+            Modifier.verticalScroll(scroll).padding(horizontal = 24.dp),
         ) {
+          Column(Modifier.heightIn(min = screenHeight), verticalArrangement = Arrangement.SpaceBetween) {
             Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Color.White), contentAlignment = Alignment.Center) {
                     Image(painterResource(R.drawable.ic_brand_mark), null, Modifier.size(32.dp))
@@ -116,11 +152,17 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
 
             Column {
             Box(Modifier.fillMaxWidth().padding(top = 16.dp).height(230.dp), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(210.dp).clip(CircleShape).background(colors.primary.copy(alpha = 0.14f)))
-                Image(
-                    painterResource(if (LocalDarkTheme.current) R.drawable.doodle_laying_dark else R.drawable.doodle_laying_light),
-                    contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize(),
-                )
+                val pulse = rememberInfiniteTransition(label = "doodle")
+                val bob by pulse.animateFloat(-6f, 6f, infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "bob")
+                val glow by pulse.animateFloat(0.9f, 1.06f, infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "glow")
+                Box(Modifier.size(210.dp).scale(glow).clip(CircleShape).background(colors.primary.copy(alpha = 0.14f)))
+                Crossfade(targetState = slide, animationSpec = tween(700), label = "slide") { i ->
+                    Image(
+                        painterResource(DOODLES[i].let { if (dark) it.second else it.first }),
+                        contentDescription = null, contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize().offset(y = bob.dp),
+                    )
+                }
             }
 
             Text(greeting(period, null), color = colors.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -143,11 +185,32 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
                 Text("Continue with Google", fontWeight = FontWeight.SemiBold, fontSize = 17.sp)
             }
 
-            if (!emailOpen) {
-                TextButton(onClick = { emailOpen = true }, modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp)) {
-                    Text("Use email instead", fontWeight = FontWeight.SemiBold)
-                }
-            } else {
+            TextButton(
+                onClick = {
+                    emailOpen = !emailOpen
+                    if (emailOpen) scope.launch { delay(350); scroll.animateScrollTo(scroll.maxValue) }
+                },
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 4.dp),
+            ) {
+                Text(if (emailOpen) "Hide email sign in" else "Use email instead", fontWeight = FontWeight.SemiBold)
+            }
+
+            val link = TextLinkStyles(SpanStyle(color = colors.primary, textDecoration = TextDecoration.Underline))
+            Text(
+                buildAnnotatedString {
+                    append("By continuing you agree to the ")
+                    withLink(LinkAnnotation.Url(SITE + "terms.html", link)) { append("terms") }
+                    append(" and the ")
+                    withLink(LinkAnnotation.Url(SITE + "privacy.html", link)) { append("privacy policy") }
+                    append(".")
+                },
+                fontSize = 12.sp, color = colors.onSurfaceVariant, textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 16.dp),
+            )
+            }
+          }
+          AnimatedVisibility(visible = emailOpen, enter = expandVertically(tween(420)) + fadeIn(tween(420)), exit = shrinkVertically(tween(300)) + fadeOut(tween(200))) {
+            Column(Modifier.padding(bottom = 28.dp)) {
                 Row(Modifier.fillMaxWidth().padding(vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                     HorizontalDivider(Modifier.weight(1f))
                     Text("  or with email  ", color = colors.onSurfaceVariant, fontSize = 13.sp)
@@ -192,20 +255,7 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
                     }
                 }
             }
-
-            val link = TextLinkStyles(SpanStyle(color = colors.primary, textDecoration = TextDecoration.Underline))
-            Text(
-                buildAnnotatedString {
-                    append("By continuing you agree to the ")
-                    withLink(LinkAnnotation.Url(SITE + "terms.html", link)) { append("terms") }
-                    append(" and the ")
-                    withLink(LinkAnnotation.Url(SITE + "privacy.html", link)) { append("privacy policy") }
-                    append(".")
-                },
-                fontSize = 12.sp, color = colors.onSurfaceVariant, textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 16.dp),
-            )
-            }
+          }
         }
     }
 }

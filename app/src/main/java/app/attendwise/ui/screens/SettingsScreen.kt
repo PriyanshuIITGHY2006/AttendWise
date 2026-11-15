@@ -60,7 +60,7 @@ import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun SettingsScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onBack: () -> Unit, onSemester: () -> Unit) {
+fun SettingsScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onBack: () -> Unit, onSemester: () -> Unit, onReport: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val profile = d.data.profile
@@ -187,6 +187,19 @@ fun SettingsScreen(vm: AppViewModel, d: Derived, padding: PaddingValues, onBack:
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 options.forEachIndexed { i, (key, label) ->
                     SegmentedButton(selected = theme == key, onClick = { vm.setTheme(key) }, shape = SegmentedButtonDefaults.itemShape(i, options.size), icon = {}) { Text(label, maxLines = 1, softWrap = false) }
+                }
+            }
+        }
+
+        item { Caption("Help") }
+        item {
+            Panel(onClick = onReport) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Report a problem or idea", style = MaterialTheme.typography.bodyLarge)
+                        Text("Send a message to the developer, with screenshots if you like", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    AppIcon(R.drawable.ic_chevron_right, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

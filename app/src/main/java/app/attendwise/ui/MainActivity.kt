@@ -57,6 +57,7 @@ import app.attendwise.ui.screens.OnboardingScreen
 import app.attendwise.ui.screens.PlanScreen
 import app.attendwise.ui.screens.ProfileScreen
 import app.attendwise.ui.screens.SemesterForm
+import app.attendwise.ui.screens.ReportScreen
 import app.attendwise.ui.screens.SettingsScreen
 import app.attendwise.ui.screens.StepTitle
 import app.attendwise.ui.screens.TodayScreen
@@ -213,7 +214,8 @@ private fun MainScaffold(vm: AppViewModel, snackbar: SnackbarHostState, pendingR
             }
             composable("calendar") { CalendarScreen(vm, d, padding) }
             composable("profile") { ProfileScreen(vm, d, padding, onSettings = { nav.navigate("settings") }) }
-            composable("settings") { SettingsScreen(vm, d, padding, onBack = { nav.popBackStack() }, onSemester = { nav.navigate("semester") }) }
+            composable("settings") { SettingsScreen(vm, d, padding, onBack = { nav.popBackStack() }, onSemester = { nav.navigate("semester") }, onReport = { nav.navigate("report") }) }
+            composable("report") { ReportScreen(vm, d, padding, onBack = { nav.popBackStack() }) }
             composable("course/{id}") { back ->
                 val id = back.arguments?.getString("id") ?: return@composable
                 CourseDetailScreen(vm, d, id, padding, onBack = { nav.popBackStack() }, onEdit = { nav.navigate("edit/$id") })

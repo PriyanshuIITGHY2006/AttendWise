@@ -179,6 +179,29 @@ class SupabaseClient(context: Context) {
         }
     }
 
+    /** Insert rows into a v2 table. */
+    suspend fun insert(table: String, rows: List<JsonObject>) {
+        if (rows.isEmpty()) return
+        val url = restUrl(table) { }
+        val payload = JsonArray(rows).toString().toRequestBody(jsonType)
+        authorized { token ->
+            Request.Builder().url(url)
+                .header("Content-Profile", SupabaseConfig.SCHEMA)
+                .header("Prefer", "return=minimal")
+                .bearer(token)
+                .post(payload)
+                .build()
+        }
+    }
+
+    /** Uploads one file into a private storage bucket. */
+    suspend fun upload(bucket: String, path: String, bytes: ByteArray, contentType: String) {
+        val url = "${SupabaseConfig.URL}/storage/v1/object/$bucket/$path"
+        authorized { token ->
+            Request.Builder().url(url).bearer(token).post(bytes.toRequestBody(contentType.toMediaType())).build()
+        }
+    }
+
     // Internals --------------------------------------------------------------
 
     private fun restUrl(table: String, extra: (HttpUrl.Builder) -> Unit): HttpUrl =
