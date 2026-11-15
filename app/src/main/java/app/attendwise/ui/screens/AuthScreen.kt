@@ -65,6 +65,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.layout.ContentScale
+import app.attendwise.ui.theme.LocalDarkTheme
 import app.attendwise.domain.time.DayPeriod
 import app.attendwise.domain.time.greeting
 import app.attendwise.ui.components.DayScene
@@ -94,21 +97,30 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
 
     BoxWithConstraints(Modifier.fillMaxSize().systemBarsPadding().imePadding()) {
         val screenHeight = maxHeight
-        Column(Modifier.heightIn(min = screenHeight).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-            Box(Modifier.weight(1f).fillMaxWidth().heightIn(min = 300.dp)) {
-                Row(Modifier.align(Alignment.TopStart).padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Color.White), contentAlignment = Alignment.Center) {
-                        Image(painterResource(R.drawable.ic_brand_mark), null, Modifier.size(32.dp))
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text("AttendWise", style = MaterialTheme.typography.headlineSmall)
+        Column(
+            Modifier.heightIn(min = screenHeight).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(13.dp)).background(Color.White), contentAlignment = Alignment.Center) {
+                    Image(painterResource(R.drawable.ic_brand_mark), null, Modifier.size(32.dp))
                 }
+                Spacer(Modifier.width(10.dp))
+                Text("AttendWise", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
                 Text(
                     "Website", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = colors.onSurfaceVariant,
-                    modifier = Modifier.align(Alignment.TopEnd).padding(top = 22.dp).clip(RoundedCornerShape(50))
-                        .background(colors.surfaceContainer.copy(alpha = 0.55f)).clickable { uri.openUri(SITE) }.padding(horizontal = 12.dp, vertical = 6.dp),
+                    modifier = Modifier.clip(RoundedCornerShape(50)).background(colors.surfaceContainer.copy(alpha = 0.55f))
+                        .clickable { uri.openUri(SITE) }.padding(horizontal = 12.dp, vertical = 6.dp),
                 )
-                DayScene(period, Modifier.align(Alignment.BottomEnd).offset(x = 14.dp, y = 10.dp).size(300.dp, 222.dp))
+            }
+
+            Column {
+            Box(Modifier.fillMaxWidth().padding(top = 16.dp).height(230.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(210.dp).clip(CircleShape).background(colors.primary.copy(alpha = 0.14f)))
+                Image(
+                    painterResource(if (LocalDarkTheme.current) R.drawable.doodle_laying_dark else R.drawable.doodle_laying_light),
+                    contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize(),
+                )
             }
 
             Text(greeting(period, null), color = colors.onSurfaceVariant, fontSize = 13.sp, fontWeight = FontWeight.Medium)
@@ -193,6 +205,7 @@ fun AuthScreen(vm: AppViewModel, onGoogle: () -> Unit) {
                 fontSize = 12.sp, color = colors.onSurfaceVariant, textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 16.dp),
             )
+            }
         }
     }
 }
