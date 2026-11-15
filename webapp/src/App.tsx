@@ -10,6 +10,8 @@ import { Courses } from './ui/screens/Courses'
 import { Onboarding } from './ui/screens/Onboarding'
 import { Plan } from './ui/screens/Plan'
 import { Profile, Settings } from './ui/screens/Profile'
+import { Inbox, INBOX_ROUTE } from './ui/screens/Inbox'
+import { Report } from './ui/screens/Report'
 import { Today } from './ui/screens/Today'
 
 const TABS: Array<[string, string, IconName]> = [['today', 'Today', 'today'], ['courses', 'Courses', 'courses'], ['plan', 'Plan', 'plan'], ['calendar', 'Calendar', 'calendar'], ['profile', 'Profile', 'profile']]
@@ -70,6 +72,8 @@ function Shell() {
   else if (head === 'calendar') page = <Calendar />
   else if (head === 'profile') page = <Profile go={go} />
   else if (head === 'settings') page = <Settings go={go} />
+  else if (head === 'report') page = <Report go={go} />
+  else if (head === INBOX_ROUTE) page = <Inbox go={go} />
   else page = <Today go={go} />
 
   return (
@@ -82,12 +86,12 @@ function Shell() {
           </button>
         </div>
         {TABS.map(([key, label, icon]) => (
-          <button key={key} type="button" className="nav-item" title={collapsed ? label : undefined} aria-label={label} aria-current={tab === key || (key === 'today' && tab !== 'settings' && !TABS.some(([k]) => k === tab)) ? 'page' : undefined} onClick={() => go(key)}>
+          <button key={key} type="button" className="nav-item" title={collapsed ? label : undefined} aria-label={label} aria-current={tab === key || (key === 'today' && tab !== 'settings' && tab !== 'report' && head !== INBOX_ROUTE && !TABS.some(([k]) => k === tab)) ? 'page' : undefined} onClick={() => go(key)}>
             <Icon name={icon} size={24} /><span className="label">{label}</span>
           </button>
         ))}
         <div className="grow" />
-        <button type="button" className="nav-item nav-settings" title={collapsed ? 'Settings' : undefined} aria-label="Settings" aria-current={head === 'settings' ? 'page' : undefined} onClick={() => go('settings')}>
+        <button type="button" className="nav-item nav-settings" title={collapsed ? 'Settings' : undefined} aria-label="Settings" aria-current={head === 'settings' || head === 'report' ? 'page' : undefined} onClick={() => go('settings')}>
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10" /><circle cx="16" cy="7" r="2" /><circle cx="8" cy="17" r="2" /></svg>
           <span className="label">Settings</span>
         </button>

@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useStore } from '../../data/store'
 import { dayPeriodOf, greeting, nowOf } from '../../domain'
 import { Segmented } from '../common'
-import { SCENE_SVG } from '../scene'
+import { SIGNIN_DOODLES } from '../doodle'
 import { LoaderScene } from '../LoaderScene'
 
 const base = import.meta.env.BASE_URL
@@ -22,6 +22,20 @@ export function AuthScreen() {
   const s = useStore()
   const [creating, setCreating] = useState(false)
   const [emailOpen, setEmailOpen] = useState(false)
+  const [slide, setSlide] = useState(0)
+  const [heroH, setHeroH] = useState<number | null>(null)
+  const heroRef = useRef<HTMLDivElement>(null)
+  const formRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const t = window.setInterval(() => setSlide((i) => (i + 1) % SIGNIN_DOODLES.length), 4200)
+    return () => window.clearInterval(t)
+  }, [])
+  const openEmail = () => {
+    // Keep the picture exactly where it is; the form grows below and the page scrolls.
+    if (heroRef.current) setHeroH(heroRef.current.offsetHeight)
+    setEmailOpen(true)
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 320)
+  }
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -45,8 +59,10 @@ export function AuthScreen() {
   return (
     <div className="signin-wrap">
       <div className="signin">
-        <div className="signin-hero" data-period={period}>
-          <svg className="scene" viewBox="0 0 230 170" aria-hidden="true" dangerouslySetInnerHTML={{ __html: SCENE_SVG.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '') }} />
+        <div className="signin-hero" ref={heroRef} style={heroH ? { flex: `0 0 ${heroH}px` } : undefined}>
+          <div className="signin-art" aria-hidden="true">
+            {SIGNIN_DOODLES.map((d, i) => <div key={d.name} className={`signin-slide${i === slide ? ' on' : ''}`} dangerouslySetInnerHTML={{ __html: d.svg }} />)}
+          </div>
           <div className="brand"><img src={`${base}favicon.svg`} alt="" />AttendWise</div>
           <a className="signin-back" href={WEBSITE}>Website</a>
         </div>
@@ -60,10 +76,10 @@ export function AuthScreen() {
 
           {message && <div role="status" className="signin-msg">{message}</div>}
 
-          {!emailOpen ? (
-            <button type="button" className="link signin-alt" onClick={() => setEmailOpen(true)}>Use email instead</button>
-          ) : (
-            <form className="signin-form" onSubmit={(e) => { e.preventDefault(); if (email.includes('@') && password.length >= 6) void go() }}>
+          {!emailOpen && <button type="button" className="link signin-alt" onClick={openEmail}>Use email instead</button>}
+          <div className={`signin-reveal${emailOpen ? ' open' : ''}`} ref={formRef} aria-hidden={!emailOpen}>
+            <div>
+              <form className="signin-form" onSubmit={(e) => { e.preventDefault(); if (email.includes('@') && password.length >= 6) void go() }}>
               <div className="signin-or"><span>or with email</span></div>
               <Segmented value={creating ? 'new' : 'in'} options={[['in', 'Sign in'], ['new', 'Create account']]} onChange={(v) => { setCreating(v === 'new'); setMessage(null) }} />
               {creating && <label className="field"><span>Your name</span><input className="input" value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" /></label>}
@@ -72,7 +88,8 @@ export function AuthScreen() {
               <button type="submit" className="btn block" style={{ minHeight: 54 }} disabled={busy || !email.includes('@') || password.length < 6}>{busy ? 'Please wait…' : creating ? 'Create account' : 'Sign in'}</button>
               {!creating && <button type="button" className="link" style={{ justifySelf: 'center' }} disabled={!email.includes('@') || busy} onClick={async () => setMessage(await s.resetPassword(email))}>Forgot password?</button>}
             </form>
-          )}
+            </div>
+          </div>
 
           <p className="small signin-legal">
             By continuing you agree to the <a href={`${site}terms.html`}>terms</a> and the <a href={`${site}privacy.html`}>privacy policy</a>.

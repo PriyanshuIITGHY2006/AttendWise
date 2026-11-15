@@ -158,6 +158,14 @@ export function Settings({ go }: { go: (route: string) => void }) {
       <div className="caps">Appearance</div>
       <Segmented value={s.theme} options={[['system', 'System'], ['light', 'Light'], ['dark', 'Dark']]} onChange={s.setTheme} />
 
+      <div className="caps">Help</div>
+      <Panel onClick={() => go('report')}>
+        <div className="set-row" style={{ gap: 12 }}>
+          <div className="grow"><div>Report a problem or idea</div><div className="small">Send a message to the developer, with screenshots if you like</div></div>
+          <Icon name="chevron_right" size={22} />
+        </div>
+      </Panel>
+
       <div className="caps">Sync</div>
       <Panel>
         <div style={{ padding: '4px 8px' }}>
